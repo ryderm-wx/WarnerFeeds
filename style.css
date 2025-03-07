@@ -65,6 +65,13 @@ body {
 }
 
 
+.left-section {
+    background-color: #444; /* Slightly darker color for the left section */
+    padding: 10px; /* Add padding for better spacing */
+    border-radius: 5px; /* Optional: Add rounded corners */
+    transition: background-color 0.5s ease; /* Smooth transition for background color */
+}
+
 /* Expiration bar with new color and drop shadow */
 .expiration-bar {
     background-color: rgba(84, 84, 84, 0); /* Make the background transparent */
@@ -76,11 +83,10 @@ body {
 
 
 .event-type-bar {
-    padding: 0px;
+    padding: 10px;
     font-size: 1.2em; /* Increase font size */
     font-weight: bold; /* Make font bold */
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); /* Add text shadow for better visibility */
-    background-color: rgba(0, 0, 0, 0.2);
 }
 
 .counties-bar {

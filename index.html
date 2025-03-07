@@ -13,10 +13,11 @@
     <div class="container">
         <!-- Unified alert section for expiration and scrolling warnings -->
         <div class="bottom-bar">
-            <div id="eventType" class="event-type-bar">EVENT TYPE</div>
+            <div class="left-section"> <!-- New div for the left section -->
+                <div id="eventType" class="event-type-bar">EVENT TYPE</div>
+            </div>
             <div id="counties" class="counties-bar">COUNTY NAMES</div>
             <div id="expiration" class="expiration-bar">Expiration Time</div>
-
         </div><br>
                      
         <!-- Warning List Display Area -->
@@ -59,7 +60,7 @@
             <label><input type="checkbox" value="Winter Storm Warning" checked> Winter Storm Warning</label><br>
             <label><input type="checkbox" value="Winter Storm Watch" checked> Winter Storm Watch</label><br>
             <label><input type="checkbox" value="Special Weather Statement" checked> Special Weather Statement</label><br>
-            <button id="saveButton">Save (HEADPHONE WARNING! ALL ACTIVE ALERTS YOU SELECT WILL PLAY SOUNDS AT THE SAME TIME!)</button>
+            <button id="saveButton">Save (HEADPHONE WARNING! THIS WILL BE LOUD IF YOU SELECT MANY ALERTS)</button>
         </div>
         <div>
             <button id="singleNotificationToggleButton">Enable Single Notification Que (Not operational at this time.)</button>
