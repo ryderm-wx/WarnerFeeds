@@ -59,17 +59,35 @@ body {
     background-color: #333; /* Default background color */
     padding: 10px; /* Add padding for better spacing */
     transition: background-color 0.5s ease; /* Smooth transition for background color */
-    position: fixed; /* Optional: Fix the bar at the bottom of the viewport */
-    top: 0; /* Position it at the bottom */
+    position: fixed; /* Optional: Fix the bar at the top of the viewport */
+    top: 0; /* Position it at the top */
     left: 0; /* Align it to the left edge */
+    height: 60px; /* Set a fixed height for the bottom bar */
+    align-items: stretch; /* Make child elements stretch to fill the height */
 }
-
 
 .left-section {
     background-color: #444; /* Slightly darker color for the left section */
     padding: 10px; /* Add padding for better spacing */
     border-radius: 5px; /* Optional: Add rounded corners */
-    transition: background-color 0.5s ease; /* Smooth transition for background color */
+    height: 100%; /* Make the left section take the full height of the bottom bar */
+    display: flex; /* Use flexbox for layout */
+    align-items: center; /* Center items vertically */
+}
+
+.event-type-bar {
+    font-size: 1.5em; /* Increase font size */
+    font-weight: bold; /* Make font bold */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); /* Add text shadow for better visibility */
+}
+
+.left-section {
+    background-color: rgba(0, 0, 0, 0.2); /* Slightly darker color for the left section */
+    padding: 10px; /* Add padding for better spacing */
+    border-radius: 5px; /* Optional: Add rounded corners */
+    height: 100%; /* Make the left section take the full height of the bottom bar */
+    display: flex; /* Use flexbox for layout */
+    align-items: center; /* Center items vertically */
 }
 
 /* Expiration bar with new color and drop shadow */
