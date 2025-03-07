@@ -102,12 +102,16 @@ body {
 }
 
 .counties-bar {
-    padding: 10px;
     font-size: 1.2em; /* Increase font size */
     font-weight: bold; /* Make font bold */
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); /* Add text shadow for better visibility */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); /* Add text shadow for better visibility */
+    background-color: rgba(0, 0, 0, 0.2);
+    display: flex; /* Use flexbox for layout */
     align-items: center; /* Center items vertically */
+    height: 100%; /* Make the counties bar take the full height of the bottom bar */
+    padding: 0 10px; /* Optional: Add horizontal padding */
 }
+
 
 
 /* Warning list area styling */
