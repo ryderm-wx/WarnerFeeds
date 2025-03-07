@@ -346,7 +346,7 @@ function updateDashboard() {
 
 function formatCountiesTopBar(areaDesc) {
     const counties = areaDesc.split('; ');
-    let formattedCounties = counties.slice(0, 6).map(county => {
+    let formattedCounties = counties.slice(0, 4).map(county => {
         const parts = county.split(',');
         if (parts.length > 1) {
             return `${parts[0].trim()} County, ${parts[1].trim()}`; // Format: "County name County, State"
