@@ -434,21 +434,10 @@ function updateWarningList(warnings) {
 }
 
 function playSound(soundFile) {
-    const audioFiles = {
-        'warning.wav': 'https://whyp.it/tracks/263764/warning?token=n1hdS',
-        'watch.wav': 'https://whyp.it/tracks/263765/watch?token=RsEaR',
-        'advisory.wav': 'https://whyp.it/tracks/263766/advisory?token=UD95Q'
-    };
-
-    const audioContainer = document.createElement('div');
-    audioContainer.innerHTML = audioFiles[soundFile]; // Use the iframe from the audioFiles object
-    document.body.appendChild(audioContainer); // Append the iframe to the body
-
-    // Optionally, you can remove the iframe after a certain time
-    setTimeout(() => {
-        audioContainer.remove(); // Remove the iframe after 5 seconds
-    }, 5000); // Adjust duration as needed
+    const audio = new Audio(`Sounds/${soundFile}`); // Adjust the path to your audio files
+    audio.play().catch(error => console.error('Error playing sound:', error));
 }
+
 
 
 
