@@ -12,7 +12,8 @@ const eventTypes = {
     "Winter Weather Advisory": "winter-weather-advisory",
     "Winter Storm Watch": "winter-storm-watch",
     "Winter Storm Warning": "winter-storm-warning",
-    "Special Weather Statement": "special-weather-statement"
+    "Special Weather Statement": "special-weather-statement",
+    "Ice Storm Warning": "ice-storm-warning"
 };
 
 //Last Updateed March 6 01:11 PM
@@ -28,9 +29,10 @@ const priority = {
     "Tornado Watch": 9,
     "Severe Thunderstorm Watch": 10,
     "Flash Flood Warning": 11,
-    "Winter Weather Advisory": 12,
-    "Winter Storm Watch": 13,
-    "Winter Storm Warning": 14
+    "Ice Storm Warning": 12,
+    "Winter Storm Warning": 13,
+    "Winter Weather Advisory": 14,
+    "Winter Storm Watch": 15,
 };
 
 const warningListElement = document.getElementById('warningList');
@@ -134,6 +136,9 @@ async function fetchWarnings() {
             } else if (eventName === "Winter Storm Warning") {
                 winterWeatherCount++; // Count winter storm warnings
             } else if (eventName === "Winter Storm Watch") {
+                winterWeatherCount++; // Count winter storm watches
+            }
+            else if (eventName === "Ice Storm Warning") {
                 winterWeatherCount++; // Count winter storm watches
             }
             else if (eventName === "Special Weather Statement") {
@@ -253,6 +258,9 @@ function getEventName(warning) {
     } else if (eventName === "Winter Storm Watch") {
         return "Winter Storm Watch"; // Winter Storm Watch
     }
+    else if (eventName === "Ice Storm Warning") {
+        return "Ice Storm Warning"; // Winter Storm Watch
+    }
     return eventName; // Return as is for other events
 }
 
@@ -306,6 +314,9 @@ function updateDashboard() {
         case "Winter Storm Warning":
             alertColor = 'rgb(255, 88, 233)'; // Pink
             break;
+        case "Ice Storm Warning":
+            alertColor = 'rgb(127, 33, 114)'; // Dark Pink
+            break;    
         case "Special Weather Statement":
             alertColor = 'rgb(61, 200, 255)';
             break;
@@ -508,6 +519,10 @@ function showNotification(warning) {
             break;
         case "Winter Storm Warning":
             alertColor = 'rgba(255, 88, 233, 0.9)'; // Pink
+            playSound('warning.wav'); // Play warning sound
+            break;
+        case "Ice Storm Warning":
+            alertColor = 'rgba(145, 29, 129, 0.9)'; // Pink
             playSound('warning.wav'); // Play warning sound
             break;
         case "Special Weather Statement":

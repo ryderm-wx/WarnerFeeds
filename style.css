@@ -213,6 +213,9 @@ body {
     background-color: #57dbff;
 }
 
+.ice-storm-warning {
+    background-color: #a01c7f;
+}
 /* Styling for warning list boxes */
 .warning-box {
     padding: 10px;
