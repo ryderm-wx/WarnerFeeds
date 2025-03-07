@@ -1,0 +1,472 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Bebas Neue', sans-serif;
+    background-color: #222222;
+    color: white;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.1em; /* Adjust this value for more letter spacing */
+    font-size: 1.2em; /* Increase the font size */
+}
+
+
+
+
+.container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Unified alert container for expiration and scrolling text bars */
+.alert-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+/* Expiration bar with new color and drop shadow */
+.expiration-bar {
+    background-color: rgba(84, 84, 84, 0.9);
+    padding: 10px;
+    font-size: 1.1em;
+    text-align: center;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); /* Drop shadow for expiration bar */
+}
+
+/* Bottom bar for event type and counties */
+/* 
+ * .bottom-bar
+ * 
+ * This class styles a bottom bar element that stretches across the 
+ * entire width of the page. It uses flexbox for layout and includes 
+ * a smooth transition effect for background color changes.
+ */
+ .bottom-bar {
+    width: 100%; /* Ensure the bottom bar stretches across the full width of the page */
+    display: flex; /* Use flexbox for layout */
+    justify-content: space-between; /* Ensure space between items */
+    background-color: #333; /* Default background color */
+    padding: 10px; /* Add padding for better spacing */
+    transition: background-color 0.5s ease; /* Smooth transition for background color */
+    position: fixed; /* Optional: Fix the bar at the bottom of the viewport */
+    top: 0; /* Position it at the bottom */
+    left: 0; /* Align it to the left edge */
+}
+
+
+/* Expiration bar with new color and drop shadow */
+.expiration-bar {
+    background-color: rgba(84, 84, 84, 0); /* Make the background transparent */
+    padding: 10px;
+    font-size: 1.0em;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8); /* Enhanced drop shadow */
+}
+
+
+.event-type-bar {
+    padding: 10px;
+    font-size: 1.2em; /* Increase font size */
+    font-weight: bold; /* Make font bold */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); /* Add text shadow for better visibility */
+}
+
+.counties-bar {
+    padding: 10px;
+    font-size: 1.2em; /* Increase font size */
+    font-weight: bold; /* Make font bold */
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); /* Add text shadow for better visibility */
+}
+
+
+/* Warning list area styling */
+.warning-list {
+    overflow-y: auto;
+    margin-top: 30px; /* Increase margin to move the alerts further down */
+    flex-grow: 1;
+}
+/* Warning count section */
+.warning-counts {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.warning-count {
+    flex: 1;
+    padding: 10px;
+    margin: 5px;
+    text-align: center;
+    font-size: 1.1em;
+    text-shadow: 1px 1px 2px black;
+    text-transform: uppercase;
+    color: white;
+    font-size: 1.2em; /* Increase the font size */
+}
+
+.tornado-count {
+    background-color: red;
+}
+
+.thunderstorm-count {
+    background-color: #FFA500;
+}
+
+.flood-count {
+    background-color: #006400;
+}
+
+/* Winter Weather Count Box Color */
+.winter-weather-count {
+    background-color: purple; /* Customize this color for winter weather count box */
+}
+
+/* Event-specific colors for event type bar */
+.tornado-warning {
+    background-color: red;
+}
+
+.observed-tornado-warning {
+    background-color: darkred;
+}
+
+.pds-tornado-warning {
+    background-color: purple;
+}
+
+.tornado-emergency {
+    background-color: pink;
+}
+
+.severe-thunderstorm-warning {
+    background-color: #FFA500;
+}
+
+.severe-thunderstorm-considerable {
+    background-color: #FFA500;
+}
+
+.pds-severe-thunderstorm-warning {
+    background-color: #FF8C00;
+}
+
+.flash-flood-warning {
+    background-color: #006400;
+}
+
+.tornado-watch {
+    background-color: #e9cd2f;
+}
+
+.severe-thunderstorm-watch {
+    background-color: #be428b;
+}
+
+/* Winter weather advisories, watches, and warnings */
+.winter-weather-advisory {
+    background-color: purple; /* Light purple for winter weather advisories */
+}
+
+.winter-storm-watch {
+    background-color: blue; /* Blue for winter storm watches */
+}
+
+.winter-storm-warning {
+    background-color: pink; /* Pink for winter storm warnings */
+}
+
+.special-weather-statement {
+    background-color: #57dbff;
+}
+
+/* Styling for warning list boxes */
+.warning-box {
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 5px;
+    text-shadow: 1px 1px 2px black;
+    color: white;
+    font-weight: bold;
+}
+
+.warning-box.tornado-warning {
+    background-color: red;
+}
+
+.warning-box.severe-thunderstorm-warning {
+    background-color: #FFA500;
+}
+
+.warning-box.severe-thunderstorm-considerable {
+    background-color: #ff8000;
+}
+
+.warning-box.pds-severe-thunderstorm-warning {
+    background-color: #FF8C00;
+}
+
+.warning-box.flash-flood-warning {
+    background-color: #006400;
+}
+
+.warning-box.tornado-watch {
+    background-color: #FF6961;
+}
+
+.warning-box.severe-thunderstorm-watch {
+    background-color: #FFD700;
+}
+
+.warning-box.winter-weather-advisory {
+    background-color: purple; /* Winter Weather Advisory */
+}
+
+.warning-box.winter-storm-watch {
+    background-color: blue; /* Winter Storm Watch */
+}
+
+.warning-box.winter-storm-warning {
+    background-color: pink; /* Winter Storm Warning */
+}
+
+@keyframes scroll {
+    from {
+        transform: translateY(100%); /* Start from below */
+        opacity: 0; /* Start invisible */
+    }
+    to {
+        transform: translateY(0); /* End at original position */
+        opacity: 1; /* Fully visible */
+    }
+}
+
+.warning-box {
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 5px;
+    color: white; /* Ensure text color is white */
+    font-weight: bold; /* Make warning box text bold */
+    position: relative; /* Relative positioning for animated text */
+}
+
+.animated-text {
+    animation: scroll 0.5s ease-in-out; /* Apply scrolling animation */
+    display: inline-block; /* Allow inline block to support transform */
+}
+
+/* Add specific event type colors if not already present */
+.tornado-warning { background-color: red; }
+.observed-tornado-warning { background-color: darkred; }
+.pds-tornado-warning { background-color: purple; }
+.tornado-emergency { background-color: rgb(255, 0, 255); }
+.severe-thunderstorm-warning { background-color: orange; }
+.severe-thunderstorm-considerable { background-color: #FFA500; }
+.pds-severe-thunderstorm-warning { background-color: #FF8C00; }
+.flash-flood-warning { background-color: #006400; }
+.tornado-watch { background-color: #FF6961; }
+.severe-thunderstorm-watch { background-color: #FFD700; }
+
+@keyframes flash {
+    0% { background-color: rgba(255, 255, 255, 0.5); } /* Flash color */
+    100% { background-color: inherit; } /* Original color */
+}
+
+.warning-count {
+    flex: 1;
+    padding: 10px;
+    margin: 5px;
+    text-align: center;
+    font-size: 1.1em;
+    text-shadow: 1px 1px 2px black; /* Drop shadow */
+    text-transform: uppercase;
+}
+
+/* Warning count bars positioned at the bottom */
+.warning-counts {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.warning-count {
+    flex: 1;
+    padding: 10px;
+    margin: 5px;
+    text-align: center;
+    font-size: 1.1em;
+    text-shadow: 1px 1px 2px black; /* Drop shadow */
+    text-transform: uppercase;
+    color: white; /* Make all text white by default */
+    border-radius: 10px; /* Add rounded edges */
+}
+
+/* Customizable colors for each warning type */
+.tornado-count {
+    background-color: red; /* Customize tornado count color */
+}
+
+.thunderstorm-count {
+    background-color: #FFA500; /* Customize thunderstorm count color (Yellow-Orange) */
+    color: white; /* Ensure text color is white */
+}
+
+.flood-count {
+    background-color: #006400; /* Customize flash flood count color (Darker Green) */
+}
+
+/* Apply flash animation to the warning count boxes */
+@keyframes flash {
+    0% { background-color: rgba(255, 255, 255, 0.5); } /* Flash color */
+    100% { background-color: transparent; } /* Original color */
+}
+
+/* Apply flash animation to the warning count boxes */
+.warning-count {
+    /* Existing styles */
+    transition: background-color 0.5s; /* Smooth transition */
+}
+
+.slide-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background-color: rgb(100, 100, 100); /* Darker version of the existing color */
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transition: transform 0.5s ease-in-out;
+    z-index: 1000; /* Ensure it's above other content */
+    font-family: 'Bebas Neue', sans-serif; /* Same font as the rest of the application */
+}
+
+.slide-notification-title {
+    font-weight: bold;
+    color: white; /* Ensure the title is visible against the darker background */
+}
+
+.slide-notification-message {
+    margin-top: 5px;
+    color: white; /* Ensure the message is visible against the darker background */
+}
+
+
+.warning-list-header {
+    font-size: 25px; /* Adjust the size to your preference */
+    font-weight: bold; /* Makes the text bold */
+    margin-bottom: 10px; /* Space below the header */
+    margin-top: 30px; /* Add margin to move the title further down */
+    color: white; /* Change color to match your theme */
+    text-align: center; /* Center align the text */
+}
+
+.winter-weather-advisory {
+    background-color: rgb(169, 81, 220);
+}
+
+.winter-storm-watch {
+    background-color: rgb(0, 0, 255);
+}
+
+.winter-storm-warning {
+    background-color: rgb(255, 88, 233);
+}
+
+/* Other CSS rules remain unchanged */
+
+/* Winter Weather Count Box Color */
+.winter-weather-count {
+    background-color: #DDA0DD; /* Light purple color */
+    color: white; /* Ensure the text color is white */
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateY(0); /* Start at original position */
+        opacity: 1; /* Fully visible */
+    }
+    to {
+        transform: translateY(100%); /* Slide out of view */
+        opacity: 0; /* Fade out */
+    }
+}
+
+.notification-popup {
+    position: fixed;
+    bottom: 20px; /* Position at the bottom left */
+    left: 20px; /* Position at the bottom left */
+    max-width: 300px;
+    color: white; /* Text color */
+    border-radius: 5px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+    font-family: 'Bebas Neue', sans-serif; /* Custom font */
+    z-index: 1000;
+    overflow: hidden;
+    opacity: 0; /* Start invisible */
+    animation: slideIn 0.5s forwards; /* Fade in effect */
+}
+
+.notification-popup.slide-out {
+    animation: slideOut 0.5s forwards; /* Slide out effect */
+}
+
+
+.notification-title {
+    padding: 10px;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    font-family: 'Bebas Neue', sans-serif; /* Custom font */
+    background-color: rgba(0, 0, 0, 0.0);
+}
+
+.notification-message {
+    padding: 10px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    font-family: 'Bebas Neue', sans-serif; /* Custom font */
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+
+@keyframes slideIn {
+    from {
+        transform: translateY(100%); /* Start from below */
+        opacity: 0; /* Start invisible */
+    }
+    to {
+        transform: translateY(0); /* End at original position */
+        opacity: 1; /* Fully visible */
+    }
+}
+
+.test-buttons button {
+    flex: 0 0 calc(50% - 10px); /* Two buttons per row with some spacing */
+    margin-bottom: 10px; /* Space below each button */
+    padding: 8px 12px; /* Smaller padding for smaller buttons */
+    font-size: 0.9em; /* Smaller font size */
+    border: none; /* Remove default border */
+    border-radius: 5px; /* Rounded corners */
+    background-color: #444; /* Dark background color */
+    color: white; /* White text color */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background-color 0.3s; /* Smooth transition for hover effect */
+}
+
+.test-buttons button:hover {
+    background-color: #666; /* Lighter background on hover */
+}
+
+
+
+
+/* Other CSS rules remain unchanged */

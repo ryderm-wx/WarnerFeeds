@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Warning Dashboard (James Pettus is a pussy)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Unified alert section for expiration and scrolling warnings -->
+        <div class="bottom-bar">
+            <div id="eventType" class="event-type-bar">EVENT TYPE</div>
+            <div id="counties" class="counties-bar">COUNTY NAMES</div>
+            <div id="expiration" class="expiration-bar">Expiration Time</div>
+
+        </div><br>
+                     
+        <!-- Warning List Display Area -->
+        <div id="warningList" class="warning-list"></div>
+        
+        <!-- Warning Counts positioned at the bottom -->
+        <div class="warning-counts">
+            <div id="tornadoCount" class="warning-count tornado-count">TORNADO WARNINGS: 0</div>
+            <div id="thunderstormCount" class="warning-count thunderstorm-count">SEVERE THUNDERSTORM WARNINGS: 0</div>
+            <div id="floodCount" class="warning-count flood-count">FLASH FLOOD WARNINGS: 0</div>
+            <div id="winterWeatherCount" class="warning-count winter-weather-count">WINTER WEATHER WARNINGS: 0</div>
+            <!-- Added winter weather count -->
+        </div>
+        <div class="test-buttons">
+            <h3>Test Notifications</h3>
+            <button onclick="testNotification('Radar Indicated Tornado Warning')">Test Radar Indicated Tornado Warning</button>
+            <button onclick="testNotification('Observed Tornado Warning')">Test Observed Tornado Warning</button>
+            <button onclick="testNotification('PDS Tornado Warning')">Test PDS Tornado Warning</button>
+            <button onclick="testNotification('Tornado Emergency')">Test Tornado Emergency</button>
+            <button onclick="testNotification('Severe Thunderstorm Warning')">Test Severe Thunderstorm Warning</button>
+            <button onclick="testNotification('Considerable Severe Thunderstorm Warning')">Test Considerable Severe Thunderstorm Warning</button>
+            <button onclick="testNotification('Destructive Severe Thunderstorm Warning')">Test Destructive Severe Thunderstorm Warning</button>
+            <button onclick="testNotification('Flash Flood Warning')">Test Flash Flood Warning</button>
+            <button onclick="testNotification('Tornado Watch')">Test Tornado Watch</button>
+            <button onclick="testNotification('Severe Thunderstorm Watch')">Test Severe Thunderstorm Watch</button>
+            <button onclick="testNotification('Winter Weather Advisory')">Test Winter Weather Advisory</button>
+            <button onclick="testNotification('Winter Storm Watch')">Test Winter Storm Watch</button>
+            <button onclick="testNotification('Winter Storm Warning')">Test Winter Storm Warning</button>
+            <button onclick="testNotification('Special Weather Statement')">Test Special Weather Statement</button>
+            <button onclick="testMostRecentAlert()">Test Most Recent Alert</button> <!-- New button -->
+        </div>
+        <div class="checkbox-container">
+            <h3>Select Alerts to Show:</h3>
+            <label><input type="checkbox" value="Tornado Warning" checked> Tornado Warning</label><br>
+            <label><input type="checkbox" value="Severe Thunderstorm Warning" checked> Severe Thunderstorm Warning</label><br>
+            <label><input type="checkbox" value="Flash Flood Warning" checked> Flash Flood Warning</label><br>
+            <label><input type="checkbox" value="Tornado Watch" checked> Tornado Watch</label><br>
+            <label><input type="checkbox" value="Severe Thunderstorm Watch" checked> Severe Thunderstorm Watch</label><br>
+            <label><input type="checkbox" value="Winter Weather Advisory" checked> Winter Weather Advisory</label><br>
+            <label><input type="checkbox" value="Winter Storm Warning" checked> Winter Storm Warning</label><br>
+            <label><input type="checkbox" value="Winter Storm Watch" checked> Winter Storm Watch</label><br>
+            <label><input type="checkbox" value="Special Weather Statement" checked> Special Weather Statement</label><br>
+            <button id="saveButton">Save</button>
+        </div>
+        <div>
+            <button id="singleNotificationToggleButton">Enable Single Notification Que (Not operational at this time.)</button>
+        </div>
+    <script src="script.js"></script>
+</body>
+</html>
