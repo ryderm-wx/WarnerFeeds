@@ -62,7 +62,7 @@ body {
     position: fixed; /* Optional: Fix the bar at the top of the viewport */
     top: 0; /* Position it at the top */
     left: 0; /* Align it to the left edge */
-    height: 40px; /* Set a fixed height for the bottom bar */
+    height: 60px; /* Set a fixed height for the bottom bar */
     align-items: stretch; /* Make child elements stretch to fill the height */
 }
 
@@ -73,12 +73,6 @@ body {
     height: 100%; /* Make the left section take the full height of the bottom bar */
     display: flex; /* Use flexbox for layout */
     align-items: center; /* Center items vertically */
-}
-
-.event-type-bar {
-    font-size: 1.5em; /* Increase font size */
-    font-weight: bold; /* Make font bold */
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); /* Add text shadow for better visibility */
 }
 
 .left-section {
