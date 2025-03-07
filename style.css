@@ -76,10 +76,11 @@ body {
 
 
 .event-type-bar {
-    padding: 10px;
+    padding: 0px;
     font-size: 1.2em; /* Increase font size */
     font-weight: bold; /* Make font bold */
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); /* Add text shadow for better visibility */
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
 .counties-bar {
