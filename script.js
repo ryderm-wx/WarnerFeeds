@@ -88,6 +88,8 @@ saveButton.addEventListener('click', () => {
     updateWarningList(activeWarnings); 
 });
 
+
+
 async function fetchWarnings() {
     try {
         const response = await fetch('https://api.weather.gov/alerts/active');
@@ -103,6 +105,13 @@ async function fetchWarnings() {
 
         warnings.forEach(warning => {
             const eventName = warning.properties.event;
+
+            // Extract max wind and hail for severe thunderstorm warnings and special weather statements
+            if (eventName === "Severe Thunderstorm Warning" || eventName === "Special Weather Statement") {
+                maxWind = warning.properties.parameters?.maxWindGust?.[0] || 'N/A';
+                maxHail = warning.properties.parameters?.maxHailSize?.[0] || 'N/A';
+            }
+
             if (eventName === "Tornado Warning") {
                 const detectionType = warning.properties.parameters?.tornadoDetection?.[0]; 
                 const damageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0]; 
@@ -134,51 +143,47 @@ async function fetchWarnings() {
                 winterWeatherCount++; 
             } else if (eventName === "Winter Storm Watch") {
                 winterWeatherCount++; 
-            }
-            else if (eventName === "Blizzard Warning") {
+            } else if (eventName === "Blizzard Warning") {
+                winterWeatherCount++; 
+            } else if (eventName === "Ice Storm Warning") {
                 winterWeatherCount++; 
             }
-            else if (eventName === "Ice Storm Warning") {
-                winterWeatherCount++; 
-            }
-            else if (eventName === "Special Weather Statement") {
-                
-            }
-        });
 
-        tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
-        thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
-        floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
-        winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; 
+            tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
+            thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount} (Max Wind: ${maxWind}, Max Hail: ${maxHail})`;
+            floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
+            winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; 
 
-        warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
+            warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
 
-        activeWarnings = warnings;
+            activeWarnings = warnings;
 
-        updateWarningList(warnings);
+            updateWarningList(warnings);
 
-        warnings.forEach(warning => {
-            const warningId = warning.id;
-            const eventName = getEventName(warning);
+            warnings.forEach(warning => {
+                const warningId = warning.id;
+                const eventName = getEventName(warning);
 
-            if (!previousWarningIds.has(warningId)) {
-                previousWarningIds.add(warningId); 
-                showNotification(warning); 
-            } else {
-
-                const previousEvent = previousWarnings.get(warningId);
-                if (previousEvent && previousEvent !== eventName) {
+                if (!previousWarningIds.has(warningId)) {
+                    previousWarningIds.add(warningId); 
                     showNotification(warning); 
+                } else {
+                    const previousEvent = previousWarnings.get(warningId);
+                    if (previousEvent && previousEvent !== eventName) {
+                        showNotification(warning); 
+                    }
                 }
-            }
 
-            previousWarnings.set(warningId, eventName);
+                previousWarnings.set(warningId, eventName);
+            });
+
         });
 
     } catch (error) {
         console.error('Error fetching warnings:', error);
     }
 }
+
 
 function testNotification(eventName) {
     const warning = {
@@ -266,86 +271,106 @@ function getEventName(warning) {
 
 let currentCountyIndex = 0;
 
-function updateDashboard() {
-    if (activeWarnings.length === 0) {
-        expirationElement.textContent = '';
-        eventTypeElement.textContent = 'NO ACTIVE WARNINGS';
-        countiesElement.textContent = '';
-        document.querySelector('.bottom-bar').style.backgroundColor = '#333'; 
-        return;
-    }
-
-    const warning = activeWarnings[currentWarningIndex];
-    let eventName = getEventName(warning); 
+function showNotification(warning) {
+    const eventName = getEventName(warning);
+    const counties = formatCountiesTopBar(warning.properties.areaDesc);
+    const callToAction = getCallToAction(eventName);
+    
+    const notification = document.createElement('div');
+    notification.className = 'notification-popup'; 
 
     let alertColor;
     switch (eventName) {
         case "Radar Indicated Tornado Warning":
             alertColor = 'rgb(255, 0, 0)'; 
+            playSound('warning.wav'); 
             break;
         case "Observed Tornado Warning":
             alertColor = 'rgb(139, 0, 0)'; 
+            playSound('warning.wav'); 
             break;
         case "PDS Tornado Warning":
             alertColor = 'rgb(128, 0, 128)'; 
+            playSound('warning.wav'); 
             break;
         case "Tornado Emergency":
             alertColor = 'rgb(255, 0, 255)'; 
+            playSound('warning.wav'); 
             break;
         case "Severe Thunderstorm Warning":
             alertColor = 'rgb(255, 166, 0)'; 
+            playSound('warning.wav'); 
             break;
         case "Flash Flood Warning":
             alertColor = 'rgb(0, 100, 0)'; 
+            playSound('warning.wav'); 
             break;
         case "Tornado Watch":
-            alertColor = 'rgb(255, 238, 0)'; 
+            alertColor = 'rgb(255, 217, 0)'; 
+            playSound('watch.wav'); 
             break;
         case "Severe Thunderstorm Watch":
-            alertColor = 'rgb(255, 105, 180)'; 
+            alertColor = 'rgb(211, 90, 175)'; 
+            playSound('watch.wav'); 
             break;
         case "Winter Weather Advisory":
             alertColor = 'rgb(169, 81, 220)'; 
+            playSound('advisory.wav'); 
             break;
         case "Winter Storm Watch":
             alertColor = 'rgb(0, 0, 255)'; 
+            playSound('watch.wav'); 
             break;
         case "Winter Storm Warning":
             alertColor = 'rgb(255, 88, 233)'; 
+            playSound('warning.wav'); 
             break;
         case "Ice Storm Warning":
-            alertColor = 'rgb(127, 33, 114)'; 
+            alertColor = 'rgb(145, 29, 130)'; 
+            playSound('warning.wav'); 
             break;
-        case "Blizzard Warning":
-            alertColor = 'rgb(255, 72, 44)'; 
-            break;    
         case "Special Weather Statement":
-            alertColor = 'rgb(61, 200, 255)';
+            alertColor = 'rgb(135, 223, 255)'; 
+            playSound('advisory.wav'); 
             break;
         default:
-            alertColor = '#333'; 
+            alertColor = 'rgba(255, 255, 255, 0.9)'; 
             break;
     }
 
-    document.querySelector('.bottom-bar').style.backgroundColor = alertColor;
+    notification.style.backgroundColor = alertColor;
 
-    const expirationDate = new Date(warning.properties.expires);
-    const options = { 
-        timeZoneName: 'short',
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    };
-    const formattedExpirationTime = expirationDate.toLocaleString('en-US', options);
-    const counties = formatCountiesTopBar(warning.properties.areaDesc);
-    expirationElement.textContent = `Expires: ${formattedExpirationTime}`;
-    eventTypeElement.textContent = eventName; 
-    countiesElement.textContent = counties;
-    currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
+    const title = document.createElement('div');
+    title.className = 'notification-title';
+    title.textContent = eventName;
+
+    const countiesSection = document.createElement('div');
+    countiesSection.className = 'notification-message';
+    countiesSection.textContent = counties;
+
+    const actionSection = document.createElement('div');
+    actionSection.className = 'notification-calltoaction';
+    actionSection.textContent = callToAction;
+
+    // Add wind and hail information to the notification
+
+
+    notification.appendChild(title);
+    notification.appendChild(countiesSection);
+    notification.appendChild(actionSection);
+
+    document.body.appendChild(notification);
+
+    notification.style.opacity = 1;
+
+    setTimeout(() => {
+        notification.classList.add('slide-out'); 
+        setTimeout(() => {
+            notification.remove(); 
+        }, 500); 
+    }, 10000); 
 }
+
 
 function formatCountiesTopBar(areaDesc) {
     const counties = areaDesc.split('; ');
@@ -442,11 +467,11 @@ function playSound(soundFile) {
     audio.play().catch(error => console.error('Error playing sound:', error));
 }
 
-function showNotification(warning) {
+function showNotification(warning, maxWind, maxHail) {
     const eventName = getEventName(warning);
     const counties = formatCountiesTopBar(warning.properties.areaDesc);
-    const callToAction = "Stay Safe & Take Appropriate Action!"; 
-
+    const callToAction = getCallToAction(eventName);
+    
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
 
@@ -473,13 +498,13 @@ function showNotification(warning) {
             playSound('warning.wav'); 
             break;
         case "Considerable Severe Thunderstorm Warning":
-            alertColor = 'rgb(255, 140, 0)';
-            playSound('warning.wav');
+            alertColor = 'rgb(255, 132, 0)'; 
+            playSound('warning.wav'); 
             break;
         case "Destructive Severe Thunderstorm Warning":
-            alertColor = 'rgb(255, 102, 0)';
-            playSound('warning.wav');
-            break;
+            alertColor = 'rgb(255, 112, 0)'; 
+            playSound('warning.wav'); 
+            break;        
         case "Flash Flood Warning":
             alertColor = 'rgb(0, 100, 0)'; 
             playSound('warning.wav'); 
@@ -489,7 +514,7 @@ function showNotification(warning) {
             playSound('watch.wav'); 
             break;
         case "Severe Thunderstorm Watch":
-            alertColor = 'rgb(225, 74, 180)'; 
+            alertColor = 'rgb(211, 90, 175)'; 
             playSound('watch.wav'); 
             break;
         case "Winter Weather Advisory":
@@ -500,10 +525,6 @@ function showNotification(warning) {
             alertColor = 'rgb(0, 0, 255)'; 
             playSound('watch.wav'); 
             break;
-        case "Blizzard Warning":
-            alertColor = 'rgb(255, 74, 13)'; 
-            playSound('warning.wav'); 
-            break;    
         case "Winter Storm Warning":
             alertColor = 'rgb(255, 88, 233)'; 
             playSound('warning.wav'); 
@@ -513,8 +534,12 @@ function showNotification(warning) {
             playSound('warning.wav'); 
             break;
         case "Special Weather Statement":
-            alertColor = 'rgb(135, 223, 255)';
-            playSound('advisory.wav');
+            alertColor = 'rgb(135, 223, 255)'; 
+            playSound('advisory.wav'); 
+            break;
+        case "Blizzard Warning":
+            alertColor = 'rgb(255, 80, 27)'; 
+            playSound('warning.wav'); 
             break;
         default:
             alertColor = 'rgba(255, 255, 255, 0.9)'; 
@@ -532,12 +557,18 @@ function showNotification(warning) {
     countiesSection.textContent = counties;
 
     const actionSection = document.createElement('div');
-    actionSection.className = 'notification-message';
+    actionSection.className = 'notification-calltoaction';
     actionSection.textContent = callToAction;
 
+    // Create wind and hail section for severe thunderstorms
+
+    // Append elements in the desired order
     notification.appendChild(title);
     notification.appendChild(countiesSection);
-    notification.appendChild(actionSection);
+    
+    // Append wind and hail section if it exists
+
+    notification.appendChild(actionSection); // Action section is now the last part
 
     document.body.appendChild(notification);
 
@@ -549,6 +580,114 @@ function showNotification(warning) {
             notification.remove(); 
         }, 500); 
     }, 10000); 
+}
+
+function getCallToAction(eventName) {
+    switch (eventName) {
+        case "Radar Indicated Tornado Warning":
+        case "Observed Tornado Warning":
+            return "Seek shelter now!";
+        case "PDS Tornado Warning":
+        case "Tornado Emergency":
+            return "Seek shelter now! You are in a life-threatening situation!";
+        case "Severe Thunderstorm Warning":
+        case "Considerable Severe Thunderstorm Warning":
+        case "Destructive Severe Thunderstorm Warning":
+            return "Seek shelter indoors away from windows!";
+        case "Flash Flood Warning":
+            return "Seek higher ground now!";
+        case "Tornado Watch":
+        case "Severe Thunderstorm Watch":
+        case "Winter Weather Advisory":
+        case "Winter Storm Watch":
+        case "Blizzard Warning":
+        case "Winter Storm Warning":
+        case "Ice Storm Warning":
+            return "Stay tuned for further info!";
+        default:
+            return "Take Appropriate Action!";
+    }
+}
+
+function updateDashboard() {
+    if (activeWarnings.length === 0) {
+        expirationElement.textContent = '';
+        eventTypeElement.textContent = 'NO ACTIVE WARNINGS';
+        countiesElement.textContent = '';
+        document.querySelector('.bottom-bar').style.backgroundColor = '#333'; 
+        return;
+    }
+
+    const warning = activeWarnings[currentWarningIndex];
+    let eventName = getEventName(warning); 
+
+    let alertColor;
+    switch (eventName) {
+        case "Radar Indicated Tornado Warning":
+            alertColor = 'rgb(255, 0, 0)'; 
+            break;
+        case "Observed Tornado Warning":
+            alertColor = 'rgb(139, 0, 0)'; 
+            break;
+        case "PDS Tornado Warning":
+            alertColor = 'rgb(128, 0, 128)'; 
+            break;
+        case "Tornado Emergency":
+            alertColor = 'rgb(255, 0, 255)'; 
+            break;
+        case "Severe Thunderstorm Warning":
+            alertColor = 'rgb(255, 166, 0)'; 
+            break;
+        case "Flash Flood Warning":
+            alertColor = 'rgb(0, 100, 0)'; 
+            break;
+        case "Tornado Watch":
+            alertColor = 'rgb(255, 238, 0)'; 
+            break;
+        case "Severe Thunderstorm Watch":
+            alertColor = 'rgb(255, 105, 180)'; 
+            break;
+        case "Winter Weather Advisory":
+            alertColor = 'rgb(169, 81, 220)'; 
+            break;
+        case "Winter Storm Watch":
+            alertColor = 'rgb(0, 0, 255)'; 
+            break;
+        case "Winter Storm Warning":
+            alertColor = 'rgb(255, 88, 233)'; 
+            break;
+        case "Ice Storm Warning":
+            alertColor = 'rgb(127, 33, 114)'; 
+            break;
+        case "Blizzard Warning":
+            alertColor = 'rgb(255, 72, 44)'; 
+            break;    
+        case "Special Weather Statement":
+            alertColor = 'rgb(61, 200, 255)';
+            break;
+        default:
+            alertColor = '#333'; 
+            break;
+    }
+
+    document.querySelector('.bottom-bar').style.backgroundColor = alertColor;
+
+    const expirationDate = new Date(warning.properties.expires);
+    const options = { 
+        timeZoneName: 'short',
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    };
+    const formattedExpirationTime = expirationDate.toLocaleString('en-US', options);
+    const counties = formatCountiesTopBar(warning.properties.areaDesc);
+    expirationElement.textContent = `Expires: ${formattedExpirationTime}`;
+    eventTypeElement.textContent = eventName; 
+    countiesElement.textContent = counties;
+    currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
 }
 
 document.addEventListener('DOMContentLoaded', () => {

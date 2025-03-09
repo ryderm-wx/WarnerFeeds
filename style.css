@@ -436,8 +436,18 @@ body {
     padding: 10px;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     font-family: 'Bebas Neue', sans-serif; 
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.2);
 }
+
+
+.notification-calltoaction {
+    padding: 10px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    font-family: 'Bebas Neue', sans-serif; 
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+
 
 @keyframes slideIn {
     from {
