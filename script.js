@@ -453,67 +453,67 @@ function showNotification(warning) {
     let alertColor;
     switch (eventName) {
         case "Radar Indicated Tornado Warning":
-            alertColor = 'rgba(255, 0, 0, 0.9)'; 
+            alertColor = 'rgb(255, 0, 0)'; 
             playSound('warning.wav'); 
             break;
         case "Observed Tornado Warning":
-            alertColor = 'rgba(139, 0, 0, 0.9)'; 
+            alertColor = 'rgb(139, 0, 0)'; 
             playSound('warning.wav'); 
             break;
         case "PDS Tornado Warning":
-            alertColor = 'rgba(128, 0, 128, 0.9)'; 
+            alertColor = 'rgb(128, 0, 128)'; 
             playSound('warning.wav'); 
             break;
         case "Tornado Emergency":
-            alertColor = 'rgba(255, 0, 255, 0.9)'; 
+            alertColor = 'rgb(255, 0, 255)'; 
             playSound('warning.wav'); 
             break;
         case "Severe Thunderstorm Warning":
-            alertColor = 'rgba(255, 165, 0, 0.9)'; 
+            alertColor = 'rgb(255, 166, 0)'; 
             playSound('warning.wav'); 
             break;
         case "Considerable Severe Thunderstorm Warning":
-            alertColor = 'rgba(255, 140, 0, 0.9)';
+            alertColor = 'rgb(255, 140, 0)';
             playSound('warning.wav');
             break;
         case "Destructive Severe Thunderstorm Warning":
-            alertColor = 'rgba(255, 100, 0, 0.9)';
+            alertColor = 'rgb(255, 102, 0)';
             playSound('warning.wav');
             break;
         case "Flash Flood Warning":
-            alertColor = 'rgba(0, 100, 0, 0.9)'; 
+            alertColor = 'rgb(0, 100, 0)'; 
             playSound('warning.wav'); 
             break;
         case "Tornado Watch":
-            alertColor = 'rgba(255, 215, 0, 0.9)'; 
+            alertColor = 'rgb(255, 217, 0)'; 
             playSound('watch.wav'); 
             break;
         case "Severe Thunderstorm Watch":
-            alertColor = 'rgba(225, 74, 180, 0.9)'; 
+            alertColor = 'rgb(225, 74, 180)'; 
             playSound('watch.wav'); 
             break;
         case "Winter Weather Advisory":
-            alertColor = 'rgba(169, 81, 220, 0.9)'; 
+            alertColor = 'rgb(169, 81, 220)'; 
             playSound('advisory.wav'); 
             break;
         case "Winter Storm Watch":
-            alertColor = 'rgba(0, 0, 255, 0.9)'; 
+            alertColor = 'rgb(0, 0, 255)'; 
             playSound('watch.wav'); 
             break;
         case "Blizzard Warning":
-            alertColor = 'rgba(255, 74, 13, 0.9)'; 
+            alertColor = 'rgb(255, 74, 13)'; 
             playSound('warning.wav'); 
             break;    
         case "Winter Storm Warning":
-            alertColor = 'rgba(255, 88, 233, 0.9)'; 
+            alertColor = 'rgb(255, 88, 233)'; 
             playSound('warning.wav'); 
             break;
         case "Ice Storm Warning":
-            alertColor = 'rgba(145, 29, 129, 0.9)'; 
+            alertColor = 'rgb(145, 29, 130)'; 
             playSound('warning.wav'); 
             break;
         case "Special Weather Statement":
-            alertColor = 'rgba(135, 223, 255, 0.9)';
+            alertColor = 'rgb(135, 223, 255)';
             playSound('advisory.wav');
             break;
         default:
