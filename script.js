@@ -106,12 +106,6 @@ async function fetchWarnings() {
         warnings.forEach(warning => {
             const eventName = warning.properties.event;
 
-            // Extract max wind and hail for severe thunderstorm warnings and special weather statements
-            if (eventName === "Severe Thunderstorm Warning" || eventName === "Special Weather Statement") {
-                maxWind = warning.properties.parameters?.maxWindGust?.[0] || 'N/A';
-                maxHail = warning.properties.parameters?.maxHailSize?.[0] || 'N/A';
-            }
-
             if (eventName === "Tornado Warning") {
                 const detectionType = warning.properties.parameters?.tornadoDetection?.[0]; 
                 const damageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0]; 
@@ -150,7 +144,7 @@ async function fetchWarnings() {
             }
 
             tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
-            thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount} (Max Wind: ${maxWind}, Max Hail: ${maxHail})`;
+            thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
             floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
             winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; 
 
@@ -467,7 +461,7 @@ function playSound(soundFile) {
     audio.play().catch(error => console.error('Error playing sound:', error));
 }
 
-function showNotification(warning, maxWind, maxHail) {
+function showNotification(warning) {
     const eventName = getEventName(warning);
     const counties = formatCountiesTopBar(warning.properties.areaDesc);
     const callToAction = getCallToAction(eventName);
