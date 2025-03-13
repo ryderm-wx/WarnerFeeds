@@ -14,7 +14,9 @@ const eventTypes = {
     "Winter Storm Warning": "winter-storm-warning",
     "Special Weather Statement": "special-weather-statement",
     "Ice Storm Warning": "ice-storm-warning",
-    "Blizzard Warning": "blizzard-warning"
+    "Blizzard Warning": "blizzard-warning",
+    "James Pettus Being A Pussy Warning": "james-pettus-warning",
+    "Ryder Saying Nigger Warning": "blayne-warning"
 };
 
 const priority = {
@@ -34,6 +36,8 @@ const priority = {
     "Winter Storm Warning": 14,
     "Winter Storm Watch": 15,
     "Winter Weather Advisory": 16,
+    "James Pettus Being A Pussy Warning": 17,
+    "Ryder Saying Nigger Warning": 18,
 };
 
 const warningListElement = document.getElementById('warningList');
@@ -183,32 +187,11 @@ function testNotification(eventName) {
     const warning = {
         properties: {
             event: eventName,
-            areaDesc: "Washtenaw, MI" 
+            areaDesc: "Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI" 
         }
     };
     showNotification(warning);
 
-    switch (eventName) {
-        case "Radar Indicated Tornado Warning":
-        case "Observed Tornado Warning":
-        case "PDS Tornado Warning":
-        case "Tornado Emergency":
-        case "Severe Thunderstorm Warning":
-        case "Flash Flood Warning":
-            playSound('warning.wav');
-            break;
-        case "Tornado Watch":
-        case "Severe Thunderstorm Watch":
-        case "Winter Storm Watch":
-            playSound('watch.wav');
-            break;
-        case "Winter Weather Advisory":
-        case "Special Weather Statement":    
-            playSound('advisory.wav');
-            break;
-        default:
-            break;
-    }
 }
 
 function testMostRecentAlert() {
@@ -258,6 +241,10 @@ function getEventName(warning) {
         return "Ice Storm Warning"; 
     } else if (eventName === "Blizzard Warning") {
         return "Blizzard Warning"; 
+    } else if (eventName === "James Pettus Being A Pussy Warning") {
+        return "James Pettus Being A Pussy Warning"; 
+    } else if (eventName === "Ryder Saying Nigger Warning") {
+        return "Ryder Saying Nigger Warning"; 
     }
     return eventName; 
 }
@@ -275,6 +262,14 @@ function showNotification(warning) {
 
     let alertColor;
     switch (eventName) {
+        case "Ryder Saying Nigger Warning":
+            alertColor = 'rgb(104, 66, 23)'; 
+            playSound('warning.wav'); 
+            break;
+        case "James Pettus Being A Pussy Warning":
+            alertColor = 'rgb(230, 0, 255)'; 
+            playSound('warning.wav'); 
+            break;
         case "Radar Indicated Tornado Warning":
             alertColor = 'rgb(255, 0, 0)'; 
             playSound('warning.wav'); 
@@ -295,6 +290,14 @@ function showNotification(warning) {
             alertColor = 'rgb(255, 166, 0)'; 
             playSound('warning.wav'); 
             break;
+        case "Considerable Severe Thunderstorm Warning":
+            alertColor = 'rgb(255, 132, 0)'; 
+            playSound('warning.wav'); 
+            break;
+        case "Destructive Severe Thunderstorm Warning":
+            alertColor = 'rgb(255, 110, 0)';
+            playSound('warning.wav');  
+            break;                  
         case "Flash Flood Warning":
             alertColor = 'rgb(0, 100, 0)'; 
             playSound('warning.wav'); 
@@ -461,123 +464,13 @@ function playSound(soundFile) {
     audio.play().catch(error => console.error('Error playing sound:', error));
 }
 
-function showNotification(warning) {
-    const eventName = getEventName(warning);
-    const counties = formatCountiesTopBar(warning.properties.areaDesc);
-    const callToAction = getCallToAction(eventName);
-    
-    const notification = document.createElement('div');
-    notification.className = 'notification-popup'; 
-
-    let alertColor;
-    switch (eventName) {
-        case "Radar Indicated Tornado Warning":
-            alertColor = 'rgb(255, 0, 0)'; 
-            playSound('warning.wav'); 
-            break;
-        case "Observed Tornado Warning":
-            alertColor = 'rgb(139, 0, 0)'; 
-            playSound('warning.wav'); 
-            break;
-        case "PDS Tornado Warning":
-            alertColor = 'rgb(128, 0, 128)'; 
-            playSound('warning.wav'); 
-            break;
-        case "Tornado Emergency":
-            alertColor = 'rgb(255, 0, 255)'; 
-            playSound('warning.wav'); 
-            break;
-        case "Severe Thunderstorm Warning":
-            alertColor = 'rgb(255, 166, 0)'; 
-            playSound('warning.wav'); 
-            break;
-        case "Considerable Severe Thunderstorm Warning":
-            alertColor = 'rgb(255, 132, 0)'; 
-            playSound('warning.wav'); 
-            break;
-        case "Destructive Severe Thunderstorm Warning":
-            alertColor = 'rgb(255, 112, 0)'; 
-            playSound('warning.wav'); 
-            break;        
-        case "Flash Flood Warning":
-            alertColor = 'rgb(0, 100, 0)'; 
-            playSound('warning.wav'); 
-            break;
-        case "Tornado Watch":
-            alertColor = 'rgb(255, 217, 0)'; 
-            playSound('watch.wav'); 
-            break;
-        case "Severe Thunderstorm Watch":
-            alertColor = 'rgb(211, 90, 175)'; 
-            playSound('watch.wav'); 
-            break;
-        case "Winter Weather Advisory":
-            alertColor = 'rgb(169, 81, 220)'; 
-            playSound('advisory.wav'); 
-            break;
-        case "Winter Storm Watch":
-            alertColor = 'rgb(0, 0, 255)'; 
-            playSound('watch.wav'); 
-            break;
-        case "Winter Storm Warning":
-            alertColor = 'rgb(255, 88, 233)'; 
-            playSound('warning.wav'); 
-            break;
-        case "Ice Storm Warning":
-            alertColor = 'rgb(145, 29, 130)'; 
-            playSound('warning.wav'); 
-            break;
-        case "Special Weather Statement":
-            alertColor = 'rgb(135, 223, 255)'; 
-            playSound('advisory.wav'); 
-            break;
-        case "Blizzard Warning":
-            alertColor = 'rgb(255, 80, 27)'; 
-            playSound('warning.wav'); 
-            break;
-        default:
-            alertColor = 'rgba(255, 255, 255, 0.9)'; 
-            break;
-    }
-
-    notification.style.backgroundColor = alertColor;
-
-    const title = document.createElement('div');
-    title.className = 'notification-title';
-    title.textContent = eventName;
-
-    const countiesSection = document.createElement('div');
-    countiesSection.className = 'notification-message';
-    countiesSection.textContent = counties;
-
-    const actionSection = document.createElement('div');
-    actionSection.className = 'notification-calltoaction';
-    actionSection.textContent = callToAction;
-
-    // Create wind and hail section for severe thunderstorms
-
-    // Append elements in the desired order
-    notification.appendChild(title);
-    notification.appendChild(countiesSection);
-    
-    // Append wind and hail section if it exists
-
-    notification.appendChild(actionSection); // Action section is now the last part
-
-    document.body.appendChild(notification);
-
-    notification.style.opacity = 1;
-
-    setTimeout(() => {
-        notification.classList.add('slide-out'); 
-        setTimeout(() => {
-            notification.remove(); 
-        }, 500); 
-    }, 10000); 
-}
 
 function getCallToAction(eventName) {
     switch (eventName) {
+        case "Ryder Saying Nigger Warning":
+            return "Go kiss a black man!";
+        case "James Pettus Being A Pussy Warning":
+            return "GET OFF WXTWITTER IMMEDIATELY!!";
         case "Radar Indicated Tornado Warning":
         case "Observed Tornado Warning":
             return "Seek shelter now!";
@@ -632,6 +525,12 @@ function updateDashboard() {
         case "Severe Thunderstorm Warning":
             alertColor = 'rgb(255, 166, 0)'; 
             break;
+        case "Considerable Severe Thunderstorm Warning":
+            alertColor = 'rgb(255, 132, 0)'; 
+            break;
+        case "Destructive Severe Thunderstorm Warning":
+            alertColor = 'rgb(255, 110, 0)'; 
+            break;                     
         case "Flash Flood Warning":
             alertColor = 'rgb(0, 100, 0)'; 
             break;
