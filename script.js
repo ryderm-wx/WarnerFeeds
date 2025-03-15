@@ -103,30 +103,6 @@ async function fetchWarnings() {
         warnings.forEach(warning => {
             const eventName = warning.properties.event;
 
-            if (eventName === "Tornado Warning") {
-                const detectionType = warning.properties.parameters?.tornadoDetection?.[0]; 
-                const damageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0]; 
-                if (detectionType === "OBSERVED") {
-                    if (damageThreat === "CONSIDERABLE" || damageThreat === "CATASTROPHIC") {
-                        tornadoCount++; 
-                    } else {
-                        tornadoCount++; 
-                    }
-                } else {
-                    tornadoCount++; 
-                }
-            } else if (eventName === "Severe Thunderstorm Warning") {
-                const damageThreat = warning.properties.parameters?.thunderstormDamageThreat?.[0]; 
-                if (damageThreat === "CONSIDERABLE" || damageThreat === "DESTRUCTIVE") {
-                    thunderstormCount++; 
-                } else {
-                    thunderstormCount++; 
-                }
-            } else if (eventName === "Flash Flood Warning") {
-                floodCount++;
-            } else if (["Winter Weather Advisory", "Winter Storm Warning", "Winter Storm Watch", "Blizzard Warning", "Ice Storm Warning"].includes(eventName)) {
-                winterWeatherCount++; 
-            }
 
             tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
             thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
@@ -188,10 +164,14 @@ function getEventName(warning) {
     }
 
     const eventName = warning.properties.event;
+    const description = warning.properties.description || ""; // Get the description field
+
     if (eventName === "Tornado Warning") {
         const detectionType = warning.properties.parameters?.tornadoDetection?.[0]; 
         const damageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0]; 
-        if (detectionType === "OBSERVED") {
+        if (description.includes("This is a PARTICULARLY DANGEROUS SITUATION. TAKE COVER NOW!")) {
+            return "PDS Tornado Warning"; 
+        } else if (detectionType === "OBSERVED") {
             if (damageThreat === "CONSIDERABLE") {
                 return "PDS Tornado Warning"; 
             } else if (damageThreat === "CATASTROPHIC") {
@@ -211,9 +191,12 @@ function getEventName(warning) {
         }
     } else if (["Winter Weather Advisory", "Winter Storm Warning", "Winter Storm Watch", "Ice Storm Warning", "Blizzard Warning"].includes(eventName)) {
         return eventName; 
+    } else if (description.includes("TORNADO EMERGENCY")) {
+        return "Tornado Emergency"; 
     }
     return eventName; 
 }
+
 
 let currentCountyIndex = 0;
 
