@@ -15,8 +15,6 @@ const eventTypes = {
     "Special Weather Statement": "special-weather-statement",
     "Ice Storm Warning": "ice-storm-warning",
     "Blizzard Warning": "blizzard-warning",
-    "James Pettus Being A Pussy Warning": "james-pettus-warning",
-    "Ryder Saying Nigger Warning": "blayne-warning"
 };
 
 const priority = {
@@ -36,8 +34,6 @@ const priority = {
     "Winter Storm Warning": 14,
     "Winter Storm Watch": 15,
     "Winter Weather Advisory": 16,
-    "James Pettus Being A Pussy Warning": 17,
-    "Ryder Saying Nigger Warning": 18,
 };
 
 const warningListElement = document.getElementById('warningList');
@@ -70,7 +66,7 @@ function enableSound() {
 }
 
 const headerElement = document.createElement('div');
-headerElement.textContent = "Latest Alerts (James Pettus is a pussy):"; 
+headerElement.textContent = "Latest Alerts:"; 
 headerElement.className = 'warning-list-header'; 
 
 warningListElement.prepend(headerElement);
@@ -90,8 +86,6 @@ saveButton.addEventListener('click', () => {
     });
     updateWarningList(activeWarnings); 
 });
-
-
 
 async function fetchWarnings() {
     try {
@@ -113,9 +107,7 @@ async function fetchWarnings() {
                 const detectionType = warning.properties.parameters?.tornadoDetection?.[0]; 
                 const damageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0]; 
                 if (detectionType === "OBSERVED") {
-                    if (damageThreat === "CONSIDERABLE") {
-                        tornadoCount++; 
-                    } else if (damageThreat === "CATASTROPHIC") {
+                    if (damageThreat === "CONSIDERABLE" || damageThreat === "CATASTROPHIC") {
                         tornadoCount++; 
                     } else {
                         tornadoCount++; 
@@ -125,72 +117,50 @@ async function fetchWarnings() {
                 }
             } else if (eventName === "Severe Thunderstorm Warning") {
                 const damageThreat = warning.properties.parameters?.thunderstormDamageThreat?.[0]; 
-                if (damageThreat === "CONSIDERABLE") {
-                    thunderstormCount++; 
-                } else if (damageThreat === "DESTRUCTIVE") {
+                if (damageThreat === "CONSIDERABLE" || damageThreat === "DESTRUCTIVE") {
                     thunderstormCount++; 
                 } else {
                     thunderstormCount++; 
                 }
             } else if (eventName === "Flash Flood Warning") {
                 floodCount++;
-            } else if (eventName === "Winter Weather Advisory") {
-                winterWeatherCount++; 
-            } else if (eventName === "Winter Storm Warning") {
-                winterWeatherCount++; 
-            } else if (eventName === "Winter Storm Watch") {
-                winterWeatherCount++; 
-            } else if (eventName === "Blizzard Warning") {
-                winterWeatherCount++; 
-            } else if (eventName === "Ice Storm Warning") {
+            } else if (["Winter Weather Advisory", "Winter Storm Warning", "Winter Storm Watch", "Blizzard Warning", "Ice Storm Warning"].includes(eventName)) {
                 winterWeatherCount++; 
             }
-        });
 
-        // Update the counts in the UI
-        tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
-        thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
-        floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
-        winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; 
+            tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
+            thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
+            floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
+            winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; 
 
-        // Sort warnings by sent date
-        warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
+            warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
 
-        activeWarnings = warnings;
+            activeWarnings = warnings;
 
-        updateWarningList(warnings);
+            updateWarningList(warnings);
 
-        warnings.forEach(warning => {
-            const warningId = warning.id;
-            const eventName = getEventName(warning);
-            const previousEvent = previousWarnings.get(warningId);
+            warnings.forEach(warning => {
+                const warningId = warning.id;
+                const eventName = getEventName(warning);
 
-            // Check if the warning is new or upgraded
-            if (!previousWarningIds.has(warningId)) {
-                // New warning
-                previousWarningIds.add(warningId);
-                showNotification(warning); // Show notification for new warnings
-            } else if (previousEvent && previousEvent !== eventName) {
-                // Check if the warning has been upgraded
-                const previousDamageThreat = previousWarnings.get(`${warningId}-threat`);
-                const currentDamageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0] || warning.properties.parameters?.thunderstormDamageThreat?.[0];
-
-                if (previousDamageThreat !== currentDamageThreat) {
-                    showNotification(warning); // Show notification for upgraded warnings
+                if (!previousWarningIds.has(warningId)) {
+                    previousWarningIds.add(warningId); 
+                    showNotification(warning); 
+                } else {
+                    const previousEvent = previousWarnings.get(warningId);
+                    if (previousEvent && previousEvent !== eventName) {
+                        showNotification(warning); 
+                    }
                 }
-            }
 
-            // Update previous warnings
-            previousWarnings.set(warningId, eventName);
-            previousWarnings.set(`${warningId}-threat`, warning.properties.parameters?.tornadoDamageThreat?.[0] || warning.properties.parameters?.thunderstormDamageThreat?.[0]);
+                previousWarnings.set(warningId, eventName);
+            });
         });
 
     } catch (error) {
         console.error('Error fetching warnings:', error);
     }
 }
-
-
 
 function testNotification(eventName) {
     const warning = {
@@ -200,7 +170,6 @@ function testNotification(eventName) {
         }
     };
     showNotification(warning);
-
 }
 
 function testMostRecentAlert() {
@@ -215,7 +184,7 @@ function testMostRecentAlert() {
 function getEventName(warning) {
     if (!warning || !warning.properties) {
         console.error('Warning object is undefined or missing properties:', warning);
-        return 'Unknown Event'; // Return a default value or handle the error as needed
+        return 'Unknown Event'; 
     }
 
     const eventName = warning.properties.event;
@@ -240,196 +209,153 @@ function getEventName(warning) {
         } else if (damageThreat === "DESTRUCTIVE") {
             return "Destructive Severe Thunderstorm Warning"; 
         }
-    } else if (eventName === "Winter Weather Advisory") {
-        return "Winter Weather Advisory"; 
-    } else if (eventName === "Winter Storm Warning") {
-        return "Winter Storm Warning"; 
-    } else if (eventName === "Winter Storm Watch") {
-        return "Winter Storm Watch"; 
-    } else if (eventName === "Ice Storm Warning") {
-        return "Ice Storm Warning"; 
-    } else if (eventName === "Blizzard Warning") {
-        return "Blizzard Warning"; 
-    } else if (eventName === "James Pettus Being A Pussy Warning") {
-        return "James Pettus Being A Pussy Warning"; 
-    } else if (eventName === "Ryder Saying Nigger Warning") {
-        return "Ryder Saying Nigger Warning"; 
+    } else if (["Winter Weather Advisory", "Winter Storm Warning", "Winter Storm Watch", "Ice Storm Warning", "Blizzard Warning"].includes(eventName)) {
+        return eventName; 
     }
     return eventName; 
 }
 
-
 let currentCountyIndex = 0;
 
-let isNotificationQueueEnabled = false; // Flag to track the state of the notification queue
-let notificationQueue = []; // Array to hold notifications that are waiting to be displayed
-let isShowingNotification = false; // Flag to indicate if a notification is currently being shown
+let isNotificationQueueEnabled = false; 
+let notificationQueue = []; 
+let isShowingNotification = false; 
 
 document.getElementById('singleNotificationToggleButton').addEventListener('click', () => {
-    isNotificationQueueEnabled = !isNotificationQueueEnabled; // Toggle the state
-    const buttonText = isNotificationQueueEnabled ? "Disable Single Notification Que" : "Enable Single Notification Que";
-    document.getElementById('singleNotificationToggleButton').textContent = buttonText; // Update button text
+    isNotificationQueueEnabled = !isNotificationQueueEnabled; 
+    const buttonText = isNotificationQueueEnabled ? "Disable Single Notification Queue" : "Enable Single Notification Queue";
+    document.getElementById('singleNotificationToggleButton').textContent = buttonText; 
 });
 
-// Your existing showNotification, processNotificationQueue, and displayNotification functions go here
-
-
 function showNotification(warning) {
-    // If the notification queue is enabled, add the warning to the queue
     if (isNotificationQueueEnabled) {
-        notificationQueue.push(warning); // Add the warning to the queue
-        processNotificationQueue(); // Start processing the queue
+        notificationQueue.push(warning); 
+        processNotificationQueue(); 
     } else {
-        // If the queue is not enabled, display the notification immediately
         displayNotification(warning);
     }
 }
 
 function processNotificationQueue() {
-    // Check if a notification is already being shown or if there are no notifications in the queue
     if (isShowingNotification || notificationQueue.length === 0) {
-        return; // Exit the function if a notification is being shown or the queue is empty
+        return; 
     }
 
-    isShowingNotification = true; // Set the flag to indicate a notification is being shown
-    const warning = notificationQueue.shift(); // Get the next warning from the queue
-    displayNotification(warning); // Call the function to display the notification
+    isShowingNotification = true; 
+    const warning = notificationQueue.shift(); 
+    displayNotification(warning); 
 
-    // Set a timeout to remove the notification after a specified duration
     setTimeout(() => {
-        isShowingNotification = false; // Reset the flag to allow the next notification to be shown
-        processNotificationQueue(); // Process the next notification in the queue
-    }, 5000); // Display each notification for 10 seconds
+        isShowingNotification = false; 
+        processNotificationQueue(); 
+    }, 5000); 
 }
 
 function displayNotification(warning) {
-    // Extract the event name and counties from the warning object
     const eventName = getEventName(warning);
     const counties = formatCountiesTopBar(warning.properties.areaDesc);
     const callToAction = getCallToAction(eventName);
     
-    // Create a new notification element
     const notification = document.createElement('div');
-    notification.className = 'notification-popup'; // Set the class for styling
+    notification.className = 'notification-popup'; 
 
-    let alertColor; // Variable to hold the background color based on the event type
-    // Set alert color based on event name
+    if (eventName.includes("Emergency")) {
+        playSound('warning.wav');
+    }
+    if (eventName.includes("Warning")) {
+        playSound('warning.wav');
+    } else if (eventName.includes("Watch")) {
+        playSound('watch.wav');
+    } else if (eventName.includes("Advisory")) {
+        playSound('advisory.wav');
+    }
+     else if (eventName.includes("Statement")) {
+        playSound('advisory.wav');
+    }
+
+    let alertColor; 
     switch (eventName) {
-        case "Ryder Saying Nigger Warning":
-            alertColor = 'rgb(104, 66, 23)'; 
-            playSound('warning.wav'); 
-            break;
-        case "James Pettus Being A Pussy Warning":
-            alertColor = 'rgb(230, 0, 255)'; 
-            playSound('warning.wav'); 
-            break;
         case "Radar Indicated Tornado Warning":
             alertColor = 'rgb(255, 0, 0)'; 
-            playSound('warning.wav'); 
             break;
         case "Observed Tornado Warning":
             alertColor = 'rgb(139, 0, 0)'; 
-            playSound('warning.wav'); 
             break;
         case "PDS Tornado Warning":
             alertColor = 'rgb(128, 0, 128)'; 
-            playSound('warning.wav'); 
             break;
         case "Tornado Emergency":
             alertColor = 'rgb(255, 0, 255)'; 
-            playSound('warning.wav'); 
             break;
         case "Severe Thunderstorm Warning":
             alertColor = 'rgb(255, 166, 0)'; 
-            playSound('warning.wav'); 
             break;
         case "Considerable Severe Thunderstorm Warning":
             alertColor = 'rgb(255, 132, 0)'; 
-            playSound('warning.wav'); 
             break;
         case "Destructive Severe Thunderstorm Warning":
             alertColor = 'rgb(255, 110, 0)'; 
-            playSound('warning.wav'); 
             break;
         case "Flash Flood Warning":
             alertColor = 'rgb(0, 100, 0)'; 
-            playSound('warning.wav'); 
             break;
         case "Tornado Watch":
             alertColor = 'rgb(255, 217, 0)'; 
-            playSound('watch.wav'); 
             break;
         case "Severe Thunderstorm Watch":
             alertColor = 'rgb(211, 90, 175)'; 
-            playSound('watch.wav'); 
             break;
         case "Winter Weather Advisory":
             alertColor = 'rgb(169, 81, 220)'; 
-            playSound('advisory.wav'); 
             break;
         case "Winter Storm Watch":
             alertColor = 'rgb(0, 0, 255)'; 
-            playSound('watch.wav'); 
             break;
         case "Winter Storm Warning":
             alertColor = 'rgb(255, 88, 233)'; 
-            playSound('warning.wav'); 
             break;
         case "Ice Storm Warning":
             alertColor = 'rgb(145, 29, 130)'; 
-            playSound('warning.wav'); 
             break;
         case "Blizzard Warning":
             alertColor = 'rgb(255, 72, 44)'; 
-            playSound('warning.wav'); 
             break;
         case "Special Weather Statement":
             alertColor = 'rgb(61, 200, 255)'; 
-            playSound('advisory.wav'); 
             break;
         default:
-            alertColor = 'rgba(255, 255, 255, 0.9)'; // Default color for unspecified events
+            alertColor = 'rgba(255, 255, 255, 0.9)'; 
             break;
     }
 
-    notification.style.backgroundColor = alertColor; // Set the background color of the notification
+    notification.style.backgroundColor = alertColor; 
 
-    // Create and append the title element
     const title = document.createElement('div');
     title.className = 'notification-title';
-    title.textContent = eventName; // Set the title text to the event name
+    title.textContent = eventName; 
 
-    // Create and append the counties section
     const countiesSection = document.createElement('div');
     countiesSection.className = 'notification-message';
-    countiesSection.textContent = counties; // Set the text to the formatted counties
+    countiesSection.textContent = counties; 
 
-    // Create and append the call-to-action section
     const actionSection = document.createElement('div');
     actionSection.className = 'notification-calltoaction';
-    actionSection.textContent = callToAction; // Set the text to the call to action
+    actionSection.textContent = callToAction; 
 
-    // Append all sections to the notification element
     notification.appendChild(title);
     notification.appendChild(countiesSection);
     notification.appendChild(actionSection);
 
-    // Add the notification to the document body
     document.body.appendChild(notification);
-    notification.style.opacity = 1; // Set the opacity to make it visible
+    notification.style.opacity = 1; 
 
-    // Set a timeout to remove the notification after a specified duration
     setTimeout(() => {
-        notification.classList.add('slide-out'); // Add a class for slide-out animation
+        notification.classList.add('slide-out'); 
         setTimeout(() => {
-            notification.remove(); // Remove the notification from the DOM
-        }, 500); // Wait for the animation to finish before removing
-    }, 5000); // Display for 10 seconds
+            notification.remove(); 
+        }, 500); 
+    }, 5000); 
 }
-
-
-
-
 
 function formatCountiesTopBar(areaDesc) {
     const counties = areaDesc.split('; ');
@@ -466,11 +392,9 @@ function updateWarningList(warnings) {
             previousWarningIds.add(warningId); 
             showNotification(warning); 
         } else {
-
             const previousEvent = previousWarnings.get(warningId);
             if (previousEvent && previousEvent !== eventName) {
                 showNotification(warning); 
-                upgradeSound.play().catch(error => console.error('Error playing upgrade sound:', error));
             }
         }
 
@@ -478,36 +402,13 @@ function updateWarningList(warnings) {
             const warningElement = existingWarningsMap.get(warningId);
             warningElement.textContent = displayText;
             warningElement.className = `warning-box ${eventTypes[eventName]}`; 
-
-            if (eventName === "Winter Storm Warning") {
-                warningElement.style.backgroundColor = "rgb(255, 88, 233)";
-            } else if (eventName === "Winter Storm Watch") {
-                warningElement.style.backgroundColor = "rgb(0, 0, 255)";
-            } else if (eventName === "Winter Weather Advisory") {
-                warningElement.style.backgroundColor = "rgb(169, 81, 220)";
-            }
-
         } else {
             const warningBox = document.createElement('div');
             warningBox.className = `warning-box ${eventTypes[eventName]}`; 
             warningBox.setAttribute('data-warning-id', warningId);
             warningBox.textContent = displayText;
 
-            if (eventName === "Winter Storm Warning") {
-                warningBox.style.backgroundColor = "rgb(255, 88, 233)";
-            } else if (eventName === "Winter Storm Watch") {
-                warningBox.style.backgroundColor = "rgb(0, 0, 255)";
-            } else if (eventName === "Winter Weather Advisory") {
-                warningBox.style.backgroundColor = "rgb(169, 81, 220)";
-            }
-
-            warningBox.style.animation = 'flash 0.5s alternate infinite'; 
-
             warningListElement.appendChild(warningBox);
-
-            setTimeout(() => {
-                warningBox.style.animation = ''; 
-            }, 5000);
         }
 
         previousWarnings.set(warningId, eventName);
@@ -526,13 +427,8 @@ function playSound(soundFile) {
     audio.play().catch(error => console.error('Error playing sound:', error));
 }
 
-
 function getCallToAction(eventName) {
     switch (eventName) {
-        case "Ryder Saying Nigger Warning":
-            return "Go kiss a black man!";
-        case "James Pettus Being A Pussy Warning":
-            return "GET OFF WXTWITTER IMMEDIATELY!!";
         case "Radar Indicated Tornado Warning":
         case "Observed Tornado Warning":
             return "Seek shelter now!";
@@ -568,13 +464,6 @@ function updateDashboard() {
     }
 
     const warning = activeWarnings[currentWarningIndex];
-
-    // Check if the warning is defined
-    if (!warning || !warning.properties) {
-        console.error('Warning object is undefined or missing properties:', warning);
-        return; // Exit if the warning is not valid
-    }
-
     let eventName = getEventName(warning); 
 
     let alertColor;
@@ -652,15 +541,10 @@ function updateDashboard() {
     currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
 }
 
-
 document.addEventListener('DOMContentLoaded', () => {
     fetchWarnings();
     updateDashboard();
 });
 
 setInterval(fetchWarnings, 3000);
-
 setInterval(updateDashboard, 5000);
-
-fetchWarnings();
-updateDashboard();
