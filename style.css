@@ -90,9 +90,9 @@ body {
 }
 
 .counties-bar {
-    font-size: 1.2em; 
+    font-size: 1.3em; /* Increase font size */
     font-weight: bold; 
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8); 
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8); /* Increase shadow size and opacity */
     display: flex; 
     align-items: center; 
     height: 100%; 
@@ -198,6 +198,22 @@ body {
 .ice-storm-warning {
     background-color: #a01c7f;
 }
+
+#tacticalModeButton {
+    background-color: red; /* Change to your desired color */
+    color: white; /* Text color */
+    border: none; /* Remove border */
+    padding: 10px 20px; /* Add some padding */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Change cursor on hover */
+    transition: background-color 0.3s; /* Smooth transition */
+}
+
+#tacticalModeButton:hover {
+    background-color: rgb(100, 0, 0); /* Change color on hover */
+}
+
+
 
 .warning-box {
     padding: 10px;

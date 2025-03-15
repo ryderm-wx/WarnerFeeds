@@ -67,7 +67,6 @@ document.body.addEventListener('click', enableSound);
 
 function enableSound() {
     document.body.removeEventListener('click', enableSound);
-    tornadoSound.play().catch(() => {});
 }
 
 const headerElement = document.createElement('div');
@@ -146,41 +145,51 @@ async function fetchWarnings() {
             } else if (eventName === "Ice Storm Warning") {
                 winterWeatherCount++; 
             }
+        });
 
-            tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
-            thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
-            floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
-            winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; 
+        // Update the counts in the UI
+        tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
+        thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
+        floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
+        winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; 
 
-            warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
+        // Sort warnings by sent date
+        warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
 
-            activeWarnings = warnings;
+        activeWarnings = warnings;
 
-            updateWarningList(warnings);
+        updateWarningList(warnings);
 
-            warnings.forEach(warning => {
-                const warningId = warning.id;
-                const eventName = getEventName(warning);
+        warnings.forEach(warning => {
+            const warningId = warning.id;
+            const eventName = getEventName(warning);
+            const previousEvent = previousWarnings.get(warningId);
 
-                if (!previousWarningIds.has(warningId)) {
-                    previousWarningIds.add(warningId); 
-                    showNotification(warning); 
-                } else {
-                    const previousEvent = previousWarnings.get(warningId);
-                    if (previousEvent && previousEvent !== eventName) {
-                        showNotification(warning); 
-                    }
+            // Check if the warning is new or upgraded
+            if (!previousWarningIds.has(warningId)) {
+                // New warning
+                previousWarningIds.add(warningId);
+                showNotification(warning); // Show notification for new warnings
+            } else if (previousEvent && previousEvent !== eventName) {
+                // Check if the warning has been upgraded
+                const previousDamageThreat = previousWarnings.get(`${warningId}-threat`);
+                const currentDamageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0] || warning.properties.parameters?.thunderstormDamageThreat?.[0];
+
+                if (previousDamageThreat !== currentDamageThreat) {
+                    showNotification(warning); // Show notification for upgraded warnings
                 }
+            }
 
-                previousWarnings.set(warningId, eventName);
-            });
-
+            // Update previous warnings
+            previousWarnings.set(warningId, eventName);
+            previousWarnings.set(`${warningId}-threat`, warning.properties.parameters?.tornadoDamageThreat?.[0] || warning.properties.parameters?.thunderstormDamageThreat?.[0]);
         });
 
     } catch (error) {
         console.error('Error fetching warnings:', error);
     }
 }
+
 
 
 function testNotification(eventName) {
@@ -252,15 +261,59 @@ function getEventName(warning) {
 
 let currentCountyIndex = 0;
 
+let isNotificationQueueEnabled = false; // Flag to track the state of the notification queue
+let notificationQueue = []; // Array to hold notifications that are waiting to be displayed
+let isShowingNotification = false; // Flag to indicate if a notification is currently being shown
+
+document.getElementById('singleNotificationToggleButton').addEventListener('click', () => {
+    isNotificationQueueEnabled = !isNotificationQueueEnabled; // Toggle the state
+    const buttonText = isNotificationQueueEnabled ? "Disable Single Notification Que" : "Enable Single Notification Que";
+    document.getElementById('singleNotificationToggleButton').textContent = buttonText; // Update button text
+});
+
+// Your existing showNotification, processNotificationQueue, and displayNotification functions go here
+
+
 function showNotification(warning) {
+    // If the notification queue is enabled, add the warning to the queue
+    if (isNotificationQueueEnabled) {
+        notificationQueue.push(warning); // Add the warning to the queue
+        processNotificationQueue(); // Start processing the queue
+    } else {
+        // If the queue is not enabled, display the notification immediately
+        displayNotification(warning);
+    }
+}
+
+function processNotificationQueue() {
+    // Check if a notification is already being shown or if there are no notifications in the queue
+    if (isShowingNotification || notificationQueue.length === 0) {
+        return; // Exit the function if a notification is being shown or the queue is empty
+    }
+
+    isShowingNotification = true; // Set the flag to indicate a notification is being shown
+    const warning = notificationQueue.shift(); // Get the next warning from the queue
+    displayNotification(warning); // Call the function to display the notification
+
+    // Set a timeout to remove the notification after a specified duration
+    setTimeout(() => {
+        isShowingNotification = false; // Reset the flag to allow the next notification to be shown
+        processNotificationQueue(); // Process the next notification in the queue
+    }, 5000); // Display each notification for 10 seconds
+}
+
+function displayNotification(warning) {
+    // Extract the event name and counties from the warning object
     const eventName = getEventName(warning);
     const counties = formatCountiesTopBar(warning.properties.areaDesc);
     const callToAction = getCallToAction(eventName);
     
+    // Create a new notification element
     const notification = document.createElement('div');
-    notification.className = 'notification-popup'; 
+    notification.className = 'notification-popup'; // Set the class for styling
 
-    let alertColor;
+    let alertColor; // Variable to hold the background color based on the event type
+    // Set alert color based on event name
     switch (eventName) {
         case "Ryder Saying Nigger Warning":
             alertColor = 'rgb(104, 66, 23)'; 
@@ -295,9 +348,9 @@ function showNotification(warning) {
             playSound('warning.wav'); 
             break;
         case "Destructive Severe Thunderstorm Warning":
-            alertColor = 'rgb(255, 110, 0)';
-            playSound('warning.wav');  
-            break;                  
+            alertColor = 'rgb(255, 110, 0)'; 
+            playSound('warning.wav'); 
+            break;
         case "Flash Flood Warning":
             alertColor = 'rgb(0, 100, 0)'; 
             playSound('warning.wav'); 
@@ -326,47 +379,56 @@ function showNotification(warning) {
             alertColor = 'rgb(145, 29, 130)'; 
             playSound('warning.wav'); 
             break;
+        case "Blizzard Warning":
+            alertColor = 'rgb(255, 72, 44)'; 
+            playSound('warning.wav'); 
+            break;
         case "Special Weather Statement":
-            alertColor = 'rgb(135, 223, 255)'; 
+            alertColor = 'rgb(61, 200, 255)'; 
             playSound('advisory.wav'); 
             break;
         default:
-            alertColor = 'rgba(255, 255, 255, 0.9)'; 
+            alertColor = 'rgba(255, 255, 255, 0.9)'; // Default color for unspecified events
             break;
     }
 
-    notification.style.backgroundColor = alertColor;
+    notification.style.backgroundColor = alertColor; // Set the background color of the notification
 
+    // Create and append the title element
     const title = document.createElement('div');
     title.className = 'notification-title';
-    title.textContent = eventName;
+    title.textContent = eventName; // Set the title text to the event name
 
+    // Create and append the counties section
     const countiesSection = document.createElement('div');
     countiesSection.className = 'notification-message';
-    countiesSection.textContent = counties;
+    countiesSection.textContent = counties; // Set the text to the formatted counties
 
+    // Create and append the call-to-action section
     const actionSection = document.createElement('div');
     actionSection.className = 'notification-calltoaction';
-    actionSection.textContent = callToAction;
+    actionSection.textContent = callToAction; // Set the text to the call to action
 
-    // Add wind and hail information to the notification
-
-
+    // Append all sections to the notification element
     notification.appendChild(title);
     notification.appendChild(countiesSection);
     notification.appendChild(actionSection);
 
+    // Add the notification to the document body
     document.body.appendChild(notification);
+    notification.style.opacity = 1; // Set the opacity to make it visible
 
-    notification.style.opacity = 1;
-
+    // Set a timeout to remove the notification after a specified duration
     setTimeout(() => {
-        notification.classList.add('slide-out'); 
+        notification.classList.add('slide-out'); // Add a class for slide-out animation
         setTimeout(() => {
-            notification.remove(); 
-        }, 500); 
-    }, 10000); 
+            notification.remove(); // Remove the notification from the DOM
+        }, 500); // Wait for the animation to finish before removing
+    }, 5000); // Display for 10 seconds
 }
+
+
+
 
 
 function formatCountiesTopBar(areaDesc) {
@@ -506,6 +568,13 @@ function updateDashboard() {
     }
 
     const warning = activeWarnings[currentWarningIndex];
+
+    // Check if the warning is defined
+    if (!warning || !warning.properties) {
+        console.error('Warning object is undefined or missing properties:', warning);
+        return; // Exit if the warning is not valid
+    }
+
     let eventName = getEventName(warning); 
 
     let alertColor;
@@ -582,6 +651,7 @@ function updateDashboard() {
     countiesElement.textContent = counties;
     currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchWarnings();
