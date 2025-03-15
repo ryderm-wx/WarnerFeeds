@@ -384,14 +384,7 @@ body {
     color: white; 
 }
 
-.warning-list-header {
-    font-size: 25px; 
-    font-weight: bold; 
-    margin-bottom: 10px; 
-    margin-top: 30px; 
-    color: white; 
-    text-align: center; 
-}
+
 
 .winter-weather-advisory {
     background-color: rgb(169, 81, 220);
@@ -422,6 +415,7 @@ body {
 }
 
 .notification-popup {
+    display: inline-block; /* Allow the width to adjust based on content */
     position: fixed;
     bottom: 20px; 
     left: 20px; 
@@ -446,6 +440,10 @@ body {
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     font-family: 'Bebas Neue', sans-serif; 
     background-color: rgba(0, 0, 0, 0.0);
+    overflow-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */
+    word-break: break-word; /* Breaks words at arbitrary points if necessary */
+    white-space: normal; /* Allows text to wrap normally */
+    transition: all 0.3s ease; /* Smooth transition for any changes */
 }
 
 .notification-message {
@@ -453,6 +451,10 @@ body {
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     font-family: 'Bebas Neue', sans-serif; 
     background-color: rgba(0, 0, 0, 0.2);
+    overflow-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */
+    word-break: break-word; /* Breaks words at arbitrary points if necessary */
+    white-space: normal; /* Allows text to wrap normally */
+    transition: all 0.3s ease; /* Smooth transition for any changes */
 }
 
 
@@ -461,6 +463,10 @@ body {
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     font-family: 'Bebas Neue', sans-serif; 
     background-color: rgba(0, 0, 0, 0.4);
+    overflow-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */
+    word-break: break-word; /* Breaks words at arbitrary points if necessary */
+    white-space: normal; /* Allows text to wrap normally */
+    transition: all 0.3s ease; /* Smooth transition for any changes */
 }
 
 

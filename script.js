@@ -49,10 +49,10 @@ const winterWeatherCountElement = document.getElementById('winterWeatherCount');
 let previousWarningIds = new Set(); 
 
 const labels = {
-    tornado: "TORNADO WARNINGS",
-    thunderstorm: "SEVERE THUNDERSTORM WARNINGS",
-    flood: "FLASH FLOOD WARNINGS",
-    winter: "WINTER WEATHER WARNINGS"
+    tornado: "🌪️TORNADO WARNINGS",
+    thunderstorm: "⛈️SEVERE THUNDERSTORM WARNINGS",
+    flood: "💦FLASH FLOOD WARNINGS",
+    winter: "❄️WINTER WEATHER WARNINGS"
 };
 
 let currentWarningIndex = 0;
@@ -92,51 +92,108 @@ async function fetchWarnings() {
         const response = await fetch('https://api.weather.gov/alerts/active');
         const data = await response.json();
         const warnings = data.features.filter(feature =>
-            selectedAlerts.has(feature.properties.event) 
+            selectedAlerts.has(feature.properties.event) // Filter selected alerts
         );
 
         let tornadoCount = 0;
         let thunderstormCount = 0;
         let floodCount = 0;
-        let winterWeatherCount = 0; 
+        let winterWeatherCount = 0; // Counter for winter weather events
 
         warnings.forEach(warning => {
             const eventName = warning.properties.event;
-
-
-            tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
-            thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
-            floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
-            winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; 
-
-            warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
-
-            activeWarnings = warnings;
-
-            updateWarningList(warnings);
-
-            warnings.forEach(warning => {
-                const warningId = warning.id;
-                const eventName = getEventName(warning);
-
-                if (!previousWarningIds.has(warningId)) {
-                    previousWarningIds.add(warningId); 
-                    showNotification(warning); 
-                } else {
-                    const previousEvent = previousWarnings.get(warningId);
-                    if (previousEvent && previousEvent !== eventName) {
-                        showNotification(warning); 
+            if (eventName === "Tornado Warning") {
+                const detectionType = warning.properties.parameters?.tornadoDetection?.[0]; // Get the first item in the array
+                const damageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0]; // Get the first item in the array
+                if (detectionType === "OBSERVED") {
+                    if (damageThreat === "CONSIDERABLE") {
+                        tornadoCount++; // Count as PDS Tornado Warning
+                    } else if (damageThreat === "CATASTROPHIC") {
+                        tornadoCount++; // Count as Tornado Emergency
+                    } else {
+                        tornadoCount++; // Count as Radar Indicated Tornado Warning
                     }
+                } else {
+                    tornadoCount++; // Count as Radar Indicated Tornado Warning
                 }
+            } else if (eventName === "Severe Thunderstorm Warning") {
+                const damageThreat = warning.properties.parameters?.thunderstormDamageThreat?.[0]; // Get the first item in the array
+                if (damageThreat === "CONSIDERABLE") {
+                    thunderstormCount++; // Count as Considerable Severe Thunderstorm Warning
+                } else if (damageThreat === "DESTRUCTIVE") {
+                    thunderstormCount++; // Count as Destructive Severe Thunderstorm Warning (PDS)
+                } else {
+                    thunderstormCount++; // Count as regular Severe Thunderstorm Warning
+                }
+            } else if (eventName === "Flash Flood Warning") {
+                floodCount++;
+            } else if (eventName === "Winter Weather Advisory") {
+                winterWeatherCount++; // Count winter weather advisories
+            } else if (eventName === "Winter Storm Warning") {
+                winterWeatherCount++; // Count winter storm warnings
+            } else if (eventName === "Winter Storm Watch") {
+                winterWeatherCount++; // Count winter storm watches
+            }
+        });
 
-                previousWarnings.set(warningId, eventName);
-            });
+        tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
+        thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
+        floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
+        winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; // Update winter weather count
+
+        // Sort warnings by issuance time (newest first)
+        warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
+
+        activeWarnings = warnings;
+
+        updateWarningList(warnings);
+
+        const currentWarningIds = new Set(warnings.map(w => w.id));
+
+        warnings.forEach(warning => {
+            const warningId = warning.id;
+            const eventName = getEventName(warning);
+
+            if (!warning.properties || !warning.properties.event) {
+                console.warn('Warning is missing properties:', warning);
+                return; // Skip this warning if it doesn't have the necessary properties
+            }
+            // Check if the warning is new
+            if (!previousWarningIds.has(warningId)) {
+                previousWarningIds.add(warningId); // Add new warning ID to the Set
+                showNotification(warning); // Notify for new warning
+            } else {
+                // Check for updates to existing warnings
+                const previousEvent = previousWarnings.get(warningId);
+                if (previousEvent && previousEvent !== eventName) {
+                    showNotification(warning); // Notify for updated warning
+                }
+            }
+
+            // Update the previous warnings map
+            previousWarnings.set(warningId, eventName);
+        });
+
+        // Detect expired warnings (warnings that were previously active but are no longer in the current set)
+        previousWarningIds.forEach(id => {
+            if (!currentWarningIds.has(id)) {
+                console.log(`⚠️ Warning expired: ${previousWarnings.get(id)} (ID: ${id})`);
+                showNotification({ properties: { event: previousWarnings.get(id), id } }, true); // Pass "true" to indicate expiration
+                previousWarnings.delete(id);
+                previousWarningIds.delete(id);
+            }
         });
 
     } catch (error) {
-        console.error('Error fetching warnings:', error);
+        console.error('❌ Error fetching warnings:', error);
     }
 }
+
+
+
+
+
+
 
 function testNotification(eventName) {
     const warning = {
@@ -234,6 +291,24 @@ function processNotificationQueue() {
     }, 5000); 
 }
 
+function typeEffect(element, text, delay = 25, startDelay = 150) {
+    element.textContent = ''; // Clear the existing text
+    let index = 0;
+
+    // Start typing after the specified startDelay
+    setTimeout(() => {
+        const typingInterval = setInterval(() => {
+            if (index < text.length) {
+                element.textContent += text.charAt(index);
+                index++;
+            } else {
+                clearInterval(typingInterval);
+            }
+        }, delay);
+    }, startDelay); // Delay before starting the typing effect
+}
+
+
 function displayNotification(warning) {
     const eventName = getEventName(warning);
     const counties = formatCountiesTopBar(warning.properties.areaDesc);
@@ -241,6 +316,44 @@ function displayNotification(warning) {
     
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
+
+    // Declare title before using it in typeEffect
+    const title = document.createElement('div');
+    title.className = 'notification-title';
+    title.textContent = eventName; 
+
+    const countiesSection = document.createElement('div');
+    countiesSection.className = 'notification-message';
+    countiesSection.textContent = counties; 
+
+    const actionSection = document.createElement('div');
+    actionSection.className = 'notification-calltoaction';
+    actionSection.textContent = callToAction; 
+
+    notification.appendChild(title);
+    notification.appendChild(countiesSection);
+    notification.appendChild(actionSection);
+
+    document.body.appendChild(notification);
+    notification.style.opacity = 1; 
+
+    // Apply typing effect to title and actionSection
+    typeEffect(title, eventName, 10, 100);
+
+    typeEffect(actionSection, callToAction, 10, 100);
+    
+    const expirationDate = new Date(warning.properties.expires);
+    const options = { 
+        timeZoneName: 'short',
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    };
+
+
 
     if (eventName.includes("Emergency")) {
         playSound('warning.wav');
@@ -312,22 +425,6 @@ function displayNotification(warning) {
     }
 
     notification.style.backgroundColor = alertColor; 
-
-    const title = document.createElement('div');
-    title.className = 'notification-title';
-    title.textContent = eventName; 
-
-    const countiesSection = document.createElement('div');
-    countiesSection.className = 'notification-message';
-    countiesSection.textContent = counties; 
-
-    const actionSection = document.createElement('div');
-    actionSection.className = 'notification-calltoaction';
-    actionSection.textContent = callToAction; 
-
-    notification.appendChild(title);
-    notification.appendChild(countiesSection);
-    notification.appendChild(actionSection);
 
     document.body.appendChild(notification);
     notification.style.opacity = 1; 
@@ -447,6 +544,13 @@ function updateDashboard() {
     }
 
     const warning = activeWarnings[currentWarningIndex];
+
+    // Check if the warning object is defined and has properties
+    if (!warning || !warning.properties) {
+        console.error('Warning object is undefined or missing properties:', warning);
+        return; // Exit the function if the warning is invalid
+    }
+
     let eventName = getEventName(warning); 
 
     let alertColor;
