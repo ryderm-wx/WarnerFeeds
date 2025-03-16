@@ -195,10 +195,12 @@ function notifyWarningExpired(eventName, warningId) {
         properties: {
             event: `Warning expired - ${eventName}`,
             id: warningId,
-            areaDesc: "N/A" // You can customize this if needed
+            areaDesc: "N/A", // You can customize this if needed
+            alertColor : 'rgb(203, 165, 107)'
         }
     };
     showNotification(expiredWarning);
+    playSound('advisory.wav'); // Play the advisory sound when the warning expires
 }
 
 // Example usage
@@ -394,9 +396,6 @@ function displayNotification(warning) {
     if (eventName.includes("Emergency")) {
         playSound('emergency.wav');
     }
-    if (eventName.includes("PDS Tornado Warning")) {
-        playSound('emergency.wav');
-    }
     if (eventName.includes("Warning") && !eventName.includes("PDS Tornado Warning")) {
         playSound('warning.wav');
     }    
@@ -419,6 +418,7 @@ function displayNotification(warning) {
             break;
         case "PDS Tornado Warning":
             alertColor = 'rgb(128, 0, 128)';
+            playSound('emergency.wav'); 
             break;
         case "Tornado Emergency":
             alertColor = 'rgb(255, 0, 255)'; 
