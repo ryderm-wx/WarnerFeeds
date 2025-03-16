@@ -190,18 +190,19 @@ async function fetchWarnings() {
     }
 }
 
-function notifyWarningExpired(eventName, warningId) {
+function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
     const expiredWarning = {
         properties: {
-            event: `Warning expired - ${eventName}`,
+            event: `A Warning expired - This was a ${eventName}`,
             id: warningId,
-            areaDesc: "N/A", // You can customize this if needed
-            alertColor : 'rgb(203, 165, 107)'
+            areaDesc: areaDesc, // Use the passed areaDesc or default to "N/A"
+            alertColor: 'rgb(203, 165, 107)'
         }
     };
     showNotification(expiredWarning);
     playSound('advisory.wav'); // Play the advisory sound when the warning expires
 }
+
 
 // Example usage
  // Replace with actual event name and ID
