@@ -178,24 +178,38 @@ async function fetchWarnings() {
         previousWarningIds.forEach(id => {
             if (!currentWarningIds.has(id)) {
                 console.log(`⚠️ Warning expired: ${previousWarnings.get(id)} (ID: ${id})`);
-                showNotification({ properties: { event: previousWarnings.get(id), id } }, true); // Pass "true" to indicate expiration
+                notifyWarningExpired(previousWarnings.get(id), id); // Call the new function
                 previousWarnings.delete(id);
                 previousWarningIds.delete(id);
             }
         });
+        
 
     } catch (error) {
         console.error('❌ Error fetching warnings:', error);
     }
 }
 
+function notifyWarningExpired(eventName, warningId) {
+    const expiredWarning = {
+        properties: {
+            event: `Warning expired - ${eventName}`,
+            id: warningId,
+            areaDesc: "N/A" // You can customize this if needed
+        }
+    };
+    showNotification(expiredWarning);
+}
+
+// Example usage
+ // Replace with actual event name and ID
 
 
 
 
 
 
-function testNotification(eventName) {
+ function testNotification(eventName) {
     const warning = {
         properties: {
             event: eventName,
@@ -204,6 +218,7 @@ function testNotification(eventName) {
     };
     showNotification(warning);
 }
+
 
 function testMostRecentAlert() {
     if (activeWarnings.length > 0) {
@@ -317,7 +332,11 @@ function displayNotification(warning) {
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
 
-    // Declare title before using it in typeEffect
+    // Create the test message element
+    const testMessage = document.createElement('div');
+    testMessage.className = 'test-message'; // Add a class for styling if needed
+    testMessage.textContent = "THIS IS A TEST MESSAGE"; // Set the test message text
+
     const title = document.createElement('div');
     title.className = 'notification-title';
     title.textContent = eventName; 
@@ -330,18 +349,35 @@ function displayNotification(warning) {
     actionSection.className = 'notification-calltoaction';
     actionSection.textContent = callToAction; 
 
+    // Append the test message before the title
+    notification.appendChild(testMessage);
     notification.appendChild(title);
     notification.appendChild(countiesSection);
     notification.appendChild(actionSection);
 
     document.body.appendChild(notification);
-    notification.style.opacity = 1; 
+
+    // Check the checkbox state to show or hide the test message
+    const testMessageCheckbox = document.getElementById('testMessageCheckbox');
+    testMessage.style.display = testMessageCheckbox.checked ? 'block' : 'none';
+
+    // Add the 'show' class to trigger the fade-in effect
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10); // Small timeout to ensure the class is added after the element is in the DOM
 
     // Apply typing effect to title and actionSection
-    typeEffect(title, eventName, 10, 100);
+    typeEffect(title, eventName);
+    typeEffect(actionSection, callToAction);
 
-    typeEffect(actionSection, callToAction, 10, 100);
-    
+    // Add the 'show' class to trigger the fade-in effect
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10); // Small timeout to ensure the class is added after the element is in the DOM
+
+
+
+    // Set expiration time without typing effect
     const expirationDate = new Date(warning.properties.expires);
     const options = { 
         timeZoneName: 'short',
@@ -356,11 +392,12 @@ function displayNotification(warning) {
 
 
     if (eventName.includes("Emergency")) {
-        playSound('warning.wav');
+        playSound('emergency.wav');
     }
-    if (eventName.includes("Warning")) {
+    if (eventName.includes("Warning") && !eventName.includes("PDS Tornado Warning")) {
         playSound('warning.wav');
-    } else if (eventName.includes("Watch")) {
+    }    
+     else if (eventName.includes("Watch")) {
         playSound('watch.wav');
     } else if (eventName.includes("Advisory")) {
         playSound('advisory.wav');
@@ -378,7 +415,8 @@ function displayNotification(warning) {
             alertColor = 'rgb(139, 0, 0)'; 
             break;
         case "PDS Tornado Warning":
-            alertColor = 'rgb(128, 0, 128)'; 
+            alertColor = 'rgb(128, 0, 128)';
+            playSound('tornadoemergency.wav'); 
             break;
         case "Tornado Emergency":
             alertColor = 'rgb(255, 0, 255)'; 
