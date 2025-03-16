@@ -15,6 +15,7 @@ const eventTypes = {
     "Special Weather Statement": "special-weather-statement",
     "Ice Storm Warning": "ice-storm-warning",
     "Blizzard Warning": "blizzard-warning",
+    "Flash Flood Emergency": "flash-flood-emergency"
 };
 
 const priority = {
@@ -28,12 +29,13 @@ const priority = {
     "Special Weather Statement": 8,
     "Tornado Watch": 9,
     "Severe Thunderstorm Watch": 10,
-    "Flash Flood Warning": 11,
-    "Blizzard Warning": 12,
-    "Ice Storm Warning": 13,
-    "Winter Storm Warning": 14,
-    "Winter Storm Watch": 15,
-    "Winter Weather Advisory": 16,
+    "Flash Flood Emergency": 11,
+    "Flash Flood Warning": 12,
+    "Blizzard Warning": 13,
+    "Ice Storm Warning": 14,
+    "Winter Storm Warning": 15,
+    "Winter Storm Watch": 16,
+    "Winter Weather Advisory": 17,
 };
 
 const warningListElement = document.getElementById('warningList');
@@ -215,12 +217,15 @@ function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
  function testNotification(eventName) {
     const warning = {
         properties: {
-            event: eventName,
-            areaDesc: "Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI" 
+            event: eventName, 
+            areaDesc: "Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI", // Added comma here
+            actionSection: "THIS IS A TEST MESSAGE. DO NOT TAKE ACTION ON THIS MESSAGE." 
         }
     };
     showNotification(warning);
 }
+
+
 
 
 function testMostRecentAlert() {
@@ -264,6 +269,10 @@ function getEventName(warning) {
         } else if (damageThreat === "DESTRUCTIVE") {
             return "Destructive Severe Thunderstorm Warning"; 
         }
+    } else if (eventName === "Flash Flood Warning") {
+        if (description.includes("FLASH FLOOD EMERGENCY")) {
+            return "Flash Flood Emergency"; // Corrected line
+        }
     } else if (["Winter Weather Advisory", "Winter Storm Warning", "Winter Storm Watch", "Ice Storm Warning", "Blizzard Warning"].includes(eventName)) {
         return eventName; 
     } else if (description.includes("TORNADO EMERGENCY")) {
@@ -271,6 +280,7 @@ function getEventName(warning) {
     }
     return eventName; 
 }
+
 
 
 let currentCountyIndex = 0;
@@ -337,8 +347,8 @@ function displayNotification(warning) {
 
     // Create the test message element
     const testMessage = document.createElement('div');
-    testMessage.className = 'test-message'; // Add a class for styling if needed
-    testMessage.textContent = "THIS IS A TEST MESSAGE"; // Set the test message text
+    testMessage.className = 'test-message';
+    testMessage.textContent = "THIS IS A TEST MESSAGE";
 
     const title = document.createElement('div');
     title.className = 'notification-title';
@@ -352,33 +362,36 @@ function displayNotification(warning) {
     actionSection.className = 'notification-calltoaction';
     actionSection.textContent = callToAction; 
 
-    // Append the test message before the title
+    // Append elements
     notification.appendChild(testMessage);
     notification.appendChild(title);
     notification.appendChild(countiesSection);
     notification.appendChild(actionSection);
-
-    document.body.appendChild(notification);
+    document.body.appendChild(notification); // Ensure it's in the DOM
 
     // Check the checkbox state to show or hide the test message
     const testMessageCheckbox = document.getElementById('testMessageCheckbox');
     testMessage.style.display = testMessageCheckbox.checked ? 'block' : 'none';
 
-    // Add the 'show' class to trigger the fade-in effect
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10); // Small timeout to ensure the class is added after the element is in the DOM
-
-    // Apply typing effect to title and actionSection
+    // Apply typing effect
     typeEffect(title, eventName);
     typeEffect(actionSection, callToAction);
 
-    // Add the 'show' class to trigger the fade-in effect
+    // Add 'show' class after a slight delay
     setTimeout(() => {
-        notification.classList.add('show');
-    }, 10); // Small timeout to ensure the class is added after the element is in the DOM
+        notification.classList.add('show', 'slide-in'); // Ensure slide-in effect
+    }, 50);
 
-
+    // Play sounds based on alert type
+    if (eventName.includes("Emergency")) {
+        playSound('emergency.wav');
+    } else if (eventName.includes("Warning") && !eventName.includes("PDS Tornado Warning")) {
+        playSound('warning.wav');
+    } else if (eventName.includes("Watch")) {
+        playSound('watch.wav');
+    } else if (eventName.includes("Advisory") || eventName.includes("Statement")) {
+        playSound('advisory.wav');
+    }
 
     // Set expiration time without typing effect
     const expirationDate = new Date(warning.properties.expires);
@@ -391,23 +404,6 @@ function displayNotification(warning) {
         minute: '2-digit',
         hour12: true
     };
-
-
-
-    if (eventName.includes("Emergency")) {
-        playSound('emergency.wav');
-    }
-    if (eventName.includes("Warning") && !eventName.includes("PDS Tornado Warning")) {
-        playSound('warning.wav');
-    }    
-     else if (eventName.includes("Watch")) {
-        playSound('watch.wav');
-    } else if (eventName.includes("Advisory")) {
-        playSound('advisory.wav');
-    }
-     else if (eventName.includes("Statement")) {
-        playSound('advisory.wav');
-    }
 
     let alertColor; 
     switch (eventName) {
@@ -436,6 +432,9 @@ function displayNotification(warning) {
         case "Flash Flood Warning":
             alertColor = 'rgb(0, 100, 0)'; 
             break;
+        case "Flash Flood Emergency":
+            alertColor = 'rgb(39, 176, 39)'; 
+            break;    
         case "Tornado Watch":
             alertColor = 'rgb(255, 217, 0)'; 
             break;
@@ -466,17 +465,129 @@ function displayNotification(warning) {
     }
 
     notification.style.backgroundColor = alertColor; 
-
-    document.body.appendChild(notification);
     notification.style.opacity = 1; 
 
+    // Default timeout for other alerts
     setTimeout(() => {
-        notification.classList.add('slide-out'); 
+        notification.classList.add('slide-out');
         setTimeout(() => {
-            notification.remove(); 
-        }, 500); 
-    }, 5000); 
+            notification.remove();
+        }, 500);
+    }, 7000);
 }
+
+document.getElementById('testCustomWarningButton').addEventListener('click', () => {
+    const customWarningText = document.getElementById('customWarningInput').value;
+    if (customWarningText) {
+        testNotification(customWarningText); // Call the existing testNotification function
+    } else {
+        alert("Please enter a warning to test.");
+    }
+});
+
+
+document.getElementById('tacticalModeButton').addEventListener('click', () => {
+    tacticalMode(); // Call the tacticalMode function
+    setInterval(fetchWarnings, 3000); // Fetch warnings every 3 seconds
+});
+
+
+async function tacticalMode() {
+    try {
+        console.log('Fetching tactical warnings index from warnings.allisonhouse.com...');
+        const indexResponse = await fetch('https://warnings.allisonhouse.com/');
+
+        if (!indexResponse.ok) {
+            console.error('Failed to fetch warnings index. Status:', indexResponse.status);
+            return;
+        }
+
+        const indexText = await indexResponse.text();
+        const parser = new DOMParser();
+        const indexDoc = parser.parseFromString(indexText, 'text/html');
+        const warningLinks = indexDoc.querySelectorAll('a');
+
+        console.log(`Found ${warningLinks.length} warning links.`);
+
+        for (const link of warningLinks) {
+            const warningUrl = `https://warnings.allisonhouse.com/${link.href}`; // Use the correct base URL
+
+            console.log(`Fetching warning file: ${warningUrl}`);
+            const warningResponse = await fetch(warningUrl, { mode: 'cors' }); // Ensure CORS is handled
+
+            if (!warningResponse.ok) {
+                console.error('Failed to fetch warning file. Status:', warningResponse.status);
+                continue;
+            }
+
+            const warningText = await warningResponse.text();
+            const eventName = getEventNameFromText(warningText);
+            const counties = extractCounties(warningText);
+
+            // Display or use the extracted data as needed
+            showNotification({
+                properties: {
+                    event: eventName,
+                    areaDesc: counties,
+                    expires: new Date().toISOString() // Set expiration as needed
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching tactical warnings:', error);
+    }
+}
+
+
+
+
+//nodemon server.js to run.
+
+
+// Helper function to check if a warning is active
+function isWarningActive(warning) {
+    const expirationDate = new Date(warning.properties.expires);
+    return expirationDate > new Date(); // Check if the warning has not expired
+}
+
+
+
+
+// Helper function to extract event name from warning text
+function getEventNameFromText(warningText) {
+    if (warningText.includes("Tornado Warning")) {
+        if (warningText.includes("This is a PARTICULARLY DANGEROUS SITUATION. TAKE COVER NOW!")) {
+            return "PDS Tornado Warning";
+        } else if (warningText.includes("TORNADO EMERGENCY")) {
+            return "Tornado Emergency";
+        } else {
+            return "Observed Tornado Warning";
+        }
+    } else if (warningText.includes("Severe Thunderstorm Warning")) {
+        if (warningText.includes("THUNDERSTORM DAMAGE THREAT...CONSIDERABLE")) {
+            return "Considerable Severe Thunderstorm Warning";
+        } else if (warningText.includes("THUNDERSTORM DAMAGE THREAT...DESTRUCTIVE")) {
+            return "Destructive Severe Thunderstorm Warning";
+        } else {
+            return "Severe Thunderstorm Warning"; // Default return for Severe Thunderstorm Warning
+        }
+    } else if (warningText.includes("Flash Flood Warning")) {
+        return "Flash Flood Warning";
+    } else {
+        return "Unknown Event";
+    }
+}
+
+
+// Helper function to extract counties from the warning text
+function extractCounties(warningText) {
+    const countyRegex = /(?:\* Locations impacted include\.\.\.\s*)([\s\S]*?)(?=\n\n)/; // Regex to capture counties
+    const match = warningText.match(countyRegex);
+    return match ? match[1].trim() : "N/A"; // Return counties or "N/A" if not found
+}
+
+
+
 
 function formatCountiesTopBar(areaDesc) {
     const counties = areaDesc.split('; ');

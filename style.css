@@ -293,21 +293,84 @@ body {
     display: inline-block; 
 }
 
-.tornado-warning { background-color: red; }
-.observed-tornado-warning { background-color: darkred; }
-.pds-tornado-warning { background-color: purple; }
-.tornado-emergency { background-color: rgb(255, 0, 255); }
-.severe-thunderstorm-warning { background-color: orange; }
-.severe-thunderstorm-considerable { background-color: #FFA500; }
-.pds-severe-thunderstorm-warning { background-color: #FF8C00; }
-.flash-flood-warning { background-color: #006400; }
-.tornado-watch { background-color: #FF6961; }
-.severe-thunderstorm-watch { background-color: #FFD700; }
-
-@keyframes flash {
-    0% { background-color: rgba(255, 255, 255, 0.5); } 
-    100% { background-color: inherit; } 
+@keyframes flashOutline {
+    0% { outline: 5px solid transparent; } /* Start with no outline */
+    50% { outline: 5px solid white; } /* Flash to white */
+    100% { outline: 5px solid transparent; } /* Back to no outline */
 }
+
+.pds-tornado-warning.flash-outline {
+    animation: flashOutline 1s infinite; /* Flashing outline effect */
+}
+
+.tornado-emergency.flash-outline {
+    animation: flashOutline 1s infinite; /* Flashing outline effect */
+}
+
+
+
+/* Add similar classes for other alert types if needed */
+
+
+
+
+.tornado-warning { 
+    background-color: red; 
+}
+
+.observed-tornado-warning { 
+    background-color: darkred; 
+}
+
+.pds-tornado-warning { 
+    background-color: purple;
+    animation: flashToWhite 1s infinite; 
+}
+
+.tornado-emergency { 
+ 
+    animation: flashToWhite 1s infinite; 
+}
+
+.severe-thunderstorm-warning { 
+    background-color: orange; 
+}
+
+.severe-thunderstorm-considerable { 
+    background-color: #FFA500; 
+}
+
+.pds-severe-thunderstorm-warning { 
+    background-color: #FF8C00; 
+}
+
+.flash-flood-warning { 
+    background-color: #006400; 
+}
+
+.tornado-watch { 
+    background-color: #FF6961; 
+}
+
+.severe-thunderstorm-watch { 
+    background-color: #FFD700; 
+}
+@keyframes flashOutline {
+    0% { outline: 5px solid transparent; } /* Start with no outline */
+    50% { outline: 5px solid white; } /* Flash to white */
+    100% { outline: 5px solid transparent; } /* Back to no outline */
+}
+
+.pds-tornado-warning.flash-outline {
+    animation: flashOutline 1s infinite; /* Flashing outline effect */
+}
+
+.tornado-emergency.flash-outline {
+    animation: flashOutline 1s infinite; /* Flashing outline effect */
+}
+
+
+
 
 .warning-count {
     flex: 1;
