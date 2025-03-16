@@ -199,8 +199,6 @@ function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
             alertColor: 'rgb(203, 165, 107)'
         }
     };
-    showNotification(expiredWarning);
-    playSound('advisory.wav'); // Play the advisory sound when the warning expires
 }
 
 
