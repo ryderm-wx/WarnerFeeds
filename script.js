@@ -416,7 +416,7 @@ function displayNotification(warning) {
             break;
         case "PDS Tornado Warning":
             alertColor = 'rgb(128, 0, 128)';
-            playSound('tornadoemergency.wav'); 
+            playSound('emergency.wav'); 
             break;
         case "Tornado Emergency":
             alertColor = 'rgb(255, 0, 255)'; 
