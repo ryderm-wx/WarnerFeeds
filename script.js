@@ -91,7 +91,7 @@ saveButton.addEventListener('click', () => {
 
 async function fetchWarnings() {
     try {
-        const response = await fetch('https://api.weather.gov/alerts/active?area=MI');
+        const response = await fetch('https://api.weather.gov/alerts/active');
         const data = await response.json();
         const warnings = data.features.filter(feature =>
             selectedAlerts.has(feature.properties.event) // Filter selected alerts

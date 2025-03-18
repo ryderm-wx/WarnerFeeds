@@ -62,12 +62,17 @@
             <label><input type="checkbox" value="Special Weather Statement" checked> Special Weather Statement</label><br>
             <label><input type="checkbox" value="Ice Storm Warning" checked> Ice Storm Warning</label><br>
             <label><input type="checkbox" value="Blizzard Warning" checked> Blizzard Warning</label><br>
-            <button id="saveButton">Save (May be very loud!)</button><br>
+            <button id="saveButton">Save (HEADPHONE WARNING! THIS WILL BE LOUD IF YOU SELECT MANY ALERTS)</button>
         </div>
         <div>
-            <button id="singleNotificationToggleButton">Enable Single Notification Que</button><br>
+            <button id="singleNotificationToggleButton">Enable Single Notification Que</button>
+            <button id="tacticalModeButton">Toggle Tactical Mode (Experimental - Work In progress!)</button><br>
             <label><input type="checkbox" id="testMessageCheckbox" unchecked> Show 'THIS IS A TEST MESSAGE' At the Top of a Notification - This Will Show on ANY Notification that pops up if enabled.</label><br>
             <div>
+                <h3>Custom Warning Input</h3>
+                <input type="text" id="customWarningInput" placeholder="Paste your warning here" />
+                <button id="testCustomWarningButton">Test Custom Warning</button>
+            </div>
             
         </div>        
     <script src="script.js"></script>
