@@ -1,3 +1,24 @@
+@font-face {
+    font-family: 'Saira Condensed';
+    src: url('SairaCondensed-Bold.ttf') format('truetype'); /* Adjust the path if necessary */
+    font-weight: bold;
+    font-style: normal;
+}
+
+body {
+    background-image: url('background.png'); /* Set the background image */
+    background-size: cover; /* Cover the entire area */
+    width: 3840px; /* Fixed width */
+    height: 2160px; /* Fixed height */
+    margin: 0; /* Remove default margin */
+    z-index: 0; /* Set a higher z-index for the background */
+}
+
+body {
+    font-family: 'Saira Condensed', sans-serif; /* Apply the new font */
+}
+
+
 * {
     margin: 0;
     padding: 0;
@@ -5,7 +26,6 @@
 }
 
 body {
-    font-family: 'Bebas Neue', sans-serif;
     background-color: #222222;
     color: white;
     text-align: center;
@@ -19,6 +39,8 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    position: relative; /* Position relative for absolute positioning of children */
+
 }
 
 .alert-container {
@@ -47,9 +69,9 @@ body {
     padding: 10px; 
     transition: background-color 0.5s ease; 
     position: fixed; 
-    top: 0; 
+    bottom: 0; 
     left: 0; 
-    height: 60px; 
+    height: 50px; 
     align-items: stretch; 
 }
 
@@ -434,7 +456,7 @@ body {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     transition: transform 0.5s ease-in-out;
     z-index: 1000; 
-    font-family: 'Bebas Neue', sans-serif; 
+    font-family: 'Saira Condensed', sans-serif; 
 }
 
 .slide-notification-title {
@@ -478,20 +500,24 @@ body {
 }
 
 .notification-popup {
-    display: inline-block; /* Allow the width to adjust based on content */
-    position: fixed;
-    bottom: 20px; 
-    left: 20px; 
-    max-width: 300px;
-    color: white; 
-    border-radius: 5px;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
-    font-family: 'Bebas Neue', sans-serif; 
-    z-index: 1000;
-    overflow: hidden;
-    opacity: 0; 
-    animation: slideIn 0.5s forwards; 
+    position: fixed; /* Keep it fixed to the viewport */
+    bottom: -100px; /* Start off-screen */
+    left: 0; /* Align to the left */
+    width: 100%; /* Full width */
+    height: 1000px; /* Set a very high height */
+    background-color: rgba(0, 0, 0, 0.8); /* Optional: Add a background color */
+    color: white; /* Text color */
+    padding: 10px; /* Padding for the notification */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); /* Optional: Add shadow for depth */
+    transition: transform 0.5s ease-in-out; /* Slide up transition */
+    overflow: hidden; /* Prevent overflow */
+    white-space: normal; /* Allow text to wrap */
+    z-index: 1; /* Set a lower z-index for the notification */
 }
+
+
+
+
 
 .notification-popup.slide-out {
     animation: slideOut 0.5s forwards; 
@@ -499,9 +525,10 @@ body {
 
 .notification-title {
     padding: 10px;
+    font-size: 96px;
     font-weight: bold;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    font-family: 'Bebas Neue', sans-serif; 
+    font-family: 'Saira Condensed', sans-serif; 
     background-color: rgba(0, 0, 0, 0.0);
     overflow-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */
     word-break: break-word; /* Breaks words at arbitrary points if necessary */
@@ -512,8 +539,7 @@ body {
 .notification-message {
     padding: 10px;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    font-family: 'Bebas Neue', sans-serif; 
-    background-color: rgba(0, 0, 0, 0.2);
+    font-family: 'Saira Condensed', sans-serif; 
     overflow-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */
     word-break: break-word; /* Breaks words at arbitrary points if necessary */
     white-space: normal; /* Allows text to wrap normally */
@@ -524,8 +550,7 @@ body {
 .notification-calltoaction {
     padding: 10px;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-    font-family: 'Bebas Neue', sans-serif; 
-    background-color: rgba(0, 0, 0, 0.4);
+    font-family: 'Saira Condensed', sans-serif; 
     overflow-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */
     word-break: break-word; /* Breaks words at arbitrary points if necessary */
     white-space: normal; /* Allows text to wrap normally */

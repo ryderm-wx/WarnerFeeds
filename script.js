@@ -91,7 +91,7 @@ saveButton.addEventListener('click', () => {
 
 async function fetchWarnings() {
     try {
-        const response = await fetch('https://api.weather.gov/alerts/active?area=MI');
+        const response = await fetch('https://api.weather.gov/alerts/active');
         const data = await response.json();
         const warnings = data.features.filter(feature =>
             selectedAlerts.has(feature.properties.event) // Filter selected alerts
@@ -218,7 +218,7 @@ function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
     const warning = {
         properties: {
             event: eventName, 
-            areaDesc: "Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI", // Added comma here
+            areaDesc: "TEST - Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI", // Added comma here
             actionSection: "THIS IS A TEST MESSAGE. DO NOT TAKE ACTION ON THIS MESSAGE." 
         }
     };
@@ -337,18 +337,39 @@ function typeEffect(element, text, delay = 25, startDelay = 150) {
 }
 
 
+const audioElements = {
+    TorIssSound: new Audio("https://audio.jukehost.co.uk/ClbCqxfWssr6dlRXqx3lXVqKQPPVeRgQ"),
+    TorPDSSound: new Audio("https://audio.jukehost.co.uk/kL1u7N03VA1UW8BsPzuYWHXGBaJINmJ6"),
+    PDSSVRSound: new Audio("https://audio.jukehost.co.uk/NVHiq50qxRYZlylw9RFFhcueIpZF4AZ3"),
+    SVRCSound: new Audio("https://audio.jukehost.co.uk/Xkv300KaF6MJghFS9oQ5BMTWfSDle4IW"),
+    TORUPG: new Audio("https://audio.jukehost.co.uk/o6LRilMzywJkfY9QVreGyUjobxERtgwV"),
+    TOREISS: new Audio("https://audio.jukehost.co.uk/5OswhMIWVdiQWc6JRVA2YRKa4Umpdn7F"),
+    TOAWatch: new Audio("https://audio.jukehost.co.uk/MZxVbo8EmFP4XP6vTKaGPtUfGIU6IFdK"),
+    SVAWatch: new Audio("https://audio.jukehost.co.uk/vOROpwVlXRik9TS2wXvJvtYInR8o2qMQ")
+};
+
+// Function to play sound by ID
+function playSoundById(soundId) {
+    const sound = audioElements[soundId];
+    if (sound) {
+        sound.currentTime = 0; // Reset sound to start
+        sound.play().catch(error => console.error('Error playing sound:', error));
+    } else {
+        // Fallback to SVRCSound if the sound ID is unknown
+        audioElements.SVRCSound.currentTime = 0; // Reset fallback sound to start
+        audioElements.SVRCSound.play().catch(error => console.error('Error playing fallback sound:', error));
+    }
+}
+
+// Example usage in your existing code
 function displayNotification(warning) {
     const eventName = getEventName(warning);
     const counties = formatCountiesTopBar(warning.properties.areaDesc);
-    const callToAction = getCallToAction(eventName);
     
+    // Create notification elements
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
-
-    // Create the test message element
-    const testMessage = document.createElement('div');
-    testMessage.className = 'test-message';
-    testMessage.textContent = "THIS IS A TEST MESSAGE";
+    notification.style.bottom = '0'; // Set position for notifications
 
     const title = document.createElement('div');
     title.className = 'notification-title';
@@ -358,39 +379,35 @@ function displayNotification(warning) {
     countiesSection.className = 'notification-message';
     countiesSection.textContent = counties; 
 
-    const actionSection = document.createElement('div');
-    actionSection.className = 'notification-calltoaction';
-    actionSection.textContent = callToAction; 
-
     // Append elements
-    notification.appendChild(testMessage);
     notification.appendChild(title);
     notification.appendChild(countiesSection);
-    notification.appendChild(actionSection);
     document.body.appendChild(notification); // Ensure it's in the DOM
 
-    // Check the checkbox state to show or hide the test message
-    const testMessageCheckbox = document.getElementById('testMessageCheckbox');
-    testMessage.style.display = testMessageCheckbox.checked ? 'block' : 'none';
-
-    // Apply typing effect
-    typeEffect(title, eventName);
-    typeEffect(actionSection, callToAction);
-
-    // Add 'show' class after a slight delay
+    // Slide up animation
+    notification.style.transform = 'translateY(100%)'; // Slide up effect
     setTimeout(() => {
-        notification.classList.add('show', 'slide-in'); // Ensure slide-in effect
-    }, 50);
+        notification.style.transform = 'translateY(53%)'; // Move into view
+    }, 10); // Small timeout to trigger the transition
 
-    // Play sounds based on alert type
-    if (eventName.includes("Emergency")) {
-        playSound('emergency.wav');
-    } else if (eventName.includes("Warning") && !eventName.includes("PDS Tornado Warning")) {
-        playSound('warning.wav');
-    } else if (eventName.includes("Watch")) {
-        playSound('watch.wav');
-    } else if (eventName.includes("Advisory") || eventName.includes("Statement")) {
-        playSound('advisory.wav');
+    // Play sound based on event name
+    if (eventName.includes("Tornado Emergency")) {
+        playSoundById('TOREISS'); // Tornado Emergency
+    } else if (eventName.includes("PDS Tornado Warning")) {
+        playSoundById('TorPDSSound'); // Particularly Dangerous Situation Tornado Warning
+    } else if (eventName.includes("Tornado Warning")) {
+        playSoundById('TorIssSound'); // Tornado Warning (Standard)
+    } else if (eventName.includes("Severe Thunderstorm Warning") && eventName.includes("Considerable")) {
+        playSoundById('SVRCSound'); // Severe Thunderstorm Warning – Considerable Tag
+    } else if (eventName.includes("Destructive Severe Thunderstorm Warning")) {
+        playSoundById('PDSSVRSound'); // Destructive Severe Thunderstorm Warning
+    } else if (eventName.includes("Tornado Watch")) {
+        playSoundById('TOAWatch'); // Tornado Watch
+    } else if (eventName.includes("Severe Thunderstorm Watch")) {
+        playSoundById('SVAWatch'); // Severe Thunderstorm Watch
+    } else {
+        // If none of the above conditions are met, play the fallback sound
+        playSoundById('SVRCSound');
     }
 
     // Set expiration time without typing effect
@@ -415,7 +432,6 @@ function displayNotification(warning) {
             break;
         case "PDS Tornado Warning":
             alertColor = 'rgb(128, 0, 128)';
-            playSound('emergency.wav'); 
             break;
         case "Tornado Emergency":
             alertColor = 'rgb(255, 0, 255)'; 
@@ -469,12 +485,13 @@ function displayNotification(warning) {
 
     // Default timeout for other alerts
     setTimeout(() => {
-        notification.classList.add('slide-out');
+        notification.style.transform = 'translateY(100%)'; // Slide out effect
         setTimeout(() => {
-            notification.remove();
-        }, 500);
-    }, 7000);
+            notification.remove(); // Remove from DOM after sliding out
+        }, 500); // Match the duration of the transition
+    }, 7000); // Duration to show the notification
 }
+
 
 document.getElementById('testCustomWarningButton').addEventListener('click', () => {
     const customWarningText = document.getElementById('customWarningInput').value;
