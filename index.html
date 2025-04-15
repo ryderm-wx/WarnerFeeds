@@ -5,9 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weather Warning Dashboard</title>
     <link rel="stylesheet" href="style.css">
+ 
+
 </head>
 <body>
     <div class="container">
+        <div class="bottom-bar">
+            <div class="left-section">
+                <div id="eventType" class="event-type-bar">EVENT TYPE</div>
+            </div>
+            <div id="counties" class="counties-bar">COUNTY NAMES</div>
+            <div id="expiration" class="expiration-bar">Expiration Time</div>
+        </div><br>
+        
         <div id="warningList" class="warning-list"></div>
         
         <div class="warning-counts">
@@ -19,7 +29,7 @@
 
         <div class="test-buttons" id="testButtons">
             <h3>Test Notifications</h3>
-            <button onclick="testNotification('Radar Indicated Tornado Warning')">Test Radar Indicated Tornado Warning</button>
+            <button onclick="testNotification('Tornado Warning')">Test Radar Indicated Tornado Warning</button>
             <button onclick="testNotification('Observed Tornado Warning')">Test Observed Tornado Warning</button>
             <button onclick="testNotification('PDS Tornado Warning')">Test PDS Tornado Warning</button>
             <button onclick="testNotification('Tornado Emergency')">Test Tornado Emergency</button>
@@ -52,13 +62,13 @@
             <label><input type="checkbox" value="Special Weather Statement" checked> Special Weather Statement</label><br>
             <label><input type="checkbox" value="Ice Storm Warning" checked> Ice Storm Warning</label><br>
             <label><input type="checkbox" value="Blizzard Warning" checked> Blizzard Warning</label><br>
-            <button id="saveButton">Save (HEADPHONE WARNING! THIS WILL BE LOUD IF YOU SELECT MANY ALERTS)</button>
+            <button id="saveButton">Save/Load Warnings from NWS API (LOUD ON CLICK!)</button>
         </div>
 
         <div id="customWarningContainer" class="hidden"> <!-- Custom Warning Input Section -->
-            <button id="singleNotificationToggleButton">Enable Single Notification Que</button>
-            <button id="tacticalModeButton">Toggle Tactical Mode (Experimental - Work In progress!)</button><br>
-            <label><input type="checkbox" id="testMessageCheckbox" unchecked> Show 'THIS IS A TEST MESSAGE' At the Top of a Notification - This Will Show on ANY Notification that pops up if enabled.</label><br>
+            <button id="singleNotificationToggleButton">Enable Single Notification Que (Enable AFTER Loading Warnings)</button>
+            <button id="tacticalModeButton">Toggle XMPP Mode (Not Functional YET!)</button><br>
+            <label><input type="checkbox" id="testMessageCheckbox" unchecked> Dev Purposes Only - Show 'THIS IS A TEST MESSAGE' At the Top of a Notification - This Will Show on ANY Notification that pops up if enabled.</label><br>
             <div>
                 <h3>Custom Warning Input</h3>
                 <input type="text" id="customWarningInput" placeholder="Paste your warning here" />
@@ -66,6 +76,9 @@
             </div>
         </div>
     </div>        
+    <script src="https://cdn.jsdelivr.net/npm/stanza.io@latest/dist/stanza.min.js"></script>
+
     <script src="script.js"></script>
+
 </body>
 </html>

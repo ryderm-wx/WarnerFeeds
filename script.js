@@ -1,5 +1,5 @@
 const eventTypes = {
-    "Radar Indicated Tornado Warning": "tornado-warning",
+    "Tornado Warning": "tornado-warning",
     "Observed Tornado Warning": "observed-tornado-warning",
     "PDS Tornado Warning": "pds-tornado-warning",
     "Tornado Emergency": "tornado-emergency",
@@ -22,7 +22,7 @@ const priority = {
     "Tornado Emergency": 1,
     "PDS Tornado Warning": 2,
     "Observed Tornado Warning": 3,
-    "Radar Indicated Tornado Warning": 4,
+    "Tornado Warning": 4,
     "Destructive Severe Thunderstorm Warning": 5, 
     "Considerable Severe Thunderstorm Warning": 6, 
     "Severe Thunderstorm Warning": 7, 
@@ -89,6 +89,8 @@ saveButton.addEventListener('click', () => {
     updateWarningList(activeWarnings); 
 });
 
+
+// Function to process the incoming alert message
 async function fetchWarnings() {
     try {
         const response = await fetch('https://api.weather.gov/alerts/active');
@@ -260,7 +262,7 @@ function getEventName(warning) {
                 return "Observed Tornado Warning"; 
             }
         } else {
-            return "Radar Indicated Tornado Warning"; 
+            return "Tornado Warning"; 
         }
     } else if (eventName === "Severe Thunderstorm Warning") {
         const damageThreat = warning.properties.parameters?.thunderstormDamageThreat?.[0]; 
@@ -424,7 +426,7 @@ function displayNotification(warning) {
 
     let alertColor; 
     switch (eventName) {
-        case "Radar Indicated Tornado Warning":
+        case "Tornado Warning":
             alertColor = 'rgb(255, 0, 0)'; 
             break;
         case "Observed Tornado Warning":
@@ -678,7 +680,7 @@ function playSound(soundFile) {
 
 function getCallToAction(eventName) {
     switch (eventName) {
-        case "Radar Indicated Tornado Warning":
+        case "Tornado Warning":
         case "Observed Tornado Warning":
             return "Seek shelter now!";
         case "PDS Tornado Warning":
@@ -705,10 +707,10 @@ function getCallToAction(eventName) {
 
 function updateDashboard() {
     if (activeWarnings.length === 0) {
-        expirationElement.textContent = '';
+        expirationElement.textContent = 'N/A';
         eventTypeElement.textContent = 'NO ACTIVE WARNINGS';
-        countiesElement.textContent = '';
-        document.querySelector('.bottom-bar').style.backgroundColor = '#333'; 
+        countiesElement.textContent = 'N/A';
+        document.querySelector('.event-type-bar').style.backgroundColor = '#333'; 
         return;
     }
 
@@ -724,7 +726,7 @@ function updateDashboard() {
 
     let alertColor;
     switch (eventName) {
-        case "Radar Indicated Tornado Warning":
+        case "Tornado Warning":
             alertColor = 'rgb(255, 0, 0)'; 
             break;
         case "Observed Tornado Warning":
@@ -777,7 +779,7 @@ function updateDashboard() {
             break;
     }
 
-    document.querySelector('.bottom-bar').style.backgroundColor = alertColor;
+    document.querySelector('.event-type-bar').style.backgroundColor = alertColor;
 
     const expirationDate = new Date(warning.properties.expires);
     const options = { 
@@ -796,6 +798,7 @@ function updateDashboard() {
     countiesElement.textContent = counties;
     currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchWarnings();

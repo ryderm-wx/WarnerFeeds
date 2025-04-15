@@ -8,8 +8,8 @@
 body {
     background-image: url('background.png'); /* Set the background image */
     background-size: cover; /* Cover the entire area */
-    width: 3840px; /* Fixed width */
-    height: 2160px; /* Fixed height */
+    width: 2560px; /* Fixed width */
+    height: 1440px; /* Fixed height */
     margin: 0; /* Remove default margin */
     z-index: 0; /* Set a higher z-index for the background */
 }
@@ -64,14 +64,13 @@ body {
  .bottom-bar {
     width: 100%; 
     display: flex; 
-    justify-content: space-between; 
-    background-color: #333; 
+    justify-content: space-between;  
     padding: 10px; 
     transition: background-color 0.5s ease; 
     position: fixed; 
     bottom: 0; 
     left: 0; 
-    height: 50px; 
+    height: 90px; 
     align-items: stretch; 
 }
 
@@ -85,15 +84,18 @@ body {
 }
 
 .left-section {
-    background-color: rgba(0, 0, 0, 0.2); 
+    background-color: rgba(0, 0, 0, 0); 
     padding: 10px; 
     border-radius: 5px; 
     height: 100%; 
     display: flex; 
     align-items: center; 
     white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
+    overflow: visible; 
+    text-overflow: ellipsis;
+    position: relative; /* Set position to relative */
+    left: 100px; /* Offset to the right by 100px */
+    margin-left: 0; /* Ensure no additional left margin */
 }
 
 .expiration-bar {
@@ -109,10 +111,16 @@ body {
     font-size: 1.2em; 
     font-weight: bold; 
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); 
+    border-radius: 10px; /* Adjust the value as needed for more or less rounding */
+    position: relative; /* Set position to relative */
+    left: 320px; /* Offset to the right by 100px */
+    margin-left: 0; /* Ensure no additional left margin */
 }
 
+
+
 .counties-bar {
-    font-size: 1.3em; /* Increase font size */
+    font-size: 1.0em; /* Increase font size */
     font-weight: bold; 
     text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8); /* Increase shadow size and opacity */
     display: flex; 
