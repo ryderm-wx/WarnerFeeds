@@ -338,6 +338,81 @@ function typeEffect(element, text, delay = 25, startDelay = 150) {
     }, startDelay); // Delay before starting the typing effect
 }
 
+function getHighestActiveAlert() {
+    if (activeWarnings.length === 0) {
+        return { alert: 'N/A', color: 'rgba(255, 255, 255, 0.9)' }; // Default if no alerts
+    }
+
+    // Sort active warnings by priority
+    const highestAlert = activeWarnings.reduce((prev, current) => {
+        return priority[current.properties.event] < priority[prev.properties.event] ? current : prev;
+    });
+
+    return {
+        alert: highestAlert.properties.event,
+        color: getAlertColor(highestAlert.properties.event) // Get color based on event
+    };
+}
+
+function updateAlertBar() {
+    const highestAlert = getHighestActiveAlert();
+    const alertBar = document.getElementById('alertBar');
+    const alertText = document.getElementById('highestAlertText');
+
+    alertText.textContent = `HIGHEST ACTIVE ALERT: ${highestAlert.alert}`;
+    alertBar.style.backgroundColor = highestAlert.color; // Set the background color
+}
+
+// Call updateAlertBar periodically
+setInterval(updateAlertBar, 5000); // Update every 5 seconds
+
+
+function getAlertColor(eventName) {
+    switch (eventName) {
+        case "Tornado Warning":
+            return 'rgb(255, 0, 0)'; 
+        case "Observed Tornado Warning":
+            return 'rgb(139, 0, 0)'; 
+        case "PDS Tornado Warning":
+            return 'rgb(128, 0, 128)';
+        case "Tornado Emergency":
+            return 'rgb(255, 0, 255)'; 
+        case "Severe Thunderstorm Warning":
+            return 'rgb(255, 166, 0)'; 
+        case "Considerable Severe Thunderstorm Warning":
+            return 'rgb(255, 132, 0)'; 
+        case "Destructive Severe Thunderstorm Warning":
+            return 'rgb(255, 110, 0)'; 
+        case "Flash Flood Warning":
+            return 'rgb(0, 100, 0)'; 
+        case "Flash Flood Emergency":
+            return 'rgb(39, 176, 39)'; 
+        case "Tornado Watch":
+            return 'rgb(255, 217, 0)'; 
+        case "Severe Thunderstorm Watch":
+            return 'rgb(211, 90, 175)'; 
+        case "Winter Weather Advisory":
+            return 'rgb(169, 81, 220)'; 
+        case "Winter Storm Watch":
+            return 'rgb(0, 0, 255)'; 
+        case "Winter Storm Warning":
+            return 'rgb(255, 88, 233)'; 
+        case "Ice Storm Warning":
+            return 'rgb(145, 29, 130)'; 
+        case "Blizzard Warning":
+            return 'rgb(255, 72, 44)'; 
+        case "Special Weather Statement":
+            return 'rgb(61, 200, 255)'; 
+        default:
+            return 'rgba(255, 255, 255, 0.9)'; 
+    }
+}
+
+
+
+
+// Call updateAlertBar periodically
+
 
 const audioElements = {
     TorIssSound: new Audio("https://audio.jukehost.co.uk/ClbCqxfWssr6dlRXqx3lXVqKQPPVeRgQ"),
