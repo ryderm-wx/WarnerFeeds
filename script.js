@@ -342,10 +342,10 @@ function typeEffect(element, text, delay = 25, startDelay = 150) {
 const audioElements = {
     TorIssSound: new Audio("https://audio.jukehost.co.uk/ClbCqxfWssr6dlRXqx3lXVqKQPPVeRgQ"),
     TorPDSSound: new Audio("https://audio.jukehost.co.uk/kL1u7N03VA1UW8BsPzuYWHXGBaJINmJ6"),
-    PDSSVRSound: new Audio("https://audio.jukehost.co.uk/NVHiq50qxRYZlylw9RFFhcueIpZF4AZ3"),
+    PDSSVRSound: new Audio("https://audio.jukehost.co.uk/DvWZ5IjakUW0fHpqc3t2ozBS1BGFxDN4"),
     SVRCSound: new Audio("https://audio.jukehost.co.uk/Xkv300KaF6MJghFS9oQ5BMTWfSDle4IW"),
     TORUPG: new Audio("https://audio.jukehost.co.uk/o6LRilMzywJkfY9QVreGyUjobxERtgwV"),
-    TOREISS: new Audio("https://audio.jukehost.co.uk/5OswhMIWVdiQWc6JRVA2YRKa4Umpdn7F"),
+    TOREISS: new Audio("https://audio.jukehost.co.uk/aCEN5hTIGdOgWPEqok5pYP28fomDUWuY"),
     TOAWatch: new Audio("https://audio.jukehost.co.uk/MZxVbo8EmFP4XP6vTKaGPtUfGIU6IFdK"),
     SVAWatch: new Audio("https://audio.jukehost.co.uk/vOROpwVlXRik9TS2wXvJvtYInR8o2qMQ")
 };

@@ -30,7 +30,7 @@ body {
     color: white;
     text-align: center;
     text-transform: uppercase;
-    letter-spacing: 0.1em; 
+    letter-spacing: 0.02em; 
     font-size: 1.2em; 
 }
 
@@ -113,7 +113,7 @@ body {
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); 
     border-radius: 10px; /* Adjust the value as needed for more or less rounding */
     position: relative; /* Set position to relative */
-    left: 320px; /* Offset to the right by 100px */
+    left: 500px; /* Offset to the right by 100px */
     margin-left: 0; /* Ensure no additional left margin */
 }
 
