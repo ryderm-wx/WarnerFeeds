@@ -109,7 +109,7 @@ function toggleSlider() {
 // Function to process the incoming alert message
 async function fetchWarnings() {
     try {
-        const response = await fetch('https://api.weather.gov/alerts/active');
+        const response = await fetch('https://api.weather.gov/alerts/active?area=MI');
         const data = await response.json();
         const warnings = data.features.filter(feature =>
             selectedAlerts.has(feature.properties.event) // Filter selected alerts
@@ -236,7 +236,7 @@ function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
     const warning = {
         properties: {
             event: eventName, 
-            areaDesc: "TEST - Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI", // Added comma here
+            areaDesc: "TESTING - Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI; Oakland, MI; Macomb, MI; Livingston, MI; Genesee, MI; Ingham, MI; Jackson, MI; Hillsdale, MI; Calhoun, MI; Eaton, MI; Shiawassee, MI; Clinton, MI; Lapeer, MI; St. Clair, MI; Barry, MI;", 
             actionSection: "THIS IS A TEST MESSAGE. DO NOT TAKE ACTION ON THIS MESSAGE." 
         }
     };
@@ -369,15 +369,25 @@ function getHighestActiveAlert() {
         color: getAlertColor(highestAlert.properties.event) // Get color based on event
     };
 }
-
 function updateAlertBar() {
     const highestAlert = getHighestActiveAlert();
     const alertBar = document.getElementById('alertBar');
     const alertText = document.getElementById('highestAlertText');
 
-    alertText.textContent = `HIGHEST ACTIVE ALERT: ${highestAlert.alert}`;
-    alertBar.style.backgroundColor = highestAlert.color; // Set the background color
+    if (highestAlert.alert === 'N/A') {
+        alertText.textContent = 'MICHIGAN STORM CHASERS'; // Display this text if no active alerts
+        alertBar.style.backgroundColor = 'rgb(31, 37, 147)'; // Set default background color
+        alertBar.style.setProperty('--glow-color', 'rgba(255, 255, 255, 0.6)'); // Set a default glow color
+    } else {
+        alertText.textContent = `HIGHEST ACTIVE ALERT: ${highestAlert.alert}`;
+        alertBar.style.backgroundColor = highestAlert.color; // Set the background color
+
+        // Set the glow color based on the alert color
+        alertBar.style.setProperty('--glow-color', highestAlert.color);
+    }
 }
+
+
 
 // Call updateAlertBar periodically
 setInterval(updateAlertBar, 5000); // Update every 5 seconds
@@ -582,7 +592,7 @@ function displayNotification(warning) {
         setTimeout(() => {
             notification.remove(); // Remove from DOM after sliding out
         }, 500); // Match the duration of the transition
-    }, 10000); // Duration to show the notification
+    }, 7000); // Duration to show the notification
 }
 
 
@@ -701,14 +711,14 @@ function extractCounties(warningText) {
 
 function formatCountiesTopBar(areaDesc) {
     const counties = areaDesc.split('; ');
-    let formattedCounties = counties.slice(0, 4).map(county => {
+    let formattedCounties = counties.slice(0, 30).map(county => {
         const parts = county.split(',');
         if (parts.length > 1) {
             return `${parts[0].trim()} County, ${parts[1].trim()}`; 
         }
         return county; 
     });
-    if (counties.length > 4) {
+    if (counties.length > 30) {
         formattedCounties.push("...");
     }
     return formattedCounties.join('; ');
