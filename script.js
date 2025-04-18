@@ -89,6 +89,22 @@ saveButton.addEventListener('click', () => {
     updateWarningList(activeWarnings); 
 });
 
+// Function to toggle visibility of the slider
+function toggleSlider() {
+    var slider = document.getElementById('sliderContainer');
+    var body = document.body;
+
+    // Toggle slider visibility
+    if (slider.style.transform === 'translateY(0%)') {
+        slider.style.transform = 'translateY(-100%)'; // Hide slider
+        body.classList.remove('overlay'); // Remove overlay from body
+    } else {
+        slider.style.transform = 'translateY(0%)'; // Show slider
+        body.classList.add('overlay'); // Add overlay to body to prevent scrolling
+    }
+}
+
+
 
 // Function to process the incoming alert message
 async function fetchWarnings() {
@@ -446,7 +462,7 @@ function displayNotification(warning) {
     // Create notification elements
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
-    notification.style.bottom = '0'; // Set position for notifications
+    notification.style.bottom = '125'; // Set position for notifications
 
     const title = document.createElement('div');
     title.className = 'notification-title';
@@ -566,7 +582,7 @@ function displayNotification(warning) {
         setTimeout(() => {
             notification.remove(); // Remove from DOM after sliding out
         }, 500); // Match the duration of the transition
-    }, 7000); // Duration to show the notification
+    }, 10000); // Duration to show the notification
 }
 
 
