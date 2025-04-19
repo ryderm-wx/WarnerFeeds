@@ -371,7 +371,7 @@ function updateAlertBar() {
 
     if (highestAlert.alert === 'N/A') {
         alertText.textContent = 'MICHIGAN STORM CHASERS'; // Display this text if no active alerts
-        alertBar.style.backgroundColor = '#333'; // Set default background color
+        alertBar.style.backgroundColor = '#1F2593'; // Set default background color
         alertBar.style.setProperty('--glow-color', 'rgba(255, 255, 255, 0.6)'); // Set a default glow color
     } else {
         alertText.textContent = `${highestAlert.alert}`;
