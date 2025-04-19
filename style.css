@@ -193,6 +193,37 @@ body {
 }
 
 
+  
+  .semicircle {
+    position: fixed;
+    bottom: 80px;
+    right: 0;
+    width: 764px;
+    height: 90px;
+    background: radial-gradient(
+      circle at left center,
+      rgba(0, 0, 0, 1) 0%,
+      rgba(0, 0, 0, 0.8) 30%,
+      rgba(0, 0, 0, 0) 100%
+    );
+    border-top-left-radius: 764px;
+    border-bottom-left-radius: 764px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 30px;
+    box-sizing: border-box;
+    z-index: 1030;
+  }
+  
+  .time-date {
+    display: flex;
+    gap: 20px;
+    font-size: 64px;
+    white-space: nowrap;
+    z-index: 1035;
+  }
+  
 
 .alert-bar {
     position: fixed;
@@ -253,11 +284,11 @@ body {
 
 .counties-bar {
     position: absolute; /* Change to absolute positioning */
-    font-size: 1.0em; /* Increase font size */
+    font-size: 1.3em; /* Increase font size */
     font-weight: bold; 
     text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8); /* Increase shadow size and opacity */
     display: flex; 
-    text-align: left;
+    text-align: center;
     align-items: center; 
     height: 100%; 
     padding: 5px 10px; 

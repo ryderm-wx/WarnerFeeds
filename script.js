@@ -364,6 +364,27 @@ function getHighestActiveAlert() {
     };
 }
 
+function updateClock() {
+    const now = new Date();
+  
+    // Format time
+    let hours = now.getHours();
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+  
+    // Format date
+    const timeString = `${hours.toString().padStart(2, '0')}:${minutes}:${seconds} ${ampm} ET`;
+    const dateString = `${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}/${(now.getFullYear()%100).toString().padStart(2, '0')}`;
+  
+    document.getElementById('clockDisplay').textContent = `${timeString}   ${dateString}`;
+  }
+  
+  setInterval(updateClock, 1000);
+  updateClock();
+  
+
 function updateAlertBar() {
     const highestAlert = getHighestActiveAlert();
     const alertBar = document.getElementById('alertBar');
