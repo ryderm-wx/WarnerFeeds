@@ -38,6 +38,8 @@ const priority = {
     "Winter Weather Advisory": 17,
 };
 
+let currentTimeZone = 'ET';
+
 const warningListElement = document.getElementById('warningList');
 const expirationElement = document.getElementById('expiration');
 const eventTypeElement = document.getElementById('eventType');
@@ -89,77 +91,73 @@ saveButton.addEventListener('click', () => {
     updateWarningList(activeWarnings); 
 });
 
-// Function to toggle visibility of the slider
 function toggleSlider() {
     var slider = document.getElementById('sliderContainer');
     var body = document.body;
 
-    // Toggle slider visibility
     if (slider.style.transform === 'translateY(0%)') {
-        slider.style.transform = 'translateY(-100%)'; // Hide slider
-        body.classList.remove('overlay'); // Remove overlay from body
+        slider.style.transform = 'translateY(-100%)';
+        body.classList.remove('overlay');
     } else {
-        slider.style.transform = 'translateY(0%)'; // Show slider
-        body.classList.add('overlay'); // Add overlay to body to prevent scrolling
+        slider.style.transform = 'translateY(0%)';
+        body.classList.add('overlay');
     }
 }
 
-// Function to process the incoming alert message
 async function fetchWarnings() {
     try {
         const response = await fetch('https://api.weather.gov/alerts/active');
         const data = await response.json();
         const warnings = data.features.filter(feature =>
-            selectedAlerts.has(feature.properties.event) // Filter selected alerts
+            selectedAlerts.has(feature.properties.event)
         );
 
         let tornadoCount = 0;
         let thunderstormCount = 0;
         let floodCount = 0;
-        let winterWeatherCount = 0; // Counter for winter weather events
+        let winterWeatherCount = 0;
 
         warnings.forEach(warning => {
             const eventName = warning.properties.event;
             if (eventName === "Tornado Warning") {
-                const detectionType = warning.properties.parameters?.tornadoDetection?.[0]; // Get the first item in the array
-                const damageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0]; // Get the first item in the array
+                const detectionType = warning.properties.parameters?.tornadoDetection?.[0];
+                const damageThreat = warning.properties.parameters?.tornadoDamageThreat?.[0];
                 if (detectionType === "OBSERVED") {
                     if (damageThreat === "CONSIDERABLE") {
-                        tornadoCount++; // Count as PDS Tornado Warning
+                        tornadoCount++;
                     } else if (damageThreat === "CATASTROPHIC") {
-                        tornadoCount++; // Count as Tornado Emergency
+                        tornadoCount++;
                     } else {
-                        tornadoCount++; // Count as Radar Indicated Tornado Warning
+                        tornadoCount++;
                     }
                 } else {
-                    tornadoCount++; // Count as Radar Indicated Tornado Warning
+                    tornadoCount++;
                 }
             } else if (eventName === "Severe Thunderstorm Warning") {
-                const damageThreat = warning.properties.parameters?.thunderstormDamageThreat?.[0]; // Get the first item in the array
+                const damageThreat = warning.properties.parameters?.thunderstormDamageThreat?.[0];
                 if (damageThreat === "CONSIDERABLE") {
-                    thunderstormCount++; // Count as Considerable Severe Thunderstorm Warning
+                    thunderstormCount++;
                 } else if (damageThreat === "DESTRUCTIVE") {
-                    thunderstormCount++; // Count as Destructive Severe Thunderstorm Warning (PDS)
+                    thunderstormCount++;
                 } else {
-                    thunderstormCount++; // Count as regular Severe Thunderstorm Warning
+                    thunderstormCount++;
                 }
             } else if (eventName === "Flash Flood Warning") {
                 floodCount++;
             } else if (eventName === "Winter Weather Advisory") {
-                winterWeatherCount++; // Count winter weather advisories
+                winterWeatherCount++;
             } else if (eventName === "Winter Storm Warning") {
-                winterWeatherCount++; // Count winter storm warnings
+                winterWeatherCount++;
             } else if (eventName === "Winter Storm Watch") {
-                winterWeatherCount++; // Count winter storm watches
+                winterWeatherCount++;
             }
         });
 
         tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
         thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
         floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
-        winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`; // Update winter weather count
+        winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`;
 
-        // Sort warnings by issuance time (newest first)
         warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
 
         activeWarnings = warnings;
@@ -174,29 +172,25 @@ async function fetchWarnings() {
 
             if (!warning.properties || !warning.properties.event) {
                 console.warn('Warning is missing properties:', warning);
-                return; // Skip this warning if it doesn't have the necessary properties
+                return;
             }
-            // Check if the warning is new
             if (!previousWarningIds.has(warningId)) {
-                previousWarningIds.add(warningId); // Add new warning ID to the Set
-                showNotification(warning); // Notify for new warning
+                previousWarningIds.add(warningId);
+                showNotification(warning);
             } else {
-                // Check for updates to existing warnings
                 const previousEvent = previousWarnings.get(warningId);
                 if (previousEvent && previousEvent !== eventName) {
-                    showNotification(warning); // Notify for updated warning
+                    showNotification(warning);
                 }
             }
 
-            // Update the previous warnings map
             previousWarnings.set(warningId, eventName);
         });
 
-        // Detect expired warnings (warnings that were previously active but are no longer in the current set)
         previousWarningIds.forEach(id => {
             if (!currentWarningIds.has(id)) {
                 console.log(`⚠️ Warning expired: ${previousWarnings.get(id)} (ID: ${id})`);
-                notifyWarningExpired(previousWarnings.get(id), id); // Call the new function
+                notifyWarningExpired(previousWarnings.get(id), id);
                 previousWarnings.delete(id);
                 previousWarningIds.delete(id);
             }
@@ -211,16 +205,13 @@ async function fetchWarnings() {
 function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
     const expiredWarning = {
         properties: {
-            event: `A weather alert expired - This was a ${eventName} near ${areaDesc}`, // Updated string interpolation
+            event: `A weather alert expired - This was a ${eventName} near ${areaDesc}`,
             id: warningId,
-            areaDesc: `This was a ${eventName} near ${areaDesc}`, // Updated areaDesc
-            alertColor: '#FFE4C4' // Default color for expired warnings
+            areaDesc: `This was a ${eventName} near ${areaDesc}`,
+            alertColor: '#FFE4C4'
         }
     };
 }
-
-// Example usage
- // Replace with actual event name and ID
 
 function testNotification(eventName) {
     const warning = {
@@ -249,7 +240,7 @@ function getEventName(warning) {
     }
 
     const eventName = warning.properties.event;
-    const description = warning.properties.description || ""; // Get the description field
+    const description = warning.properties.description || "";
 
     if (eventName === "Tornado Warning") {
         const detectionType = warning.properties.parameters?.tornadoDetection?.[0]; 
@@ -276,7 +267,7 @@ function getEventName(warning) {
         }
     } else if (eventName === "Flash Flood Warning") {
         if (description.includes("FLASH FLOOD EMERGENCY")) {
-            return "Flash Flood Emergency"; // Corrected line
+            return "Flash Flood Emergency";
         }
     } else if (["Winter Weather Advisory", "Winter Storm Warning", "Winter Storm Watch", "Ice Storm Warning", "Blizzard Warning"].includes(eventName)) {
         return eventName; 
@@ -323,10 +314,9 @@ function processNotificationQueue() {
 }
 
 function typeEffect(element, text, delay = 25, startDelay = 150) {
-    element.textContent = ''; // Clear the existing text
+    element.textContent = '';
     let index = 0;
 
-    // Start typing after the specified startDelay
     setTimeout(() => {
         const typingInterval = setInterval(() => {
             if (index < text.length) {
@@ -336,118 +326,124 @@ function typeEffect(element, text, delay = 25, startDelay = 150) {
                 clearInterval(typingInterval);
             }
         }, delay);
-    }, startDelay); // Delay before starting the typing effect
+    }, startDelay);
 }
 
 function updateCountiesPosition() {
-    const eventTypeLeft = parseInt(window.getComputedStyle(eventTypeElement).left, 10); // Get the left position
-    const eventTypeWidth = eventTypeElement.offsetWidth; // Get the width of the event type bar
-    countiesElement.style.left = `${eventTypeLeft + eventTypeWidth + 550}px`; // 30px to the right
+    const eventTypeLeft = parseInt(window.getComputedStyle(eventTypeElement).left, 10);
+    const eventTypeWidth = eventTypeElement.offsetWidth;
+    countiesElement.style.left = `${eventTypeLeft + eventTypeWidth + 550}px`;
 }
 
-// Call this function whenever the event type bar changes
 updateCountiesPosition();
 
 function getHighestActiveAlert() {
     if (activeWarnings.length === 0) {
-        return { alert: 'N/A', color: 'rgba(255, 255, 255, 0.9)' }; // Default if no alerts
+        return { alert: 'N/A', color: 'rgba(255, 255, 255, 0.9)' };
     }
 
-    // Sort active warnings by priority
     const highestAlert = activeWarnings.reduce((prev, current) => {
         return priority[current.properties.event] < priority[prev.properties.event] ? current : prev;
     });
 
     return {
         alert: highestAlert.properties.event,
-        color: getAlertColor(highestAlert.properties.event) // Get color based on event
+        color: getAlertColor(highestAlert.properties.event)
     };
 }
 
 function updateClock() {
     const now = new Date();
   
-    // Format time
-    let hours = now.getHours();
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const displayTime = new Date(now.getTime() - (currentTimeZone === 'CT' ? 1 : 0) * 60 * 60 * 1000);
+  
+    let hours = displayTime.getHours();
+    const minutes = displayTime.getMinutes().toString().padStart(2, '0');
+    const seconds = displayTime.getSeconds().toString().padStart(2, '0');
     const ampm = hours >= 12 ? 'PM' : 'AM';
     hours = hours % 12 || 12;
   
-    // Format date
-    const timeString = `${hours.toString().padStart(2, '0')}:${minutes}:${seconds} ${ampm} ET`;
-    const dateString = `${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}/${(now.getFullYear()%100).toString().padStart(2, '0')}`;
+    const timeString = `${hours.toString().padStart(2, '0')}:${minutes}:${seconds} ${ampm} ${currentTimeZone}`;
+    const dateString = `${(displayTime.getMonth() + 1).toString().padStart(2, '0')}/${displayTime.getDate().toString().padStart(2, '0')}/${(displayTime.getFullYear() % 100).toString().padStart(2, '0')}`;
   
     document.getElementById('clockDisplay').textContent = `${timeString}   ${dateString}`;
   }
   
+  function toggleTimeZone() {
+    if (currentTimeZone === 'ET') {
+      currentTimeZone = 'CT';
+      document.getElementById('toggleTimeZone').textContent = 'Switch to Eastern Time';
+    } else {
+      currentTimeZone = 'ET';
+      document.getElementById('toggleTimeZone').textContent = 'Switch to Central Time';
+    }
+    updateClock();
+  }
+
+  
   setInterval(updateClock, 1000);
   updateClock();
   
-
 function updateAlertBar() {
     const highestAlert = getHighestActiveAlert();
     const alertBar = document.getElementById('alertBar');
     const alertText = document.getElementById('highestAlertText');
 
     if (highestAlert.alert === 'N/A') {
-        alertText.textContent = 'MICHIGAN STORM CHASERS'; // Display this text if no active alerts
-        alertBar.style.backgroundColor = '#1F2593'; // Set default background color
-        alertBar.style.setProperty('--glow-color', 'rgba(255, 255, 255, 0.6)'); // Set a default glow color
+        alertText.textContent = 'MICHIGAN STORM CHASERS';
+        alertBar.style.backgroundColor = '#1F2593';
+        alertBar.style.setProperty('--glow-color', 'rgba(255, 255, 255, 0.6)');
     } else {
         alertText.textContent = `${highestAlert.alert}`;
-        alertBar.style.backgroundColor = highestAlert.color; // Set the background color
+        alertBar.style.backgroundColor = highestAlert.color;
 
-        // Set the glow color based on the alert color
         alertBar.style.setProperty('--glow-color', highestAlert.color);
     }
 }
 
-// Call updateAlertBar periodically
-setInterval(updateAlertBar, 5000); // Update every 5 seconds
+setInterval(updateAlertBar, 5000);
 
 function getAlertColor(eventName) {
     switch (eventName) {
         case "Tornado Warning":
-            return '#FF0000'; // Low Alert
+            return '#FF0000';
         case "Observed Tornado Warning":
-            return '#FF00FF'; // High Alert
+            return '#FF00FF';
         case "PDS Tornado Warning":
-            return '#FF00FF'; // High Alert
+            return '#FF00FF';
         case "Tornado Emergency":
-            return '#FF0080'; // High Alert
+            return '#FF0080';
         case "Severe Thunderstorm Warning":
-            return '#FF8000'; // Low Alert
+            return '#FF8000';
         case "Considerable Severe Thunderstorm Warning":
-            return '#FF8000'; // High Alert
+            return '#FF8000';
         case "Destructive Severe Thunderstorm Warning":
-            return '#FF8000'; // High Alert
+            return '#FF8000';
         case "Flash Flood Warning":
-            return '#228B22'; // Low Alert
+            return '#228B22';
         case "Flash Flood Emergency":
-            return '#8B0000'; // High Alert
+            return '#8B0000';
         case "Tornado Watch":
-            return '#FFFF00'; // Low Alert
+            return '#FFFF00';
         case "Severe Thunderstorm Watch":
-            return '#DB7093'; // Low Alert
+            return '#DB7093';
         case "Winter Weather Advisory":
-            return '#7B68EE'; // Low Alert
+            return '#7B68EE';
         case "Winter Storm Warning":
-            return '#FF69B4'; // High Alert
+            return '#FF69B4';
         case "Winter Storm Watch":
-            return '#0000FF'; // High Alert
+            return '#0000FF';
         case "Ice Storm Warning":
-            return '#8B008B'; // High Alert
+            return '#8B008B';
         case "Blizzard Warning":
-            return '#FF4500'; // High Alert
+            return '#FF4500';
         case "Special Weather Statement":
-            return '#FFE4B5'; // Medium Chime
+            return '#FFE4B5';
         default:
-            return 'rgba(255, 255, 255, 0.9)'; // Default color
+            return 'rgba(255, 255, 255, 0.9)';
     }
 }
 
-// Call updateAlertBar periodically
 setInterval(updateAlertBar, 5000);
 
 const audioElements = {
@@ -461,28 +457,24 @@ const audioElements = {
     SVAWatch: new Audio("https://audio.jukehost.co.uk/vOROpwVlXRik9TS2wXvJvtYInR8o2qMQ")
 };
 
-// Function to play sound by ID
 function playSoundById(soundId) {
     const sound = audioElements[soundId];
     if (sound) {
-        sound.currentTime = 0; // Reset sound to start
+        sound.currentTime = 0;
         sound.play().catch(error => console.error('Error playing sound:', error));
     } else {
-        // Fallback to SVRCSound if the sound ID is unknown
-        audioElements.SVRCSound.currentTime = 0; // Reset fallback sound to start
+        audioElements.SVRCSound.currentTime = 0;
         audioElements.SVRCSound.play().catch(error => console.error('Error playing fallback sound:', error));
     }
 }
 
-// Example usage in your existing code
 function displayNotification(warning) {
     const eventName = getEventName(warning);
     const counties = formatCountiesTopBar(warning.properties.areaDesc);
     
-    // Create notification elements
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
-    notification.style.bottom = '125'; // Set position for notifications
+    notification.style.bottom = '125';
 
     const title = document.createElement('div');
     title.className = 'notification-title';
@@ -492,38 +484,33 @@ function displayNotification(warning) {
     countiesSection.className = 'notification-message';
     countiesSection.textContent = counties; 
 
-    // Append elements
     notification.appendChild(title);
     notification.appendChild(countiesSection);
-    document.body.appendChild(notification); // Ensure it's in the DOM
+    document.body.appendChild(notification);
 
-    // Slide up animation
-    notification.style.transform = 'translateY(100%)'; // Slide up effect
+    notification.style.transform = 'translateY(100%)';
     setTimeout(() => {
-        notification.style.transform = 'translateY(53%)'; // Move into view
-    }, 10); // Small timeout to trigger the transition
+        notification.style.transform = 'translateY(53%)';
+    }, 10);
 
-    // Play sound based on event name
     if (eventName.includes("Tornado Emergency")) {
-        playSoundById('TOREISS'); // Tornado Emergency
+        playSoundById('TOREISS');
     } else if (eventName.includes("PDS Tornado Warning")) {
-        playSoundById('TorPDSSound'); // Particularly Dangerous Situation Tornado Warning
+        playSoundById('TorPDSSound');
     } else if (eventName.includes("Tornado Warning")) {
-        playSoundById('TorIssSound'); // Tornado Warning (Standard)
+        playSoundById('TorIssSound');
     } else if (eventName.includes("Severe Thunderstorm Warning") && eventName.includes("Considerable")) {
-        playSoundById('SVRCSound'); // Severe Thunderstorm Warning – Considerable Tag
+        playSoundById('SVRCSound');
     } else if (eventName.includes("Destructive Severe Thunderstorm Warning")) {
-        playSoundById('PDSSVRSound'); // Destructive Severe Thunderstorm Warning
+        playSoundById('PDSSVRSound');
     } else if (eventName.includes("Tornado Watch")) {
-        playSoundById('TOAWatch'); // Tornado Watch
+        playSoundById('TOAWatch');
     } else if (eventName.includes("Severe Thunderstorm Watch")) {
-        playSoundById('SVAWatch'); // Severe Thunderstorm Watch
+        playSoundById('SVAWatch');
     } else {
-        // If none of the above conditions are met, play the fallback sound
         playSoundById('SVRCSound');
     }
 
-    // Set expiration time without typing effect
     const expirationDate = new Date(warning.properties.expires);
     const options = { 
         timeZoneName: 'short',
@@ -539,27 +526,26 @@ function displayNotification(warning) {
     notification.style.backgroundColor = alertColor; 
     notification.style.opacity = 1; 
 
-    // Default timeout for other alerts
     setTimeout(() => {
-        notification.style.transform = 'translateY(100%)'; // Slide out effect
+        notification.style.transform = 'translateY(100%)';
         setTimeout(() => {
-            notification.remove(); // Remove from DOM after sliding out
-        }, 500); // Match the duration of the transition
-    }, 7000); // Duration to show the notification
+            notification.remove();
+        }, 500);
+    }, 7000);
 }
 
 document.getElementById('testCustomWarningButton').addEventListener('click', () => {
     const customWarningText = document.getElementById('customWarningInput').value;
     if (customWarningText) {
-        testNotification(customWarningText); // Call the existing testNotification function
+        testNotification(customWarningText);
     } else {
         alert("Please enter a warning to test.");
     }
 });
 
 document.getElementById('tacticalModeButton').addEventListener('click', () => {
-    tacticalMode(); // Call the tacticalMode function
-    setInterval(fetchWarnings, 3000); // Fetch warnings every 3 seconds
+    tacticalMode();
+    setInterval(fetchWarnings, 3000);
 });
 
 async function tacticalMode() {
@@ -580,10 +566,10 @@ async function tacticalMode() {
         console.log(`Found ${warningLinks.length} warning links.`);
 
         for (const link of warningLinks) {
-            const warningUrl = `https://warnings.allisonhouse.com/${link.href}`; // Use the correct base URL
+            const warningUrl = `https://warnings.allisonhouse.com/${link.href}`;
 
             console.log(`Fetching warning file: ${warningUrl}`);
-            const warningResponse = await fetch(warningUrl, { mode: 'cors' }); // Ensure CORS is handled
+            const warningResponse = await fetch(warningUrl, { mode: 'cors' });
 
             if (!warningResponse.ok) {
                 console.error('Failed to fetch warning file. Status:', warningResponse.status);
@@ -594,12 +580,11 @@ async function tacticalMode() {
             const eventName = getEventNameFromText(warningText);
             const counties = extractCounties(warningText);
 
-            // Display or use the extracted data as needed
             showNotification({
                 properties: {
                     event: eventName,
                     areaDesc: counties,
-                    expires: new Date().toISOString() // Set expiration as needed
+                    expires: new Date().toISOString()
                 }
             });
         }
@@ -608,15 +593,11 @@ async function tacticalMode() {
     }
 }
 
-//nodemon server.js to run.
-
-// Helper function to check if a warning is active
 function isWarningActive(warning) {
     const expirationDate = new Date(warning.properties.expires);
-    return expirationDate > new Date(); // Check if the warning has not expired
+    return expirationDate > new Date();
 }
 
-// Helper function to extract event name from warning text
 function getEventNameFromText(warningText) {
     if (warningText.includes("Tornado Warning")) {
         if (warningText.includes("This is a PARTICULARLY DANGEROUS SITUATION. TAKE COVER NOW!")) {
@@ -632,7 +613,7 @@ function getEventNameFromText(warningText) {
         } else if (warningText.includes("THUNDERSTORM DAMAGE THREAT...DESTRUCTIVE")) {
             return "Destructive Severe Thunderstorm Warning";
         } else {
-            return "Severe Thunderstorm Warning"; // Default return for Severe Thunderstorm Warning
+            return "Severe Thunderstorm Warning";
         }
     } else if (warningText.includes("Flash Flood Warning")) {
         return "Flash Flood Warning";
@@ -641,11 +622,10 @@ function getEventNameFromText(warningText) {
     }
 }
 
-// Helper function to extract counties from the warning text
 function extractCounties(warningText) {
-    const countyRegex = /(?:\* Locations impacted include\.\.\.\s*)([\s\S]*?)(?=\n\n)/; // Regex to capture counties
+    const countyRegex = /(?:\* Locations impacted include\.\.\.\s*)([\s\S]*?)(?=\n\n)/;
     const match = warningText.match(countyRegex);
-    return match ? match[1].trim() : "N/A"; // Return counties or "N/A" if not found
+    return match ? match[1].trim() : "N/A";
 }
 
 function formatCountiesTopBar(areaDesc) {
@@ -750,16 +730,15 @@ function updateDashboard() {
         expirationElement.textContent = 'N/A';
         eventTypeElement.textContent = 'NO ACTIVE WARNINGS';
         countiesElement.textContent = 'N/A';
-        document.querySelector('.event-type-bar').style.backgroundColor = '#333'; 
+        document.querySelector('.event-type-bar').style.backgroundColor = '#333';
         return;
     }
 
     const warning = activeWarnings[currentWarningIndex];
 
-    // Check if the warning object is defined and has properties
     if (!warning || !warning.properties) {
         console.error('Warning object is undefined or missing properties:', warning);
-        return; // Exit the function if the warning is invalid
+        return;
     }
 
     let eventName = getEventName(warning); 
