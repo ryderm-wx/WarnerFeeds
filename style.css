@@ -6,7 +6,7 @@
 }
 
 body {
-    background-image: url('https://i.postimg.cc/yYxnB3Pb/Background.png'); /* Set the background image */
+    background-image: url('https://i.postimg.cc/zf27FrYt/Background-Bar-2.png'); /* Set the background image */
     background-size: cover; /* Cover the entire area */
     width: 2560px; /* Fixed width */
     height: 1440px; /* Fixed height */
@@ -694,7 +694,7 @@ body {
 
 .notification-title {
     text-align: left;
-    padding: 5px;
+    padding: 0.5px;
     font-size: 84px;
     font-weight: bold;
     font-family: 'Saira Condensed', sans-serif;
@@ -708,11 +708,29 @@ body {
 
 }
 
+.active-alerts-box {
+    position: fixed;
+    bottom: 169px;
+    left: 390px;
+    width: 170px; /* Increased from 60px to fit the text properly */
+    height: 45px;
+    background-color: black;
+    color: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Saira Condensed', sans-serif;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+    z-index: -15; /* Higher than alert bar */
+}
 
 
 .notification-message {
     font-size: 24px;
-    padding: 5px;
+    padding: 2px;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     font-family: 'Saira Condensed', sans-serif; 
     overflow-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */

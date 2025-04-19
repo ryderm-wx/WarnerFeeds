@@ -379,7 +379,7 @@ function updateAlertBar() {
         alertBar.style.backgroundColor = 'rgb(31, 37, 147)'; // Set default background color
         alertBar.style.setProperty('--glow-color', 'rgba(255, 255, 255, 0.6)'); // Set a default glow color
     } else {
-        alertText.textContent = `HIGHEST ACTIVE ALERT: ${highestAlert.alert}`;
+        alertText.textContent = `${highestAlert.alert}`;
         alertBar.style.backgroundColor = highestAlert.color; // Set the background color
 
         // Set the glow color based on the alert color
@@ -711,14 +711,14 @@ function extractCounties(warningText) {
 
 function formatCountiesTopBar(areaDesc) {
     const counties = areaDesc.split('; ');
-    let formattedCounties = counties.slice(0, 30).map(county => {
+    let formattedCounties = counties.slice(0, 10).map(county => {
         const parts = county.split(',');
         if (parts.length > 1) {
             return `${parts[0].trim()} County, ${parts[1].trim()}`; 
         }
         return county; 
     });
-    if (counties.length > 30) {
+    if (counties.length > 10) {
         formattedCounties.push("...");
     }
     return formattedCounties.join('; ');
@@ -896,7 +896,7 @@ function updateDashboard() {
     const counties = formatCountiesTopBar(warning.properties.areaDesc);
     expirationElement.textContent = `Expires: ${formattedExpirationTime}`;
     eventTypeElement.textContent = eventName; 
-    countiesElement.textContent = counties;
+    countiesElement.textContent = `Counties: ${counties}`;
     currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
 }
 

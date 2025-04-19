@@ -57,7 +57,7 @@
                     <label><input type="checkbox" value="Special Weather Statement" checked> Special Weather Statement</label><br>
                     <label><input type="checkbox" value="Ice Storm Warning" checked> Ice Storm Warning</label><br>
                     <label><input type="checkbox" value="Blizzard Warning" checked> Blizzard Warning</label><br>
-                    <button id="saveButton">Save/Load Warnings from NWS API (LOUD ON CLICK!)</button>
+                    <button id="saveButton">Begin Fetching Warnings from NWS API (LOUD ON CLICK!)</button>
                 </div>
 
                 <div id="customWarningContainer" class="hidden">
@@ -74,11 +74,12 @@
                     </div>
                 </div>
             </div>
+            <div class="active-alerts-box">HIGHEST ACTIVE ALERT</div>
 
             <!-- Rest of your elements (top bar, bottom bar, etc.) -->
             <div class="bottom-bar">
                 <div class="left-section">
-                    <span id="ActiveAlertText">ACTIVE ALERTS:</span>
+                    <span id="ActiveAlertText">ACTIVE ALERTS</span>
                     <div id="eventType" class="event-type-bar">EVENT TYPE</div>
                 </div>
                 <div id="counties" class="counties-bar">COUNTY NAMES</div>
