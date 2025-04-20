@@ -11,6 +11,9 @@
         <div class="container">
             <!-- Toggle Button for Slider -->
             <button id="toggleSlider" onclick="toggleSlider()">Toggle Dashboard</button>
+            <div class="logo-container">
+                <img src="https://i.postimg.cc/nhHQRZgG/Logo.png" alt="Logo" class="logo" id="pulseLogo">
+            </div>
             
             <!-- Slider Container for the elements -->
             <div id="sliderContainer" class="slider-container">
@@ -57,8 +60,10 @@
                     <label><input type="checkbox" value="Special Weather Statement" checked> Special Weather Statement</label><br>
                     <label><input type="checkbox" value="Ice Storm Warning" checked> Ice Storm Warning</label><br>
                     <label><input type="checkbox" value="Blizzard Warning" checked> Blizzard Warning</label><br>
-                    <button id="saveButton">Begin Fetching Warnings from NWS API (LOUD ON CLICK!)</button>
+                    <button id="saveButton">Begin Fetching Warnings from NWS API (Slower, More Reliable)</button>
+                    <button id="tacticalModeButton">Toggle XMPP Mode (Much Faster, Possible Unreliability Under Extreme Stress)</button><br>
                 </div>
+                
              <!-- Time Zone Toggle -->
                     <div id="Central/Eastern Switch">
                      <button id="toggleTimeZone" onclick="toggleTimeZone()">Switch to Central Time</button>
@@ -67,7 +72,7 @@
 
                 <div id="customWarningContainer" class="hidden">
                     <button id="singleNotificationToggleButton">Enable Single Notification Que (Enable AFTER Loading Warnings)</button>
-                    <button id="tacticalModeButton">Toggle XMPP Mode (Not Functional YET!)</button><br>
+                    <button id="tacticalModeButton">Toggle XMPP Mode ()</button><br>
                     <label>
                         <input type="checkbox" id="testMessageCheckbox">
                         Dev Purposes Only - Show 'THIS IS A TEST MESSAGE' At the Top of a Notification - This Will Show on ANY Notification that pops up if enabled.
@@ -98,7 +103,9 @@
             </div>
         </div>
     </div>
-
+    
     <script src="script.js"></script>
+    <script src="https://cdn.stanza.io/stanza.io.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 </body>
 </html>

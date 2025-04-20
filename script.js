@@ -50,6 +50,16 @@ const thunderstormCountElement = document.getElementById('thunderstormCount');
 const floodCountElement = document.getElementById('floodCount');
 const winterWeatherCountElement = document.getElementById('winterWeatherCount'); 
 
+const socket = new WebSocket("ws://localhost:8080");
+
+
+socket.addEventListener("message", (event) => {
+    const warning = JSON.parse(event.data);
+    activeWarnings.push({ properties: warning });
+    displayNotification({ properties: warning });
+    updateDashboard();
+});
+
 let previousWarningIds = new Set(); 
 
 const labels = {
@@ -61,6 +71,7 @@ const labels = {
 
 let currentWarningIndex = 0;
 let activeWarnings = [];
+
 let previousWarnings = new Map();
 
 document.body.addEventListener('click', enableSound);
@@ -329,13 +340,7 @@ function typeEffect(element, text, delay = 25, startDelay = 150) {
     }, startDelay);
 }
 
-function updateCountiesPosition() {
-    const eventTypeLeft = parseInt(window.getComputedStyle(eventTypeElement).left, 10);
-    const eventTypeWidth = eventTypeElement.offsetWidth;
-    countiesElement.style.left = `${eventTypeLeft + eventTypeWidth + 550}px`;
-}
 
-updateCountiesPosition();
 
 function getHighestActiveAlert() {
     if (activeWarnings.length === 0) {
@@ -470,11 +475,33 @@ function playSoundById(soundId) {
 
 function displayNotification(warning) {
     const eventName = getEventName(warning);
-    const counties = formatCountiesTopBar(warning.properties.areaDesc);
+    // Use the notification-specific formatting function here
+    const counties = formatCountiesNotification(warning.properties.areaDesc);
     
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
     notification.style.bottom = '125';
+
+    // Add the notification pulse to the logo
+        // Add the notification pulse to the logo
+    const logo = document.getElementById('pulseLogo');
+    if (logo) {
+    // Remove any existing animation class
+    logo.classList.remove('notification-pulse');
+    
+    // Trigger reflow to restart animation
+    void logo.offsetWidth;
+    
+    // Add the notification pulse class
+    logo.classList.add('notification-pulse');
+    
+    // Remove the notification pulse class after animation completes
+    setTimeout(() => {
+        logo.classList.remove('notification-pulse');
+        // No need to set an animation back since we want no animation between notifications
+    }, 2000);
+ }
+
 
     const title = document.createElement('div');
     title.className = 'notification-title';
@@ -534,6 +561,8 @@ function displayNotification(warning) {
     }, 7000);
 }
 
+
+
 document.getElementById('testCustomWarningButton').addEventListener('click', () => {
     const customWarningText = document.getElementById('customWarningInput').value;
     if (customWarningText) {
@@ -548,50 +577,9 @@ document.getElementById('tacticalModeButton').addEventListener('click', () => {
     setInterval(fetchWarnings, 3000);
 });
 
-async function tacticalMode() {
-    try {
-        console.log('Fetching tactical warnings index from warnings.allisonhouse.com...');
-        const indexResponse = await fetch('https://warnings.allisonhouse.com/');
 
-        if (!indexResponse.ok) {
-            console.error('Failed to fetch warnings index. Status:', indexResponse.status);
-            return;
-        }
 
-        const indexText = await indexResponse.text();
-        const parser = new DOMParser();
-        const indexDoc = parser.parseFromString(indexText, 'text/html');
-        const warningLinks = indexDoc.querySelectorAll('a');
 
-        console.log(`Found ${warningLinks.length} warning links.`);
-
-        for (const link of warningLinks) {
-            const warningUrl = `https://warnings.allisonhouse.com/${link.href}`;
-
-            console.log(`Fetching warning file: ${warningUrl}`);
-            const warningResponse = await fetch(warningUrl, { mode: 'cors' });
-
-            if (!warningResponse.ok) {
-                console.error('Failed to fetch warning file. Status:', warningResponse.status);
-                continue;
-            }
-
-            const warningText = await warningResponse.text();
-            const eventName = getEventNameFromText(warningText);
-            const counties = extractCounties(warningText);
-
-            showNotification({
-                properties: {
-                    event: eventName,
-                    areaDesc: counties,
-                    expires: new Date().toISOString()
-                }
-            });
-        }
-    } catch (error) {
-        console.error('Error fetching tactical warnings:', error);
-    }
-}
 
 function isWarningActive(warning) {
     const expirationDate = new Date(warning.properties.expires);
@@ -628,20 +616,32 @@ function extractCounties(warningText) {
     return match ? match[1].trim() : "N/A";
 }
 
+// For the dashboard display (limit to 4 counties)
 function formatCountiesTopBar(areaDesc) {
-    const counties = areaDesc.split('; ');
-    let formattedCounties = counties.slice(0, 10).map(county => {
-        const parts = county.split(',');
-        if (parts.length > 1) {
-            return `${parts[0].trim()} County, ${parts[1].trim()}`; 
-        }
-        return county; 
-    });
-    if (counties.length > 10) {
-        formattedCounties.push("...");
+    if (!areaDesc) return "Unknown Area";
+    
+    // Split the counties string and clean each part
+    const parts = areaDesc.split(';').map(part => part.trim());
+    
+    // If we have more than 4 counties, only show the first 4 with an ellipsis
+    if (parts.length > 4) {
+        return parts.slice(0, 4).join(', ') + '...';
     }
-    return formattedCounties.join('; ');
+    
+    return parts.join(', ');
 }
+
+// For notifications (show all counties)
+function formatCountiesNotification(areaDesc) {
+    if (!areaDesc) return "Unknown Area";
+    
+    // Split the counties string and clean each part
+    const parts = areaDesc.split(';').map(part => part.trim());
+    
+    // Show all counties in notifications
+    return parts.join(', ');
+}
+
 
 function updateWarningList(warnings) {
     const latestWarnings = warnings.slice(0, 5);
