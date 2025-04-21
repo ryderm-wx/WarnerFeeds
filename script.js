@@ -587,68 +587,112 @@ const MI_STATIONS = {
   }
   
   // Function to display current conditions in the UI
-  function displayCurrentConditions(stationId) {
-      const conditionData = currentConditions[stationId];
-      if (!conditionData) return;
-      
-      // If there are no active alerts, show the current conditions
-      if (activeWarnings.length === 0) {
-          // Update the warning counts area to show the current location
-          tornadoCountElement.textContent = `${labels.currentLocation}: ${conditionData.stationName}`;
-          
-          // Use the weather description and temperature for thunderstorm count area
-          thunderstormCountElement.textContent = `${labels.currentCondition}: ${conditionData.description} ${conditionData.temp}°F`;
-          
-          // Use winds for the flood count area
-          floodCountElement.textContent = `${labels.currentWind}: ${conditionData.winds}`;
-          
-          // Use humidity and dew point for winter weather
-          winterWeatherCountElement.textContent = `${labels.currentDetails}: RH ${conditionData.humidity}% DEW ${conditionData.dewPoint}°F`;
-          
-          // Update the warning list with the weather icon and more details
-          const warningList = document.getElementById('warningList');
-          if (warningList) {
-              // Clear current content
-              warningList.innerHTML = '';
-              
-              // Create a container for the weather icon and details
-              const weatherContainer = document.createElement('div');
-              weatherContainer.className = 'weather-container';
-              
-              // Add weather icon
-              const weatherIcon = document.createElement('div');
-              weatherIcon.className = 'weather-icon';
-              weatherIcon.style.backgroundImage = `url('${conditionData.weatherIcon}')`;
-              weatherIcon.style.backgroundSize = 'contain';
-              weatherIcon.style.backgroundRepeat = 'no-repeat';
-              weatherIcon.style.backgroundPosition = 'center';
-              weatherIcon.style.width = '150px';
-              weatherIcon.style.height = '150px';
-              weatherIcon.style.margin = '20px auto';
-              
-              // Add detailed info
-              const weatherDetails = document.createElement('div');
-              weatherDetails.className = 'weather-details';
-              weatherDetails.style.fontSize = '24px';
-              weatherDetails.style.padding = '10px';
-              weatherDetails.style.textAlign = 'center';
-              weatherDetails.innerHTML = `
-                  <div>${conditionData.stationName} - ${conditionData.description}</div>
-                  <div>Temperature: ${conditionData.temp}°F${conditionData.windChill ? ` (Feels like ${conditionData.windChill}°F)` : ''}</div>
-                  <div>Wind: ${conditionData.winds}</div>
-                  <div>Humidity: ${conditionData.humidity}% | Dew Point: ${conditionData.dewPoint}°F</div>
-                  <div>Visibility: ${conditionData.visibility} miles</div>
-              `;
-              
-              // Append elements to container
-              weatherContainer.appendChild(weatherIcon);
-              weatherContainer.appendChild(weatherDetails);
-              
-              // Append container to warning list
-              warningList.appendChild(weatherContainer);
-          }
-      }
-  }
+  // Function to display current conditions in the UI
+function displayCurrentConditions(stationId) {
+    const conditionData = currentConditions[stationId];
+    if (!conditionData) return;
+    
+    // If there are no active alerts, show the current conditions
+    if (activeWarnings.length === 0) {
+        // Update the warning counts area to show the current location
+        tornadoCountElement.textContent = `${labels.currentLocation}: ${conditionData.stationName}`;
+        
+        // Use the weather description and temperature for thunderstorm count area
+        thunderstormCountElement.textContent = `${labels.currentCondition}: ${conditionData.description} ${conditionData.temp}°F`;
+        
+        // Use winds for the flood count area
+        floodCountElement.textContent = `${labels.currentWind}: ${conditionData.winds}`;
+        
+        // Use humidity and dew point for winter weather
+        winterWeatherCountElement.textContent = `${labels.currentDetails}: RH ${conditionData.humidity}% DEW ${conditionData.dewPoint}°F`;
+        
+        // Update the warning list with the weather icon and more details
+        const warningList = document.getElementById('warningList');
+        if (warningList) {
+            // Clear current content
+            warningList.innerHTML = '';
+            
+            // Create a container for the weather icon and details
+            const weatherContainer = document.createElement('div');
+            weatherContainer.className = 'weather-container';
+            
+            // Add weather icon
+            const weatherIcon = document.createElement('div');
+            weatherIcon.className = 'weather-icon';
+            weatherIcon.style.backgroundImage = `url('${conditionData.weatherIcon}')`;
+            weatherIcon.style.backgroundSize = 'contain';
+            weatherIcon.style.backgroundRepeat = 'no-repeat';
+            weatherIcon.style.backgroundPosition = 'center';
+            weatherIcon.style.width = '150px';
+            weatherIcon.style.height = '150px';
+            weatherIcon.style.margin = '20px auto';
+            
+            // Add detailed info
+            const weatherDetails = document.createElement('div');
+            weatherDetails.className = 'weather-details';
+            weatherDetails.style.fontSize = '24px';
+            weatherDetails.style.padding = '10px';
+            weatherDetails.style.textAlign = 'center';
+            weatherDetails.innerHTML = `
+                <div>${conditionData.stationName} - ${conditionData.description}</div>
+                <div>Temperature: ${conditionData.temp}°F${conditionData.windChill ? ` (Feels like ${conditionData.windChill}°F)` : ''}</div>
+                <div>Wind: ${conditionData.winds}</div>
+                <div>Humidity: ${conditionData.humidity}% | Dew Point: ${conditionData.dewPoint}°F</div>
+                <div>Visibility: ${conditionData.visibility} miles</div>
+            `;
+            
+            // Append elements to container
+            weatherContainer.appendChild(weatherIcon);
+            weatherContainer.appendChild(weatherDetails);
+            
+            // Append container to warning list
+            warningList.appendChild(weatherContainer);
+        }
+        
+        // Update the bottom ticker (event type bar) with the formatted weather information
+        const eventTypeElement = document.getElementById('eventType');
+        if (eventTypeElement) {
+            // Format the text as requested
+            const formattedText = `${conditionData.description} - Temp ${conditionData.temp}°F${conditionData.windChill ? ` (Feels like ${conditionData.windChill}°F)` : ''} - Dew ${conditionData.dewPoint}°F - Wind: ${conditionData.winds}`;
+            
+            // Set the text and add appropriate styling
+            eventTypeElement.textContent = formattedText;
+            
+            // Clear any previous event type classes
+            for (const type in eventTypes) {
+                eventTypeElement.classList.remove(eventTypes[type]);
+            }
+            
+            // Add an appropriate CSS class based on the weather condition
+            const weatherClass = getWeatherClass(conditionData.description);
+            if (weatherClass) {
+                eventTypeElement.classList.add(weatherClass);
+            }
+        }
+    }
+}
+
+// Helper function to map weather descriptions to CSS classes
+function getWeatherClass(description) {
+    description = description.toLowerCase();
+    
+    if (description.includes('thunderstorm')) {
+        return 'severe-thunderstorm-warning';
+    } else if (description.includes('snow') || description.includes('sleet')) {
+        return 'winter-storm-warning';
+    } else if (description.includes('rain') || description.includes('drizzle')) {
+        return 'flash-flood-warning';
+    } else if (description.includes('fog')) {
+        return 'special-weather-statement';
+    } else if (description.includes('cloudy')) {
+        return 'severe-thunderstorm-watch';
+    } else if (description.includes('clear') || description.includes('sunny')) {
+        return 'tornado-watch'; // Using tornado-watch for sunny (yellowish color)
+    } else {
+        return '';
+    }
+}
+
   
   // Function to start conditions cycling
   function startWeatherConditionsCycling() {
@@ -1083,6 +1127,7 @@ function updateDashboard() {
 document.addEventListener('DOMContentLoaded', () => {
     fetchWarnings();
     updateDashboard();
+    startWeatherConditionsCycling();
 });
 
 setInterval(fetchWarnings, 3000);
