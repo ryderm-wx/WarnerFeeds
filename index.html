@@ -10,7 +10,7 @@
     <div class="content">
         <div class="container">
             <!-- Toggle Button for Slider -->
-            <button id="toggleSlider" onclick="toggleSlider()">Toggle Dashboard</button>
+            <button id="toggleSlider" onclick="toggleslider()">Toggle Dashboard</button>
             <div class="logo-container">
                 <img src="https://i.postimg.cc/nhHQRZgG/Logo.png" alt="Logo" class="logo" id="pulseLogo">
             </div>
@@ -84,7 +84,7 @@
                     </div>
                 </div>
             </div>
-            <div class="active-alerts-box">HIGHEST ACTIVE ALERT</div>
+            <div class="active-alerts-box">LOADING...</div>
             <div class="semicircle">
                 <div class="time-date" id="clockDisplay"></div>
               </div>
@@ -99,13 +99,24 @@
             </div>
             <div class="black-bar"></div>
             <div id="alertBar" class="alert-bar">
-                <span id="highestAlertText">MICHIGAN STORM CHASERS</span>
+                <span id="highestAlertText">LOADING...</span>
             </div>
         </div>
     </div>
     
-    <script src="script.js"></script>
-    <script src="https://cdn.stanza.io/stanza.io.js"></script>
-    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<!-- Your custom script -->
+<script src="script.js"></script>
+
+<!-- ✅ Browser-ready Stanza.io -->
+<script src="https://cdn.jsdelivr.net/npm/stanza.io/browser-bundle/stanzaio.min.js"></script>
+
+<!-- Your XMPP logic using stanza.io -->
+<script src="xmpp.js"></script>
+
+<!-- Socket.IO if needed -->
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+
+    
 </body>
 </html>

@@ -99,12 +99,12 @@ body.overlay {
         transform: scale(1);
     }
     50% {
-        transform: scale(1.05);
+        transform: scale(1.10);
     }
 }
 
 .logo.notification-pulse {
-    animation: notificationPulse 2s ease-in-out;
+    animation: notificationPulse 0.5s ease-in-out;
 }
 
 
@@ -200,7 +200,7 @@ body {
     padding: 10px;
     font-size: 1.2em; 
     font-weight: bold; 
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9); 
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8); 
     border-radius: 10px; /* Adjust the value as needed for more or less rounding */
     position: relative; /* Set position to relative */
     left: 350px; /* Offset to the right by 100px */
@@ -248,7 +248,9 @@ body {
 }
 
 
-  
+
+
+
   .semicircle {
     position: fixed;
     bottom: 80px;
@@ -328,13 +330,14 @@ body {
     position: relative; /* Allows for positioning */
     left: 297px; /* Offset to the right by 330px */
     text-align: left; /* Align text to the left */
-    font-size: 1.2em; /* Increase font size for better visibility */
+    font-size: 1.3em; /* Increase font size for better visibility */
     font-weight: bold; /* Make the text bold */
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Add a shadow for depth */
     color: white; /* Set text color to white */
     padding: 0px; /* Add some padding around the text */
     align-items: center; /* Center vertically */
     z-index: -2;
+    bottom: -7px;
 }
 
 
@@ -757,14 +760,14 @@ body {
     0%, 100% {
         transform: scale(1);
         text-shadow:
-            1px 1px 2px rgba(0, 0, 0, 0.8),
+            5px 5px 9px rgba(0, 0, 0, 0.6),
             0 0 4px rgba(255, 255, 255, 0.4),
             0 0 6px rgba(255, 255, 255, 0.3);
     }
     50% {
         transform: scale(1.05);
         text-shadow:
-            1px 1px 2px rgba(0, 0, 0, 0.8),
+            5px 5px 9px rgba(0, 0, 0, 0.6),
             0 0 10px rgba(255, 255, 255, 0.75),
             0 0 16px rgba(255, 255, 255, 0.6);
     }
@@ -785,6 +788,45 @@ body {
     transform-origin: left center; /* So it scales from the left */
 
 }
+
+.notification-expiration {
+    position: absolute;
+    top: 40px;
+    right: 400px;
+    font-size: 36px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    z-index: 10; /* Make sure it's on top of other elements */
+    padding: 3px 6px;
+    border-radius: 3px;
+    text-align: right;
+}
+
+@keyframes emergencyGlow {
+    0% {
+        text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000;
+        transform: scale(1);
+    }
+    100% {
+        text-shadow: 0 0 20px #ff0000, 0 0 30px #ff0000, 0 0 40px #ff0000;
+        transform: scale(1.05);
+    }
+}
+
+.emergency-alert {
+    position: absolute;
+    top: -8px;
+    right: 450px;
+    font-size: 36px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.6);
+    z-index: 10; /* Make sure it's on top of other elements */
+    padding: 3px 6px;
+    border-radius: 3px;
+}
+
 
 .active-alerts-box {
     position: fixed;
@@ -809,21 +851,22 @@ body {
 
 
 .notification-message {
-    font-size: 24px;
+    font-size: 30px;
     padding: 2px;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
     font-family: 'Saira Condensed', sans-serif; 
-    overflow-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */
-    word-break: break-word; /* Breaks words at arbitrary points if necessary */
-    white-space: normal; /* Allows text to wrap normally */
-    transition: all 0.3s ease; /* Smooth transition for any changes */
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
+    transition: all 0.3s ease;
     text-align: left;
     
-    /* Add these properties to control line width */
-    max-width: 1800px; /* Adjust this value to control approximately how many words fit per line */
-    display: block; /* Ensures the element takes up the full width */
-    line-height: 1.3; /* Provides good spacing between wrapped lines */
+    max-width: 2100px;
+    display: block;
+    line-height: 1.1;
+    
 }
+
 
 
 

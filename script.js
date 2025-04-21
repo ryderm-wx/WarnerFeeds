@@ -102,7 +102,7 @@ saveButton.addEventListener('click', () => {
     updateWarningList(activeWarnings); 
 });
 
-function toggleSlider() {
+function toggleslider() {
     var slider = document.getElementById('sliderContainer');
     var body = document.body;
 
@@ -213,6 +213,22 @@ async function fetchWarnings() {
     }
 }
 
+function adjustMessageFontSize(messageElement) {
+    const originalFontSize = 36; // Starting font size
+    let currentFontSize = originalFontSize;
+    
+    // Set initial font size
+    messageElement.style.fontSize = `${currentFontSize}px`;
+    
+    // Check if the content exceeds 2 lines
+    while (messageElement.scrollHeight > messageElement.clientHeight && currentFontSize > 18) {
+        // Reduce font size and try again
+        currentFontSize -= 2;
+        messageElement.style.fontSize = `${currentFontSize}px`;
+    }
+}
+
+
 function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
     const expiredWarning = {
         properties: {
@@ -225,15 +241,21 @@ function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
 }
 
 function testNotification(eventName) {
+    // Create date object for current time plus 30 minutes
+    const expirationDate = new Date();
+    expirationDate.setMinutes(expirationDate.getMinutes() + 30);
+    
     const warning = {
         properties: {
             event: eventName, 
             areaDesc: "TESTING - Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI; Oakland, MI; Macomb, MI; Livingston, MI; Genesee, MI; Ingham, MI; Jackson, MI; Hillsdale, MI; Calhoun, MI; Eaton, MI; Shiawassee, MI; Clinton, MI; Lapeer, MI; St. Clair, MI; Barry, MI;", 
-            actionSection: "THIS IS A TEST MESSAGE. DO NOT TAKE ACTION ON THIS MESSAGE." 
+            actionSection: "THIS IS A TEST MESSAGE. DO NOT TAKE ACTION ON THIS MESSAGE.",
+            expires: expirationDate.toISOString() // Add the expiration date in ISO format
         }
     };
     showNotification(warning);
 }
+
 
 function testMostRecentAlert() {
     if (activeWarnings.length > 0) {
@@ -389,22 +411,25 @@ function updateClock() {
   setInterval(updateClock, 1000);
   updateClock();
   
-function updateAlertBar() {
+  function updateAlertBar() {
     const highestAlert = getHighestActiveAlert();
     const alertBar = document.getElementById('alertBar');
     const alertText = document.getElementById('highestAlertText');
+    const activeAlertsBox = document.querySelector('.active-alerts-box');
 
     if (highestAlert.alert === 'N/A') {
         alertText.textContent = 'MICHIGAN STORM CHASERS';
         alertBar.style.backgroundColor = '#1F2593';
         alertBar.style.setProperty('--glow-color', 'rgba(255, 255, 255, 0.6)');
+        activeAlertsBox.textContent = 'CURRENT CONDITIONS';
     } else {
         alertText.textContent = `${highestAlert.alert}`;
         alertBar.style.backgroundColor = highestAlert.color;
-
         alertBar.style.setProperty('--glow-color', highestAlert.color);
+        activeAlertsBox.textContent = 'HIGHEST ACTIVE ALERT';
     }
 }
+
 
 setInterval(updateAlertBar, 5000);
 
@@ -481,28 +506,7 @@ function displayNotification(warning) {
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
     notification.style.bottom = '125';
-
-    // Add the notification pulse to the logo
-        // Add the notification pulse to the logo
-    const logo = document.getElementById('pulseLogo');
-    if (logo) {
-    // Remove any existing animation class
-    logo.classList.remove('notification-pulse');
     
-    // Trigger reflow to restart animation
-    void logo.offsetWidth;
-    
-    // Add the notification pulse class
-    logo.classList.add('notification-pulse');
-    
-    // Remove the notification pulse class after animation completes
-    setTimeout(() => {
-        logo.classList.remove('notification-pulse');
-        // No need to set an animation back since we want no animation between notifications
-    }, 2000);
- }
-
-
     const title = document.createElement('div');
     title.className = 'notification-title';
     title.textContent = eventName; 
@@ -511,15 +515,47 @@ function displayNotification(warning) {
     countiesSection.className = 'notification-message';
     countiesSection.textContent = counties; 
 
-    notification.appendChild(title);
-    notification.appendChild(countiesSection);
-    document.body.appendChild(notification);
+    // Create the expiration element
+    const expirationElement = document.createElement('div');
+    expirationElement.className = 'notification-expiration';
+    
+    // Format the expiration time
+    const expirationDate = new Date(warning.properties.expires);
+    const timeOptions = { 
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    };
+    const formattedExpirationTime = expirationDate.toLocaleString('en-US', timeOptions);
+    expirationElement.textContent = `EXPIRES: ${formattedExpirationTime}`;
+    
+    let notificationDuration = 7000; // Default 7 seconds
+    
+    // Special handling for tornado emergency and PDS warnings
+    if (eventName === "Tornado Emergency" || eventName === "PDS Tornado Warning") {
+        notificationDuration = 15000; // 15 seconds for these critical alerts
+    }
 
-    notification.style.transform = 'translateY(100%)';
-    setTimeout(() => {
-        notification.style.transform = 'translateY(53%)';
-    }, 10);
+    // Add the notification pulse to the logo
+    const logo = document.getElementById('pulseLogo');
+    if (logo) {
+        // Remove any existing animation class
+        logo.classList.remove('notification-pulse');
+        
+        // Trigger reflow to restart animation
+        void logo.offsetWidth;
+        
+        // Add the notification pulse class
+        logo.classList.add('notification-pulse');
+        
+        // Remove the notification pulse class after animation completes
+        setTimeout(() => {
+            logo.classList.remove('notification-pulse');
+            // No need to set an animation back since we want no animation between notifications
+        }, 2000);
+    }
 
+    // Play appropriate sound based on event type
     if (eventName.includes("Tornado Emergency")) {
         playSoundById('TOREISS');
     } else if (eventName.includes("PDS Tornado Warning")) {
@@ -538,28 +574,70 @@ function displayNotification(warning) {
         playSoundById('SVRCSound');
     }
 
-    const expirationDate = new Date(warning.properties.expires);
-    const options = { 
-        timeZoneName: 'short',
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    };
+    // Add emergency alert based on event type
+    if (eventName === "Tornado Emergency" || eventName === "PDS Tornado Warning") {
+        const emergencyAlert = document.createElement('div');
+        emergencyAlert.innerHTML = "⚠️THIS IS AN EXTREMELY DANGEROUS SITUATION. TAKE COVER NOW!⚠️";
+        emergencyAlert.className = 'emergency-alert';
+        emergencyAlert.style.fontSize = '36px';
+        emergencyAlert.style.textAlign = 'right';
+        emergencyAlert.style.animation = 'emergencyGlow 1s infinite alternate';
+        emergencyAlert.style.color = '#fff';
+        emergencyAlert.style.padding = '10px';
+        notification.appendChild(emergencyAlert);
+    } else if (eventName === "Observed Tornado Warning") {
+        const emergencyAlert = document.createElement('div');
+        emergencyAlert.innerHTML = "⚠️A TORNADO IS ON THE GROUND! TAKE COVER NOW!⚠️";
+        emergencyAlert.className = 'emergency-alert';
+        emergencyAlert.style.fontSize = '36px';
+        emergencyAlert.style.textAlign = 'right';
+        emergencyAlert.style.animation = 'emergencyGlow 1s infinite alternate';
+        emergencyAlert.style.color = '#fff';
+        emergencyAlert.style.padding = '10px';
+        notification.appendChild(emergencyAlert);
+    } else if (eventName === "Destructive Severe Thunderstorm Warning") {
+        const emergencyAlert = document.createElement('div');
+        emergencyAlert.innerHTML = "⚠️THESE ARE EXTREMELY DANGEROUS STORMS!⚠️";
+        emergencyAlert.className = 'emergency-alert';
+        emergencyAlert.style.fontSize = '25px';
+        emergencyAlert.style.textAlign = 'right';
+        emergencyAlert.style.animation = 'emergencyGlow 1s infinite alternate';
+        emergencyAlert.style.color = '#fff';
+        emergencyAlert.style.padding = '10px';
+        notification.appendChild(emergencyAlert);
+    }
 
+    // Append all elements to the notification
+    notification.appendChild(title);
+    notification.appendChild(countiesSection);
+    notification.appendChild(expirationElement);
+    document.body.appendChild(notification);
+
+    // Set initial position for animation
+    notification.style.transform = 'translateY(100%)';
+    
+    // Apply color based on alert type
     let alertColor = getAlertColor(eventName); 
     notification.style.backgroundColor = alertColor; 
     notification.style.opacity = 1; 
 
+    // Start animation to show notification
+    setTimeout(() => {
+        notification.style.transform = 'translateY(53%)';
+    }, 10);
+
+    // Set timeout to hide and remove notification
     setTimeout(() => {
         notification.style.transform = 'translateY(100%)';
         setTimeout(() => {
-            notification.remove();
-        }, 500);
-    }, 7000);
+            notification.style.transform = 'translateY(100%)';
+            setTimeout(() => {
+                notification.remove();
+            }, 500);
+        }, notificationDuration); // Use the dynamic duration instead of hardcoded 7000
+    }, notificationDuration);
 }
+
 
 
 
