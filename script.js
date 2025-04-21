@@ -66,11 +66,7 @@ const labels = {
     tornado: "🌪️TORNADO WARNINGS",
     thunderstorm: "⛈️SEVERE THUNDERSTORM WARNINGS",
     flood: "💦FLASH FLOOD WARNINGS",
-    winter: "❄️WINTER WEATHER WARNINGS",
-    currentLocation: "📍LOCATION",
-    currentCondition: "🌤️CONDITION",
-    currentWind: "💨WIND",
-    currentDetails: "📊DETAILS"
+    winter: "❄️WINTER WEATHER WARNINGS"
 };
 
 let currentWarningIndex = 0;
@@ -121,7 +117,7 @@ function toggleslider() {
 
 async function fetchWarnings() {
     try {
-        const response = await fetch('https://api.weather.gov/alerts/active?area=MI');
+        const response = await fetch('https://api.weather.gov/alerts/active');
         const data = await response.json();
         const warnings = data.features.filter(feature =>
             selectedAlerts.has(feature.properties.event)
@@ -174,18 +170,10 @@ async function fetchWarnings() {
         winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`;
 
         warnings.sort((a, b) => new Date(b.properties.sent) - new Date(a.properties.sent));
+
         activeWarnings = warnings;
-        
-        // If no warnings, display current weather conditions instead
-        if (warnings.length === 0) {
-            const stationIds = Object.keys(MI_STATIONS);
-            if (stationIds.length > 0 && currentConditions[stationIds[currentStationIndex]]) {
-                displayCurrentConditions(stationIds[currentStationIndex]);
-            }
-        } else {
-            // Render warnings as usual...
-            updateWarningList();
-        }
+
+        updateWarningList(warnings);
 
         const currentWarningIds = new Set(warnings.map(w => w.id));
 
@@ -257,44 +245,16 @@ function testNotification(eventName) {
     const expirationDate = new Date();
     expirationDate.setMinutes(expirationDate.getMinutes() + 30);
     
-    // List of Michigan counties
-    const michiganCounties = [
-        "Washtenaw", "Lenawee", "Monroe", "Wayne", "Oakland", "Macomb", "Livingston", 
-        "Genesee", "Ingham", "Jackson", "Hillsdale", "Calhoun", "Eaton", "Shiawassee", 
-        "Clinton", "Lapeer", "St. Clair", "Barry", "Kent", "Ottawa", "Allegan", 
-        "Kalamazoo", "Berrien", "Van Buren", "Saginaw", "Bay", "Midland", "Isabella", 
-        "Gratiot", "Ionia", "Montcalm", "Muskegon", "Newaygo", "Oceana", "Mason", 
-        "Lake", "Osceola", "Clare", "Gladwin", "Arenac", "Huron", "Tuscola", "Sanilac"
-    ];
-    
-    // Randomly select 1-5 counties
-    const numberOfCounties = Math.floor(Math.random() * 5) + 1;
-    const selectedCounties = [];
-    
-    for (let i = 0; i < numberOfCounties; i++) {
-        // Get a random county that hasn't been selected yet
-        let randomIndex;
-        do {
-            randomIndex = Math.floor(Math.random() * michiganCounties.length);
-        } while (selectedCounties.includes(michiganCounties[randomIndex]));
-        
-        selectedCounties.push(michiganCounties[randomIndex]);
-    }
-    
-    // Format the area description with the random counties
-    const areaDesc = "TESTING - " + selectedCounties.map(county => `${county}, MI`).join("; ") + ";";
-    
     const warning = {
         properties: {
             event: eventName, 
-            areaDesc: areaDesc, 
+            areaDesc: "TESTING - Washtenaw, MI; Lenawee, MI; Monroe, MI; Wayne, MI; Oakland, MI; Macomb, MI; Livingston, MI; Genesee, MI; Ingham, MI; Jackson, MI; Hillsdale, MI; Calhoun, MI; Eaton, MI; Shiawassee, MI; Clinton, MI; Lapeer, MI; St. Clair, MI; Barry, MI;", 
             actionSection: "THIS IS A TEST MESSAGE. DO NOT TAKE ACTION ON THIS MESSAGE.",
             expires: expirationDate.toISOString() // Add the expiration date in ISO format
         }
     };
     showNotification(warning);
 }
-
 
 
 function testMostRecentAlert() {
@@ -421,21 +381,20 @@ function getHighestActiveAlert() {
 
 function updateClock() {
     const now = new Date();
+  
     const displayTime = new Date(now.getTime() - (currentTimeZone === 'CT' ? 1 : 0) * 60 * 60 * 1000);
-    
+  
     let hours = displayTime.getHours();
     const minutes = displayTime.getMinutes().toString().padStart(2, '0');
     const seconds = displayTime.getSeconds().toString().padStart(2, '0');
     const ampm = hours >= 12 ? 'PM' : 'AM';
     hours = hours % 12 || 12;
-    
+  
     const timeString = `${hours.toString().padStart(2, '0')}:${minutes}:${seconds} ${ampm} ${currentTimeZone}`;
     const dateString = `${(displayTime.getMonth() + 1).toString().padStart(2, '0')}/${displayTime.getDate().toString().padStart(2, '0')}/${(displayTime.getFullYear() % 100).toString().padStart(2, '0')}`;
-    
-    // Add a non-breaking space with a width of 10px
-    document.getElementById('clockDisplay').innerHTML = `${timeString}<span style="display: inline-block; width: 10px;"></span>${dateString}`;
-  }
   
+    document.getElementById('clockDisplay').textContent = `${timeString}   ${dateString}`;
+  }
   
   function toggleTimeZone() {
     if (currentTimeZone === 'ET') {
@@ -471,247 +430,6 @@ function updateClock() {
     }
 }
 
-// Add to the top of your script.js file with other constants
-const MI_STATIONS = {
-    'KLAN': { name: 'Lansing, MI' },
-    'KDTW': { name: 'Detroit, MI' },
-    'KGRR': { name: 'Grand Rapids, MI' },
-    'KMKG': { name: 'Muskegon, MI' },
-    'KTVC': { name: 'Traverse City, MI' },
-    'KFNT': { name: 'Flint, MI' }
-  };
-  
-  let currentStationIndex = 0;
-  let currentConditions = {};
-  
-  const WEATHER_ICONS = {
-      'clear': 'https://i.imgur.com/jKEHIsy.png',  // Sunny
-      'cloudy': 'https://i.imgur.com/AcihKAW.png', // Cloudy
-      'partly-cloudy': 'https://i.imgur.com/37bCqbo.png', // Partly Cloudy
-      'rain': 'https://i.imgur.com/yS8RtPE.png',   // Rain
-      'snow': 'https://i.imgur.com/yEu5fVZ.png',   // Snow
-      'thunderstorm': 'https://i.imgur.com/DG1Wz63.png', // Thunderstorm
-      'fog': 'https://i.imgur.com/uwHDNIA.png'     // Fog
-  };
-  
-  // Add this function to map API weather descriptions to our icon keys
-  function getWeatherIconKey(description) {
-      description = description.toLowerCase();
-      
-      if (description.includes('clear') || description.includes('sunny')) {
-          return 'clear';
-      } else if (description.includes('cloudy') && description.includes('partly')) {
-          return 'partly-cloudy';
-      } else if (description.includes('cloudy') || description.includes('overcast')) {
-          return 'cloudy';
-      } else if (description.includes('rain') || description.includes('drizzle')) {
-          return 'rain';
-      } else if (description.includes('snow') || description.includes('sleet')) {
-          return 'snow';
-      } else if (description.includes('thunderstorm')) {
-          return 'thunderstorm';
-      } else if (description.includes('fog') || description.includes('mist')) {
-          return 'fog';
-      }
-      return 'clear'; // default
-  }
-  
-  // Helper function to convert degrees to cardinal directions
-  function getCardinalDirection(degrees) {
-      const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-      const index = Math.round(((degrees %= 360) < 0 ? degrees + 360 : degrees) / 22.5) % 16;
-      return directions[index];
-  }
-  
-  // Update fetchStationConditions function
-  async function fetchStationConditions(stationId) {
-      try {
-          const response = await fetch(`https://api.weather.gov/stations/${stationId}/observations/latest`);
-          const data = await response.json();
-          
-          if (data.properties) {
-              const props = data.properties;
-              const tempF = (props.temperature.value * 9/5 + 32).toFixed(1);
-              const dewPointF = (props.dewpoint.value * 9/5 + 32).toFixed(1);
-              const windSpeed = (props.windSpeed.value * 0.621371).toFixed(0); // Convert km/h to MPH
-              const windDir = props.windDirection.value;
-              
-              // Convert wind direction to cardinal direction
-              const cardinalDir = getCardinalDirection(windDir);
-              
-              // Get weather description and map it to our icon
-              const weatherDescription = props.textDescription;
-              const iconKey = getWeatherIconKey(weatherDescription);
-              const weatherIconUrl = WEATHER_ICONS[iconKey];
-              
-              // Calculate additional weather data
-              const windChillF = props.windChill && props.windChill.value ? (props.windChill.value * 9/5 + 32).toFixed(1) : null;
-              const humidity = props.relativeHumidity && props.relativeHumidity.value ? Math.round(props.relativeHumidity.value) : null;
-              const visibilityMiles = props.visibility && props.visibility.value ? (props.visibility.value * 0.000621371).toFixed(1) : null;
-              
-              currentConditions[stationId] = {
-                  stationName: MI_STATIONS[stationId].name,
-                  temp: tempF,
-                  dewPoint: dewPointF,
-                  winds: `From ${cardinalDir} at ${windSpeed}MPH`,
-                  weatherIcon: weatherIconUrl,
-                  description: weatherDescription,
-                  windChill: windChillF,
-                  humidity: humidity,
-                  visibility: visibilityMiles,
-                  cloudCover: props.cloudLayers?.[0]?.amount || 'N/A',
-                  displayText: `TEMP: ${tempF}°F${windChillF ? ` (FEELS ${windChillF}°F)` : ''}, DEW: ${dewPointF}°F, RH: ${humidity}%, WINDS: ${cardinalDir} ${windSpeed}MPH`
-              };
-              
-              console.log(`Updated conditions for ${stationId}:`, currentConditions[stationId]);
-          }
-      } catch (error) {
-          console.error(`Error fetching conditions for ${stationId}:`, error);
-      }
-  }
-  
-  // Function to cycle through stations for display
-  function cycleStationDisplay() {
-      const stationIds = Object.keys(MI_STATIONS);
-      
-      if (stationIds.length === 0 || Object.keys(currentConditions).length === 0) return;
-      
-      // Get the next station ID
-      currentStationIndex = (currentStationIndex + 1) % stationIds.length;
-      const stationId = stationIds[currentStationIndex];
-      
-      // Check if we have conditions for this station
-      if (currentConditions[stationId]) {
-          displayCurrentConditions(stationId);
-      }
-  }
-  
-  // Function to display current conditions in the UI
-  // Function to display current conditions in the UI
-function displayCurrentConditions(stationId) {
-    const conditionData = currentConditions[stationId];
-    if (!conditionData) return;
-    
-    // If there are no active alerts, show the current conditions
-    if (activeWarnings.length === 0) {
-        // Update the warning counts area to show the current location
-        tornadoCountElement.textContent = `${labels.currentLocation}: ${conditionData.stationName}`;
-        
-        // Use the weather description and temperature for thunderstorm count area
-        thunderstormCountElement.textContent = `${labels.currentCondition}: ${conditionData.description} ${conditionData.temp}°F`;
-        
-        // Use winds for the flood count area
-        floodCountElement.textContent = `${labels.currentWind}: ${conditionData.winds}`;
-        
-        // Use humidity and dew point for winter weather
-        winterWeatherCountElement.textContent = `${labels.currentDetails}: RH ${conditionData.humidity}% DEW ${conditionData.dewPoint}°F`;
-        
-        // Update the warning list with the weather icon and more details
-        const warningList = document.getElementById('warningList');
-        if (warningList) {
-            // Clear current content
-            warningList.innerHTML = '';
-            
-            // Create a container for the weather icon and details
-            const weatherContainer = document.createElement('div');
-            weatherContainer.className = 'weather-container';
-            
-            // Add weather icon
-            const weatherIcon = document.createElement('div');
-            weatherIcon.className = 'weather-icon';
-            weatherIcon.style.backgroundImage = `url('${conditionData.weatherIcon}')`;
-            weatherIcon.style.backgroundSize = 'contain';
-            weatherIcon.style.backgroundRepeat = 'no-repeat';
-            weatherIcon.style.backgroundPosition = 'center';
-            weatherIcon.style.width = '150px';
-            weatherIcon.style.height = '150px';
-            weatherIcon.style.margin = '20px auto';
-            
-            // Add detailed info
-            const weatherDetails = document.createElement('div');
-            weatherDetails.className = 'weather-details';
-            weatherDetails.style.fontSize = '24px';
-            weatherDetails.style.padding = '10px';
-            weatherDetails.style.textAlign = 'center';
-            weatherDetails.innerHTML = `
-                <div>${conditionData.stationName} - ${conditionData.description}</div>
-                <div>Temperature: ${conditionData.temp}°F${conditionData.windChill ? ` (Feels like ${conditionData.windChill}°F)` : ''}</div>
-                <div>Wind: ${conditionData.winds}</div>
-                <div>Humidity: ${conditionData.humidity}% | Dew Point: ${conditionData.dewPoint}°F</div>
-                <div>Visibility: ${conditionData.visibility} miles</div>
-            `;
-            
-            // Append elements to container
-            weatherContainer.appendChild(weatherIcon);
-            weatherContainer.appendChild(weatherDetails);
-            
-            // Append container to warning list
-            warningList.appendChild(weatherContainer);
-        }
-        
-        // Update the bottom ticker (event type bar) with the formatted weather information
-        const eventTypeElement = document.getElementById('eventType');
-        if (eventTypeElement) {
-            // Format the text as requested
-            const formattedText = `${conditionData.description} - Temp ${conditionData.temp}°F${conditionData.windChill ? ` (Feels like ${conditionData.windChill}°F)` : ''} - Dew ${conditionData.dewPoint}°F - Wind: ${conditionData.winds}`;
-            
-            // Set the text and add appropriate styling
-            eventTypeElement.textContent = formattedText;
-            
-            // Clear any previous event type classes
-            for (const type in eventTypes) {
-                eventTypeElement.classList.remove(eventTypes[type]);
-            }
-            
-            // Add an appropriate CSS class based on the weather condition
-            const weatherClass = getWeatherClass(conditionData.description);
-            if (weatherClass) {
-                eventTypeElement.classList.add(weatherClass);
-            }
-        }
-    }
-}
-
-// Helper function to map weather descriptions to CSS classes
-function getWeatherClass(description) {
-    description = description.toLowerCase();
-    
-    if (description.includes('thunderstorm')) {
-        return 'severe-thunderstorm-warning';
-    } else if (description.includes('snow') || description.includes('sleet')) {
-        return 'winter-storm-warning';
-    } else if (description.includes('rain') || description.includes('drizzle')) {
-        return 'flash-flood-warning';
-    } else if (description.includes('fog')) {
-        return 'special-weather-statement';
-    } else if (description.includes('cloudy')) {
-        return 'severe-thunderstorm-watch';
-    } else if (description.includes('clear') || description.includes('sunny')) {
-        return 'tornado-watch'; // Using tornado-watch for sunny (yellowish color)
-    } else {
-        return '';
-    }
-}
-
-  
-  // Function to start conditions cycling
-  function startWeatherConditionsCycling() {
-      // Initial fetch for all stations
-      Object.keys(MI_STATIONS).forEach(stationId => {
-          fetchStationConditions(stationId);
-      });
-      
-      // Set up cycling through stations (every 30 seconds)
-      setInterval(cycleStationDisplay, 30000);
-      
-      // Set up periodic refresh of all station data (every 30 minutes)
-      setInterval(() => {
-          Object.keys(MI_STATIONS).forEach(stationId => {
-              fetchStationConditions(stationId);
-          });
-      }, 1800000); // 30 minutes = 1,800,000 milliseconds
-  }
-  
 
 setInterval(updateAlertBar, 5000);
 
@@ -787,7 +505,7 @@ function displayNotification(warning) {
     
     const notification = document.createElement('div');
     notification.className = 'notification-popup'; 
-    notification.style.bottom = '0';
+    notification.style.bottom = '125';
     
     const title = document.createElement('div');
     title.className = 'notification-title';
@@ -905,7 +623,7 @@ function displayNotification(warning) {
 
     // Start animation to show notification
     setTimeout(() => {
-        notification.style.transform = 'translateY(33%)';
+        notification.style.transform = 'translateY(53%)';
     }, 10);
 
     // Set timeout to hide and remove notification
@@ -1127,7 +845,6 @@ function updateDashboard() {
 document.addEventListener('DOMContentLoaded', () => {
     fetchWarnings();
     updateDashboard();
-    startWeatherConditionsCycling();
 });
 
 setInterval(fetchWarnings, 3000);
