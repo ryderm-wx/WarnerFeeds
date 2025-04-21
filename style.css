@@ -722,21 +722,30 @@ body {
 }
 
 .notification-popup {
-    position: fixed; /* Keep it fixed to the viewport */
-    bottom: 125px; /* Start off-screen */
-    left: 397px; /* Align to the left */
-    width: 100%; /* Full width */
-    height: 600px; /* Set a very high height */
-    border-radius: 50px; /* Adjust the value as needed for more or less rounding */
-    background-color: rgba(0, 0, 0, 0.8); /* Optional: Add a background color */
-    color: white; /* Text color */
-    padding: 5px; /* Padding for the notification */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); /* Optional: Add shadow for depth */
-    transition: transform 0.5s ease-in-out; /* Slide up transition */
-    overflow: hidden; /* Prevent overflow */
-    white-space: normal; /* Allow text to wrap */
-    z-index: -3; /* Set a lower z-index for the notification */
+    position: fixed;
+    bottom: 125px;
+    left: 0; /* Changed from 397px to 0 to span the full width */
+    width: 100%; /* Already full width */
+    height: 600px;
+    border-radius: 50px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    transition: transform 0.4s ease-in-out;
+    overflow: hidden;
+    white-space: normal;
+    z-index: -3;
 }
+
+.notification-title, 
+.notification-message,
+.notification-calltoaction {
+    margin-left: 400px; /* Add this to position all text 350px from the left */
+    text-align: left;
+}
+
+
 
 
 
@@ -792,7 +801,7 @@ body {
 .notification-expiration {
     position: absolute;
     top: 40px;
-    right: 400px;
+    right: 0px;
     font-size: 36px;
     font-weight: bold;
     color: white;
@@ -817,7 +826,7 @@ body {
 .emergency-alert {
     position: absolute;
     top: -8px;
-    right: 450px;
+    right: 0px;
     font-size: 36px;
     font-weight: bold;
     color: white;
