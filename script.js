@@ -154,33 +154,26 @@ function initAlertStream() {
     console.error("❌ SSE Error:", err);
   });
 
-  if (!Array.isArray(alertEventTypes)) {
-    console.error("🚨 alertEventTypes is not defined or not an array.");
-    return;
-  }
+  // wire up all your normal alert events…
+  const normalTypes = ["NEW","UPDATE","INIT","CONTINUE","OTHER","ALERT"];
+  normalTypes.forEach(type =>
+    source.addEventListener(type, event => {
+      const data = JSON.parse(event.data);
+      console.log(`📩 Received ${type}`, data);
+      HandleAlertPayload(data, type);
+    })
+  );
 
-  // Handle different event types
-  [
-    "NEW",
-    "UPDATE",
-    "INIT",
-    "CONTINUE",
-    "CANCEL",
-    "OTHER",
-    "ALERT",
-    "ALERT_CANCELED",
-  ].forEach((eventType) => {
-    source.addEventListener(eventType, (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log(`📩 Received ${eventType} event:`, data);
-        HandleAlertPayload(data, eventType);
-      } catch (error) {
-        console.error(`❌ Error processing ${eventType} event:`, error);
-      }
-    });
-  });
+  // …and now your cancels all in one loop
+  cancelTypes.forEach(type =>
+    source.addEventListener(type, event => {
+      const data = JSON.parse(event.data);
+      console.log(`🚨 Received ${type} for ${data.id}`);
+      cancelAlert(data.id);
+    })
+  );
 }
+
 
 /**
  * Extract the core identifier from a VTEC string or alert object
@@ -864,17 +857,17 @@ let activeRisks = [];
       [1, 0, "https://www.spc.noaa.gov/products/outlook/ac1_0600_SItable.html"],
       [8, 0, "https://www.spc.noaa.gov/products/outlook/ac1_1300_SItable.html"],
       [
-        11,
-        30,
+        12,
+        35,
         "https://www.spc.noaa.gov/products/outlook/ac1_1630_SItable.html",
       ],
       [
-        15,
-        0,
+        16,
+        5,
         "https://www.spc.noaa.gov/products/outlook/ac1_2000_SItable.html",
       ],
       [
-        20,
+        21,
         0,
         "https://www.spc.noaa.gov/products/outlook/ac1_0100_SItable.html",
       ],
@@ -1056,7 +1049,7 @@ function showNotification(
   console.log(`📦 Raw Warning Object:`, warning);
 
   // 🛑 Cancel logic first
-  if (["CAN", "EXP", "CANX", "CANCEL"].includes(actionType)) {
+  if (["CAN", "EXP", "CANX", "CANCEL", "ALERT_CANCELED"].includes(actionType)) {
     cancelAlert(warning.id);
     console.log(`🛑 Alert Cancelled (${actionType}) - ID: ${warningId}`);
     return;
@@ -1683,18 +1676,17 @@ function displayWarningDetails(warning) {
 
   const modal = document.getElementById("warning-detail-modal");
   const content = modal.querySelector(".warning-detail-content");
-
   content.innerHTML = "";
 
+  // Close button
   const closeButton = document.createElement("span");
   closeButton.className = "close-modal";
   closeButton.innerHTML = "&times;";
-  closeButton.onclick = () => {
-    modal.style.display = "none";
-  };
+  closeButton.onclick = () => (modal.style.display = "none");
   content.appendChild(closeButton);
 
-  const eventName = getEventName(warning);
+  // Header & title
+  const eventName = warning.eventName || getEventName(warning);
   const eventClass = eventTypes[eventName] || "unknown-event";
   content.className = `warning-detail-content ${eventClass}`;
 
@@ -1702,23 +1694,21 @@ function displayWarningDetails(warning) {
   header.className = "detail-section detail-header";
 
   const emoji = getWarningEmoji(eventName);
-
   const title = document.createElement("h2");
   title.innerHTML = `${emoji} <span class="event-emoji"></span>${eventName}`;
   header.appendChild(title);
 
-  // New format: use counties array or fallback string
+  // Area description (counties or fallback)
   const areaDescText = Array.isArray(warning.counties)
     ? warning.counties.join(", ")
     : warning.areaDesc || "Area information unavailable";
-
   const areaDesc = document.createElement("h3");
   areaDesc.textContent = areaDescText;
   header.appendChild(areaDesc);
 
   content.appendChild(header);
 
-  // Timing & Details section
+  // 🕒 Timing & Details
   const infoSection = document.createElement("div");
   infoSection.className = "detail-section";
 
@@ -1729,9 +1719,11 @@ function displayWarningDetails(warning) {
   const infoContainer = document.createElement("div");
   infoContainer.className = "detail-info";
 
-  // For new format, some date fields are at top-level
-  const issuedDate = warning.sent ? new Date(warning.sent) : null;
-  const expiresDate = warning.expires ? new Date(warning.expires) : null;
+  // date detection: look for .effective, .sent, fallback to rawText parse?
+  const issuedRaw = warning.effective || warning.sent;
+  const expiresRaw = warning.expires;
+  const issuedDate = issuedRaw ? new Date(issuedRaw) : null;
+  const expiresDate = expiresRaw ? new Date(expiresRaw) : null;
 
   const details = [
     {
@@ -1744,144 +1736,145 @@ function displayWarningDetails(warning) {
     },
   ];
 
-  // parameters moved to top-level props
-  const params = {
-    maxWindGust: warning.maxWindGust,
-    maxHailSize: warning.maxHailSize,
-    tornadoDetection: warning.tornadoDetection,
-    tornadoDamageThreat: warning.tornadoDamageThreat,
-    thunderstormDamageThreat: warning.thunderstormDamageThreat,
-  };
+  // unified threats object
+  const t = warning.threats || {};
 
-  if (params.maxWindGust) {
-    details.push({
+  // pull every possible threat field, normalize missing to "Unknown"
+  const fieldDefs = [
+    {
+      key: "windThreat",
+      label: "Wind Threat",
+      critical: (v) => v.toLowerCase().includes("observed"),
+    },
+    {
+      key: "hailThreat",
+      label: "Hail Threat",
+      critical: () => false,
+    },
+    {
+      key: "maxWindGust",
       label: "Maximum Wind Gust",
-      value: params.maxWindGust,
-      critical: parseInt(params.maxWindGust) >= 70,
-    });
-  }
-
-  if (params.maxHailSize) {
-    // Strip units and parse float
-    const hailSizeNum = parseFloat(params.maxHailSize);
-    details.push({
+      critical: (v) => parseInt(v) >= 70,
+    },
+    {
+      key: "maxHailSize",
       label: "Maximum Hail Size",
-      value: params.maxHailSize,
-      critical: hailSizeNum >= 1.5,
-    });
-  }
-
-  if (params.tornadoDetection) {
-    details.push({
+      critical: (v) => parseFloat(v) >= 1.5,
+    },
+    {
+      key: "tornadoDetection",
       label: "Tornado Detection",
-      value: params.tornadoDetection,
-      critical: params.tornadoDetection.toLowerCase().includes("observed"),
-    });
-  }
-
-  if (params.tornadoDamageThreat) {
-    details.push({
+      critical: (v) => v.toLowerCase().includes("observed"),
+    },
+    {
+      key: "tornadoDamageThreat",
       label: "Tornado Damage Threat",
-      value: params.tornadoDamageThreat,
-      critical: params.tornadoDamageThreat.toLowerCase() !== "possible",
-    });
-  }
-
-  if (params.thunderstormDamageThreat) {
-    const tsThreat = params.thunderstormDamageThreat.toUpperCase();
-    details.push({
+      critical: (v) => v.toLowerCase() !== "possible",
+    },
+    {
+      key: "thunderstormDamageThreat",
       label: "Thunderstorm Damage Threat",
-      value: params.thunderstormDamageThreat,
-      critical: ["CONSIDERABLE", "DESTRUCTIVE", "CATASTROPHIC"].includes(
-        tsThreat
-      ),
-    });
-  }
+      critical: (v) =>
+        ["CONSIDERABLE", "DESTRUCTIVE", "CATASTROPHIC"].includes(
+          v.toUpperCase()
+        ),
+    },
+  ];
 
-  details.forEach((detail) => {
-    if (detail.value) {
-      const detailRow = document.createElement("div");
-      detailRow.className = "detail-row";
-
-      const label = document.createElement("span");
-      label.className = "detail-label";
-      label.textContent = detail.label + ": ";
-
-      const value = document.createElement("span");
-      value.className = detail.critical
-        ? "detail-value critical"
-        : "detail-value";
-      value.textContent = detail.value;
-
-      detailRow.appendChild(label);
-      detailRow.appendChild(value);
-      infoContainer.appendChild(detailRow);
+  fieldDefs.forEach(({ key, label, critical }) => {
+    // fetch from top-level first, then from t object
+    const raw = warning[key] ?? t[key];
+    if (raw != null) {
+      const val = String(raw);
+      details.push({
+        label,
+        value: val,
+        critical: critical(val),
+      });
     }
+  });
+
+  // render all detail rows
+  details.forEach((d) => {
+    const row = document.createElement("div");
+    row.className = "detail-row";
+
+    const lbl = document.createElement("span");
+    lbl.className = "detail-label";
+    lbl.textContent = d.label + ": ";
+
+    const valSpan = document.createElement("span");
+    valSpan.className = d.critical ? "detail-value critical" : "detail-value";
+    valSpan.textContent = d.value;
+
+    row.appendChild(lbl);
+    row.appendChild(valSpan);
+    infoContainer.appendChild(row);
   });
 
   infoSection.appendChild(infoContainer);
   content.appendChild(infoSection);
 
-  // Description and Instruction from new top-level fields
+  // 📝 Description block
   if (warning.rawText) {
     const descSection = document.createElement("div");
     descSection.className = "detail-section";
-
     const descTitle = document.createElement("h4");
     descTitle.textContent = "📝 Description";
-    descSection.appendChild(descTitle);
-
-    const descText = document.createElement("pre"); // keep formatting
+    const descText = document.createElement("div");
     descText.className = "description-text";
+    descText.style.whiteSpace = "pre-wrap"; // keeps line breaks but allows wrapping
     descText.textContent = warning.rawText;
-    descSection.appendChild(descText);
-
+    descSection.append(descTitle, descText);
     content.appendChild(descSection);
   }
 
+  // ⚠️ Instructions block
   if (warning.instruction) {
     const instrSection = document.createElement("div");
     instrSection.className = "detail-section instructions";
-
     const instrTitle = document.createElement("h4");
     instrTitle.textContent = "⚠️ Instructions";
-    instrSection.appendChild(instrTitle);
-
     const instrText = document.createElement("div");
     instrText.className = "instruction-text";
     instrText.textContent = warning.instruction;
-    instrSection.appendChild(instrText);
-
+    instrSection.append(instrTitle, instrText);
     content.appendChild(instrSection);
   }
 
-  // Polygon if present (same as before)
+  // 🗺️ Polygon overlay (white on transparent)
   if (
     warning.polygon &&
-    Array.isArray(warning.polygon) &&
-    warning.polygon.length > 0
+    warning.polygon.type === "Polygon" &&
+    Array.isArray(warning.polygon.coordinates)
   ) {
-    const areaSection = document.createElement("div");
-    areaSection.className = "detail-section areas";
-
-    const polygonTitle = document.createElement("h4");
-    polygonTitle.textContent = "🗺️ Warning Area";
-    areaSection.appendChild(polygonTitle);
-
-    const polygonContainer = drawPolygon(warning.polygon, content, eventClass);
-    if (polygonContainer) {
-      areaSection.appendChild(polygonContainer);
-      content.appendChild(areaSection);
+    const outer = warning.polygon.coordinates[0];
+    if (
+      Array.isArray(outer) &&
+      outer.every((p) => Array.isArray(p) && p.length === 2)
+    ) {
+      // NEW: no flip, treat as [lat, lon]
+      const latlon = outer.map(([lat, lon]) => [lat, lon]);
+      const areaSection = document.createElement("div");
+      areaSection.className = "detail-section areas";
+      const polyTitle = document.createElement("h4");
+      polyTitle.textContent = "🗺️ Warning Area";
+      const polyCanvas = drawPolygon(latlon);
+      if (polyCanvas) {
+        areaSection.append(polyTitle, polyCanvas);
+        content.appendChild(areaSection);
+      }
+    } else {
+      console.warn("Malformed polygon coords:", warning.polygon);
     }
   }
 
+  // show modal & add animations
   modal.style.display = "block";
   content.style.animation = "fadeIn 0.3s ease-in-out";
 
-  if (
-    eventName === "Tornado Emergency" ||
-    eventName === "PDS Tornado Warning"
-  ) {
+  // flash special emergencies
+  if (["Tornado Emergency", "PDS Tornado Warning"].includes(eventName)) {
     setupFlashingEffect(content);
   } else {
     content.classList.remove("flashing");
@@ -1953,68 +1946,62 @@ function getWarningEmoji(eventName) {
   return emojiMap[eventName] || "⚠️";
 }
 
-function drawPolygon(coordinates, container) {
-  if (!coordinates || !coordinates.length) return null;
+function drawPolygon(rawPoints, parentElement, eventClass = "") {
+  if (
+    !Array.isArray(rawPoints) ||
+    rawPoints.length === 0 ||
+    !Array.isArray(rawPoints[0])
+  ) {
+    console.warn("Invalid polygon points:", rawPoints);
+    return null;
+  }
 
-  const existing = container.querySelector(".polygon-container");
-  if (existing) existing.remove();
-
-  const polygonContainer = document.createElement("div");
-  polygonContainer.className = "polygon-container";
+  // rawPoints are already [lat, lon]
+  const points = rawPoints
+    .filter((pt) => Array.isArray(pt) && pt.length === 2)
+    .map(([lat, lon]) => [lat, lon]);
 
   const canvas = document.createElement("canvas");
+  canvas.className = `polygon-preview`;
   canvas.width = 300;
-  canvas.height = 200;
-  polygonContainer.appendChild(canvas);
+  canvas.height = 300;
 
   const ctx = canvas.getContext("2d");
 
-  // ✅ Flip [lon, lat] → [lat, lon]
-  const rawPoints = coordinates[0];
-  const points = rawPoints.map(([lon, lat]) => [lat, lon]);
-  if (!points || !points.length) return null;
+  const latValues = points.map((p) => p[0]);
+  const lonValues = points.map((p) => p[1]);
 
-  let minLat = 90,
-    maxLat = -90,
-    minLon = 180,
-    maxLon = -180;
-  points.forEach(([lat, lon]) => {
-    minLat = Math.min(minLat, lat);
-    maxLat = Math.max(maxLat, lat);
-    minLon = Math.min(minLon, lon);
-    maxLon = Math.max(maxLon, lon);
-  });
+  const minLat = Math.min(...latValues);
+  const maxLat = Math.max(...latValues);
+  const minLon = Math.min(...lonValues);
+  const maxLon = Math.max(...lonValues);
 
-  const latPadding = (maxLat - minLat) * 0.1;
-  const lonPadding = (maxLon - minLon) * 0.1;
-  minLat -= latPadding;
-  maxLat += latPadding;
-  minLon -= lonPadding;
-  maxLon += lonPadding;
+  const padding = 10;
 
-  const scaleX = (lon) => {
-    return (canvas.width * (lon - minLon)) / (maxLon - minLon);
-  };
-
-  const scaleY = (lat) => {
-    return canvas.height * (1 - (lat - minLat) / (maxLat - minLat));
-  };
+  const scaleX = (canvas.width - padding * 2) / (maxLon - minLon);
+  const scaleY = (canvas.height - padding * 2) / (maxLat - minLat);
+  const scale = Math.min(scaleX, scaleY);
 
   ctx.beginPath();
-  ctx.moveTo(scaleX(points[0][1]), scaleY(points[0][0]));
-
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(scaleX(points[i][1]), scaleY(points[i][0]));
-  }
-
+  points.forEach(([lat, lon], index) => {
+    const x = padding + (lon - minLon) * scale;
+    const y = canvas.height - (padding + (lat - minLat) * scale);
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
   ctx.closePath();
-  ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
   ctx.fill();
+
+  ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 2;
-  ctx.strokeStyle = "white";
   ctx.stroke();
 
-  return polygonContainer;
+  return canvas;
 }
 
 function getPolygonColor(eventClass) {

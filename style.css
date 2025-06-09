@@ -169,7 +169,15 @@ body {
   font-weight: bold;
 }
 
-.description-text,
+.description-text {
+  font-weight: 500;
+  color: #ffffff;
+  white-space: pre-wrap; /* keep wraps and newlines */
+  line-height: 1.2; /* lower this to reduce vertical space */
+  margin: 0;
+  padding: 0;
+}
+
 .instruction-text {
   line-height: 1.5;
   white-space: pre-line;
