@@ -3400,6 +3400,49 @@ document.addEventListener("DOMContentLoaded", () => {
   updateDashboard();
   fetchAllWeatherData();
   startRotatingCities();
+
+  // Hardcode TX as the selected state
+  window.selectedStates = ["MI"];
+
+  // Map TX to FIPS codes for logging
+  const stateFipsCodes = window.selectedStates.map((state) => {
+    const fipsCode = Object.keys(STATE_FIPS_TO_ABBR).find(
+      (key) => STATE_FIPS_TO_ABBR[key] === state
+    );
+    return fipsCode || "Unknown";
+  });
+
+  console.log(`State filter set to: ${window.selectedStates.join(", ")}`);
+  console.log(`State FIPS codes set to: ${stateFipsCodes.join(", ")}`);
+
+  // Initial dashboard update again if needed
+  updateDashboard();
+
+  // Cancel previous tacticalMode loops if any
+  if (window.tacticalModeAbort) {
+    window.tacticalModeAbort();
+  }
+  let abort = false;
+  window.tacticalModeAbort = () => {
+    abort = true;
+  };
+
+  (async function tacticalModeLoop() {
+    const interval = null; // or number for repeating delay
+
+    while (!abort) {
+      const start = Date.now();
+
+      await tacticalMode();
+
+      const elapsed = Date.now() - start;
+      const remainingTime = Math.max(0, (interval || 0) - elapsed);
+
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
+    }
+  })();
+  initAlertStream();
+  updateWarningList();
 });
 
 let fetchConditionsActive = false;
