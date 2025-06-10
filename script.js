@@ -2079,7 +2079,7 @@ const audioElements = {
     "https://audio.jukehost.co.uk/MePPuUhuqZzUMt6vBRqvBYDydDVxNhBi"
   ),
   PDSSVRSound: new Audio(
-    "https://audio.jukehost.co.uk/DvWZ5IjakUW0fHpqc3t2ozBS1BGFxDN4"
+    "https://audio.jukehost.co.uk/xjwbmhiA8SZPbtkRvIV15dryKrUWDnXP"
   ),
   SVRCSound: new Audio(
     "https://audio.jukehost.co.uk/Xkv300KaF6MJghFS9oQ5BMTWfSDle4IW"
@@ -2163,6 +2163,10 @@ function getHailEmoji(hailSize) {
     // Softball
     return "<span class='emoji-animated'>🥎</span>";
   }
+  if (size >= 3.0) {
+    // Softball
+    return "<span class='emoji-animated'>🍎</span>";
+  }
   if (size >= 2.75) {
     // Baseball
     return "<span class='emoji-animated'>⚾</span>";
@@ -2181,7 +2185,7 @@ function getHailEmoji(hailSize) {
   }
   if (size >= 1.5) {
     // Walnut/large grape
-    return "<span class='emoji-animated'>🍇</span>";
+    return "<span class='emoji-animated'>🏓</span>";
   }
   if (size >= 1.25) {
     // Half-dollar
@@ -2958,6 +2962,8 @@ function cancelAlert(id) {
   // Update UI
   updateWarningList(activeWarnings);
   updateHighestAlert();
+  getHighestActiveAlert();
+  updateAlertBar();
 
   // If no more warnings, show current conditions
   if (activeWarnings.length === 0) {
