@@ -2807,17 +2807,22 @@ function TacticalMode(alerts, type = "NEW") {
     const existingIndex = activeWarnings.findIndex((w) => w.id === id);
     if (existingIndex >= 0) {
       activeWarnings[existingIndex] = normalized;
-      showNotification(normalized, "UPDATE");
+
+      // Skip notifications for "INIT" alerts
+      if (type !== "INIT") {
+        showNotification(normalized, "UPDATE");
+      }
     } else {
       activeWarnings.push(normalized);
-      showNotification(normalized, "NEW");
+
+      // Skip notifications for "INIT" alerts
+      if (type !== "INIT") {
+        showNotification(normalized, "NEW");
+      }
 
       // 🎯 🆕 NEW: Draw polygon if available
       if (hasPolygon) {
-        const polygonElem = drawPolygon(
-          alert.polygon.coordinates,
-          document.body
-        );
+        const polygonElem = drawPolygon(alert.polygon.coordinates, document.body);
         if (polygonElem) {
           document.body.appendChild(polygonElem);
         }
@@ -2838,6 +2843,7 @@ function TacticalMode(alerts, type = "NEW") {
 
   console.log(`✅ [Done] ${activeWarnings.length} active warnings in memory`);
 }
+
 
 function isWarningExpired(warning) {
   if (!warning || !warning.properties || !warning.properties.expires) {
@@ -2894,6 +2900,7 @@ function processNewWarning(warning, action, isUpdate, currentVersion) {
     updateWarningCounters(warning);
     updateWarningList(activeWarnings);
     updateHighestAlert();
+    updateWarningList();
     updateDashboard(warning);
     return;
   }
