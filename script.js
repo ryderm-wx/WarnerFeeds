@@ -21,6 +21,7 @@ const eventTypes = {
   "High Wind Watch": "high-wind-watcv=h",
   "Wind Advisory": "wind-advisory",
   "Dense Fog Advisory": "dense-fog-advisory",
+  "Snow Squall Warning": "snow-squall-warning",
 };
 
 const priority = {
@@ -36,6 +37,7 @@ const priority = {
   "Severe Thunderstorm Watch": 10,
   "Flash Flood Emergency": 11,
   "Flash Flood Warning": 12,
+  "Snow Squall Warning": 13,
   "Blizzard Warning": 13,
   "Ice Storm Warning": 14,
   "Winter Storm Warning": 15,
@@ -155,9 +157,9 @@ function initAlertStream() {
   });
 
   // wire up all your normal alert events…
-  const normalTypes = ["NEW","UPDATE","INIT","CONTINUE","OTHER","ALERT"];
-  normalTypes.forEach(type =>
-    source.addEventListener(type, event => {
+  const normalTypes = ["NEW", "UPDATE", "INIT", "CONTINUE", "OTHER", "ALERT"];
+  normalTypes.forEach((type) =>
+    source.addEventListener(type, (event) => {
       const data = JSON.parse(event.data);
       console.log(`📩 Received ${type}`, data);
       HandleAlertPayload(data, type);
@@ -165,15 +167,14 @@ function initAlertStream() {
   );
 
   // …and now your cancels all in one loop
-  cancelTypes.forEach(type =>
-    source.addEventListener(type, event => {
+  cancelTypes.forEach((type) =>
+    source.addEventListener(type, (event) => {
       const data = JSON.parse(event.data);
       console.log(`🚨 Received ${type} for ${data.id}`);
       cancelAlert(data.id);
     })
   );
 }
-
 
 /**
  * Extract the core identifier from a VTEC string or alert object
@@ -1819,13 +1820,30 @@ function displayWarningDetails(warning) {
   if (warning.rawText) {
     const descSection = document.createElement("div");
     descSection.className = "detail-section";
+
     const descTitle = document.createElement("h4");
     descTitle.textContent = "📝 Description";
+
     const descText = document.createElement("div");
     descText.className = "description-text";
-    descText.style.whiteSpace = "pre-wrap"; // keeps line breaks but allows wrapping
+    descText.style.whiteSpace = "pre-wrap";
+    descText.style.maxHeight = "150px"; // initial height
+    descText.style.overflow = "hidden";
+    descText.style.transition = "max-height 0.3s ease";
     descText.textContent = warning.rawText;
-    descSection.append(descTitle, descText);
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.className = "toggle-description";
+    toggleBtn.textContent = "Show More";
+    toggleBtn.style.marginTop = "0.5em";
+    toggleBtn.style.cursor = "pointer";
+    toggleBtn.onclick = () => {
+      const expanded = descText.classList.toggle("expanded");
+      descText.style.maxHeight = expanded ? "none" : "150px";
+      toggleBtn.textContent = expanded ? "Show Less" : "Show More";
+    };
+
+    descSection.append(descTitle, descText, toggleBtn);
     content.appendChild(descSection);
   }
 
@@ -1956,13 +1974,12 @@ function drawPolygon(rawPoints, parentElement, eventClass = "") {
     return null;
   }
 
-  // rawPoints are already [lat, lon]
   const points = rawPoints
     .filter((pt) => Array.isArray(pt) && pt.length === 2)
     .map(([lat, lon]) => [lat, lon]);
 
   const canvas = document.createElement("canvas");
-  canvas.className = `polygon-preview`;
+  canvas.className = `polygon-preview ${eventClass}`;
   canvas.width = 300;
   canvas.height = 300;
 
@@ -1976,30 +1993,60 @@ function drawPolygon(rawPoints, parentElement, eventClass = "") {
   const minLon = Math.min(...lonValues);
   const maxLon = Math.max(...lonValues);
 
-  const padding = 10;
+  const padding = 20;
 
-  const scaleX = (canvas.width - padding * 2) / (maxLon - minLon);
-  const scaleY = (canvas.height - padding * 2) / (maxLat - minLat);
+  const dataWidth = maxLon - minLon;
+  const dataHeight = maxLat - minLat;
+
+  const scaleX = (canvas.width - 2 * padding) / dataWidth;
+  const scaleY = (canvas.height - 2 * padding) / dataHeight;
   const scale = Math.min(scaleX, scaleY);
 
-  ctx.beginPath();
-  points.forEach(([lat, lon], index) => {
-    const x = padding + (lon - minLon) * scale;
-    const y = canvas.height - (padding + (lat - minLat) * scale);
-    if (index === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
-    }
-  });
-  ctx.closePath();
+  const scaledWidth = dataWidth * scale;
+  const scaledHeight = dataHeight * scale;
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
-  ctx.fill();
+  const offsetX = (canvas.width - scaledWidth) / 2;
+  const offsetY = (canvas.height - scaledHeight) / 2;
 
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  let alpha = 0.15; // starting opacity
+  let alphaDirection = 1; // 1 for fade in, -1 for fade out
+  const alphaMin = 0.05;
+  const alphaMax = 0.4;
+  const alphaStep = 0.01;
+
+  function drawFrame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.beginPath();
+    points.forEach(([lat, lon], i) => {
+      const x = offsetX + (lon - minLon) * scale;
+      const y = offsetY + scaledHeight - (lat - minLat) * scale;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.closePath();
+
+    // flashing fill with dynamic alpha
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
+    ctx.fill();
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // update alpha for flashing effect
+    alpha += alphaDirection * alphaStep;
+    if (alpha >= alphaMax || alpha <= alphaMin) alphaDirection *= -1;
+
+    requestAnimationFrame(drawFrame);
+  }
+
+  // kick off the animation loop
+  drawFrame();
 
   return canvas;
 }
@@ -2060,6 +2107,8 @@ function getAlertColor(eventName) {
       return "#B8860B";
     case "Wind Advisory":
       return "#D2B48C";
+    case "Snow Squall Warning":
+      return "#64B5F6";
     case "Freezing Fog Advisory":
       return "#008080";
     case "Dense Fog Advisory":
@@ -2319,6 +2368,7 @@ function updateWarningList(warnings) {
     "Severe Thunderstorm Warning",
     "Flash Flood Warning",
     "Flash Flood Emergency",
+    "Snow Squall Warning",
     "Tornado Watch",
     "Severe Thunderstorm Watch",
     "Winter Storm Warning",
@@ -2822,7 +2872,10 @@ function TacticalMode(alerts, type = "NEW") {
 
       // 🎯 🆕 NEW: Draw polygon if available
       if (hasPolygon) {
-        const polygonElem = drawPolygon(alert.polygon.coordinates, document.body);
+        const polygonElem = drawPolygon(
+          alert.polygon.coordinates,
+          document.body
+        );
         if (polygonElem) {
           document.body.appendChild(polygonElem);
         }
@@ -2840,10 +2893,10 @@ function TacticalMode(alerts, type = "NEW") {
       ),
     }))
   );
+  updateWarningList(activeWarnings);
 
   console.log(`✅ [Done] ${activeWarnings.length} active warnings in memory`);
 }
-
 
 function isWarningExpired(warning) {
   if (!warning || !warning.properties || !warning.properties.expires) {
@@ -2900,7 +2953,6 @@ function processNewWarning(warning, action, isUpdate, currentVersion) {
     updateWarningCounters(warning);
     updateWarningList(activeWarnings);
     updateHighestAlert();
-    updateWarningList();
     updateDashboard(warning);
     return;
   }
@@ -2975,6 +3027,7 @@ function cancelAlert(id) {
   // If no more warnings, show current conditions
   if (activeWarnings.length === 0) {
     showNoWarningDashboard();
+    updateActiveAlertText();
   } else {
     updateDashboard();
   }

@@ -178,6 +178,44 @@ body {
   padding: 0;
 }
 
+.description-text.expanded {
+  overflow: visible;
+}
+
+.toggle-description {
+  background: linear-gradient(
+    135deg,
+    rgba(70, 130, 180, 0.9),
+    rgba(40, 100, 150, 0.9)
+  );
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 1em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 10px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  position: relative;
+  overflow: hidden;
+  font-family: "Saira Condensed", sans-serif;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+  margin-top: 0.5em;
+  display: inline-block;
+}
+.toggle-description:hover {
+  transform: scale(1.03);
+  box-shadow: 
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+
 .instruction-text {
   line-height: 1.5;
   white-space: pre-line;
@@ -591,7 +629,7 @@ body {
   transition: opacity 0.4s ease-in-out;
   opacity: 1;
   z-index: -2;
-  bottom: -19px;
+  bottom: -16px;
   white-space: nowrap;
   display: inline-block;
   left: 150px;
