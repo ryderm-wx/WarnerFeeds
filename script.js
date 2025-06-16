@@ -1,5 +1,7 @@
 const eventTypes = {
   "Tornado Warning": "tornado-warning",
+  "Radar Confirmed Tornado Warning": 'radar-confirmed-tornado',
+  "Spotter Confirmed Tornado Warning": 'spotter-confirmed-tornado',
   "Observed Tornado Warning": "observed-tornado-warning",
   "PDS Tornado Warning": "pds-tornado-warning",
   "Tornado Emergency": "tornado-emergency",
@@ -28,26 +30,30 @@ const priority = {
   "Tornado Emergency": 1,
   "PDS Tornado Warning": 2,
   "Observed Tornado Warning": 3,
-  "Tornado Warning": 4,
-  "Destructive Severe Thunderstorm Warning": 5,
-  "Considerable Severe Thunderstorm Warning": 6,
-  "Severe Thunderstorm Warning": 7,
-  "Special Weather Statement": 8,
-  "Tornado Watch": 9,
-  "Severe Thunderstorm Watch": 10,
-  "Flash Flood Emergency": 11,
-  "Flash Flood Warning": 12,
-  "Snow Squall Warning": 13,
-  "Blizzard Warning": 13,
-  "Ice Storm Warning": 14,
-  "Winter Storm Warning": 15,
-  "Winter Storm Watch": 16,
-  "Winter Weather Advisory": 17,
-  "High Wind Warning": 18,
-  "High Wind Watch": 19,
-  "Wind Advisory": 20,
-  "Dense Fog Advisory": 21,
+  "Spotter Confirmed Tornado Warning": 4,
+  "Radar Confirmed Tornado Warning": 5,
+  "Tornado Warning": 6,
+  "Destructive Severe Thunderstorm Warning": 7,
+  "Considerable Severe Thunderstorm Warning": 8,
+  "Severe Thunderstorm Warning": 9,
+  "Special Weather Statement": 10,
+  "Tornado Watch": 11,
+  "Severe Thunderstorm Watch": 12,
+  "Flash Flood Emergency": 13,
+  "Flash Flood Warning": 14,
+  "Snow Squall Warning": 15,
+  "Blizzard Warning": 16,
+  "Ice Storm Warning": 17,
+  "Winter Storm Warning": 18,
+  "Winter Storm Watch": 19,
+  "Winter Weather Advisory": 20,
+  "High Wind Warning": 21,
+  "High Wind Watch": 22,
+  "Wind Advisory": 23,
+  "Dense Fog Advisory": 24,
 };
+
+
 
 const STATE_FIPS_TO_ABBR = {
   Any: "US",
@@ -954,15 +960,13 @@ function getEventName(alert) {
 
   const event = props.eventName || props.event || "Unknown Event";
 
+  // Use rawText fallback for full alert text parsing
+  const description =
+    props.description || props.rawText || alert.rawText || "";
+
   const tornadoDamageThreat = (
     alert.tornadoDamageThreat ||
     alert.threats?.tornadoDamageThreat ||
-    ""
-  ).toUpperCase();
-
-  const tornadoDetection = (
-    alert.tornadoDetection ||
-    alert.threats?.tornadoDetection ||
     ""
   ).toUpperCase();
 
@@ -978,10 +982,33 @@ function getEventName(alert) {
     ""
   ).toUpperCase();
 
+  // Clean and normalize SOURCE and HAZARD lines from description/rawText
+  const src = (
+    description.match(/SOURCE\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
+  )
+    .replace(/[^\w\s]/g, "")
+    .trim()
+    .toUpperCase();
+
+  const hazard = (
+    description.match(/HAZARD\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
+  )
+    .replace(/[^\w\s]/g, "")
+    .trim()
+    .toUpperCase();
+
   if (event.includes("Tornado Warning")) {
     if (tornadoDamageThreat === "CATASTROPHIC") return "Tornado Emergency";
     if (tornadoDamageThreat === "CONSIDERABLE") return "PDS Tornado Warning";
-    if (tornadoDetection === "OBSERVED") return "Observed Tornado Warning";
+
+    if (src === "RADAR CONFIRMED TORNADO")
+      return "Radar Confirmed Tornado Warning";
+
+    if (src === "RADAR INDICATED ROTATION") return "Tornado Warning";
+
+    if (src === "WEATHER SPOTTERS CONFIRMED TORNADO")
+      return "Spotter Confirmed Tornado Warning";
+
     return "Tornado Warning";
   }
 
@@ -994,13 +1021,14 @@ function getEventName(alert) {
   }
 
   if (event.includes("Flash Flood Warning")) {
-    if (flashFloodDamageThreat === "CATASTROPHIC")
-      return "Flash Flood Emergency";
+    if (flashFloodDamageThreat === "CATASTROPHIC") return "Flash Flood Emergency";
     return "Flash Flood Warning";
   }
 
   return event;
 }
+
+
 
 let currentCountyIndex = 0;
 
@@ -1134,6 +1162,12 @@ function showNotification(
       break;
     case "Observed Tornado Warning":
       emergencyText = "A TORNADO IS ON THE GROUND";
+      break;
+    case "Radar Confirmed Tornado Warning":
+      emergencyText = "RADAR HAS CONFIRMED A TORNADO";
+      break;
+    case "Spotter Confirmed Tornado Warning":
+      emergencyText = "A SPOTTER HAS CONFIRMED A TORNADO";
       break;
     case "PDS Tornado Warning":
       emergencyText =
@@ -1273,6 +1307,8 @@ function displayNotification(warning, notificationType) {
   // list of allowed tornado alert types
   const allowedTornadoAlerts = [
     "tornado warning",
+    "radar confirmed tornado warning",
+    "spotter confirmed tornado warning",
     "observed tornado warning",
     "pds tornado warning",
     "tornado emergency",
@@ -1332,14 +1368,28 @@ function displayNotification(warning, notificationType) {
       warning.maxHailSize ||
       warning.properties?.parameters?.maxHailSize?.[0] ||
       "N/A";
+    const windThreat =
+      warning.threats?.windThreat ||
+      warning.windThrat ||
+      warning.properties?.parameters?.windThreat?.[0] ||
+      "N/A";
+    const hailThreat =
+      warning.threats?.hailThreat ||
+      warning.hailThreat ||
+      warning.properties?.parameters?.hailThreat?.[0] ||
+      "N/A";
 
     const wh = document.createElement("div");
     wh.className = "wind-hail-info";
 
     // Separate divs for wind and hail, emoji + text inline
     wh.innerHTML = `
-    <div>${getWindEmoji(maxWind)} Wind: ${maxWind}${getWindEmoji(maxWind)}</div>
-    <div>${getHailEmoji(maxHail)} Hail: ${maxHail}${getHailEmoji(maxHail)}</div>
+    <div>${getWindEmoji(maxWind)} Wind: ${maxWind}, ${windThreat}${getWindEmoji(
+      maxWind
+    )}</div>
+    <div>${getHailEmoji(maxHail)} Hail: ${maxHail}, ${hailThreat}${getHailEmoji(
+      maxHail
+    )}</div>
   `;
 
     notification.appendChild(wh);
@@ -2073,6 +2123,10 @@ function getAlertColor(eventName) {
       return "#FF0000";
     case "Observed Tornado Warning":
       return "#FF00FF";
+    case "Radar Confirmed Tornado Warning":
+      return "#FF00FF";
+    case "Spotter Confirmed Tornado Warning":
+      return "#FF00FF";
     case "PDS Tornado Warning":
       return "#FF00FF";
     case "Tornado Emergency":
@@ -2178,27 +2232,24 @@ function playSoundById(soundId) {
 }
 function getWindEmoji(windSpeed) {
   const speed = parseInt(windSpeed, 10);
-  if (isNaN(speed)) return "<span class='emoji-animated'>🟢</span>"; // Unknown
+  if (isNaN(speed)) return "<span class='emoji-animated tight-kerning'>🟢</span>";
 
   if (speed >= 90) {
-    // Destructive winds (≈ EF1 tornadic or major derecho)
-    return "<span class='emoji-animated'>🚨</span>";
+    return "<span class='emoji-animated tight-kerning'>🚨</span>";
   }
   if (speed >= 80) {
-    // Damaging winds
-    return "<span class='emoji-animated'>❗❗</span>";
+    return "<span class='emoji-animated tight-kerning'>❗❗</span>";
   }
   if (speed >= 70) {
-    // NWS Severe Thunderstorm threshold
-    return "<span class='emoji-animated'>❗</span>";
+    return "<span class='emoji-animated tight-kerning'>❗</span>";
   }
   if (speed >= 60) {
-    // Strong non-severe winds / advisory level
-    return "<span class='emoji-animated'>⚠️</span>";
+    return "<span class='emoji-animated tight-kerning'>⚠️</span>";
   }
-  // <39 mph: typical breezes
   return "<span class='emoji-animated'></span>";
 }
+
+
 
 function getHailEmoji(hailSize) {
   const size = parseFloat(hailSize);
@@ -2362,6 +2413,8 @@ function updateWarningList(warnings) {
     "Tornado Emergency",
     "PDS Tornado Warning",
     "Observed Tornado Warning",
+    "Spotter Confirmed Tornado Warning",
+    "Radar Confirmed Tornado Warning",
     "Tornado Warning",
     "Destructive Severe Thunderstorm Warning",
     "Considerable Severe Thunderstorm Warning",
@@ -3021,19 +3074,35 @@ function cancelAlert(id) {
   // Update UI
   updateWarningList(activeWarnings);
   updateHighestAlert();
-  getHighestActiveAlert();
   updateAlertBar();
 
-  // If no more warnings, show current conditions
+  // Get the alert bar element
+  const alertBar = document.querySelector('.alert-bar');
+
   if (activeWarnings.length === 0) {
     showNoWarningDashboard();
     updateActiveAlertText();
+    updateHighestAlert();
+    updateAlertBar();
+
+    // Set the thinbg glow style when no warnings active
+    if (alertBar) {
+      alertBar.style.setProperty('--glow-color', 'rgba(255, 255, 255, 0.6)');
+      alertBar.classList.add('thinbg-glow');  // Optional if you have a CSS class for the glow
+    }
   } else {
     updateDashboard();
+
+    // Reset glow color or remove class if you want to revert when warnings exist
+    if (alertBar) {
+      alertBar.style.removeProperty('--glow-color');
+      alertBar.classList.remove('thinbg-glow');
+    }
   }
 
   console.log(`🧹 Alert ${id} canceled and cleaned up.`);
 }
+
 let currentCityIndex = 0;
 
 const CITY_STATIONS = [
@@ -3158,10 +3227,11 @@ const clearWarningsButton = document.getElementById("clearWarningsButton");
 
 // Add the click handler
 clearWarningsButton.addEventListener("click", () => {
-  activeWarnings.length = 0; // clears the array in place
-  console.log("Warnings cleared:", activeWarnings);
+  activeWarnings.length = 0;
+  updateWarningList(activeWarnings);
+  updateHighestAlert();
+  updateAlertBar();
 });
-
 async function rotateCity() {
   // Check if SPC mode is enabled
   const isSpcModeEnabled = document.getElementById("spcModeToggle").checked;
