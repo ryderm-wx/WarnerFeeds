@@ -152,20 +152,67 @@ const cancelTypes = [
 
 function initAlertStream() {
   console.log("🔛 Tactical Alert Stream Engaged!");
+  
+  // Close existing connection if there is one
+  if (window.eventSource) {
+    window.eventSource.close();
+    console.log("🔌 Closed existing SSE connection");
+  }
+  
   const source = new EventSource("/api/xmpp-alerts");
-
+  window.eventSource = source; // Store reference globally
+  
+  // Setup heartbeat checker
+  let lastMessageTime = Date.now();
+  let heartbeatInterval;
+  
   source.addEventListener("open", () => {
     console.log("✅ SSE Connected at /api/xmpp-alerts");
+    
+    // Start the heartbeat interval check
+    heartbeatInterval = setInterval(() => {
+      const timeSinceLastMessage = Date.now() - lastMessageTime;
+      // If no message for 30 seconds, consider the connection dead
+      if (timeSinceLastMessage > 30000) {
+        console.warn("⚠️ No messages received for 30+ seconds, reconnecting...");
+        clearInterval(heartbeatInterval);
+        source.close();
+        
+        setTimeout(() => {
+          console.log("🔄 Attempting to reconnect SSE due to inactivity...");
+          initAlertStream();
+        }, 2000);
+      }
+    }, 10000); // Check every 10 seconds
   });
 
   source.addEventListener("error", (err) => {
     console.error("❌ SSE Error:", err);
+    clearInterval(heartbeatInterval);
+    
+    // Attempt to reconnect after a delay
+    setTimeout(() => {
+      console.log("🔄 Attempting to reconnect SSE after error...");
+      initAlertStream();
+    }, 5000); // 5 second delay before reconnect
   });
+
+  // Listen for ping events to update the lastMessageTime
+  source.addEventListener("ping", () => {
+    lastMessageTime = Date.now();
+    console.debug("💓 Heartbeat received");
+  });
+  
+  // Update lastMessageTime on any event
+  const updateLastMessageTime = () => {
+    lastMessageTime = Date.now();
+  };
 
   // wire up all your normal alert events…
   const normalTypes = ["NEW", "UPDATE", "INIT", "CONTINUE", "OTHER", "ALERT"];
   normalTypes.forEach((type) =>
     source.addEventListener(type, (event) => {
+      updateLastMessageTime();
       const data = JSON.parse(event.data);
       console.log(`📩 Received ${type}`, data);
       HandleAlertPayload(data, type);
@@ -175,6 +222,7 @@ function initAlertStream() {
   // …and now your cancels all in one loop
   cancelTypes.forEach((type) =>
     source.addEventListener(type, (event) => {
+      updateLastMessageTime();
       const data = JSON.parse(event.data);
       console.log(`🚨 Received ${type} for ${data.id}`);
       cancelAlert(data.id);
