@@ -31,27 +31,31 @@ const priority = {
   "PDS Tornado Warning": 2,
   "Observed Tornado Warning": 3,
   "Spotter Confirmed Tornado Warning": 4,
-  "Radar Confirmed Tornado Warning": 5,
-  "Tornado Warning": 6,
-  "Destructive Severe Thunderstorm Warning": 7,
-  "Considerable Severe Thunderstorm Warning": 8,
-  "Severe Thunderstorm Warning": 9,
-  "Special Weather Statement": 10,
-  "Tornado Watch": 11,
-  "Severe Thunderstorm Watch": 12,
-  "Flash Flood Emergency": 13,
-  "Flash Flood Warning": 14,
-  "Snow Squall Warning": 15,
-  "Blizzard Warning": 16,
-  "Ice Storm Warning": 17,
-  "Winter Storm Warning": 18,
-  "Winter Storm Watch": 19,
-  "Winter Weather Advisory": 20,
-  "High Wind Warning": 21,
-  "High Wind Watch": 22,
-  "Wind Advisory": 23,
-  "Dense Fog Advisory": 24,
+  "Law Enforcement Confirmed Tornado Warning": 5,
+  "Public Confirmed Tornado Warning": 6, // added here
+  "Radar Confirmed Tornado Warning": 7,
+  "Tornado Warning": 8,
+  "Destructive Severe Thunderstorm Warning": 9,
+  "Considerable Severe Thunderstorm Warning": 10,
+  "Severe Thunderstorm Warning": 11,
+  "Special Weather Statement": 12,
+  "Tornado Watch": 13,
+  "Severe Thunderstorm Watch": 14,
+  "Flash Flood Emergency": 15,
+  "Flash Flood Warning": 16,
+  "Snow Squall Warning": 17,
+  "Blizzard Warning": 18,
+  "Ice Storm Warning": 19,
+  "Winter Storm Warning": 20,
+  "Winter Storm Watch": 21,
+  "Winter Weather Advisory": 22,
+  "High Wind Warning": 23,
+  "High Wind Watch": 24,
+  "Wind Advisory": 25,
+  "Dense Fog Advisory": 26,
 };
+
+
 
 
 
@@ -1051,12 +1055,16 @@ function getEventName(alert) {
 
     if (src === "RADAR CONFIRMED TORNADO")
       return "Radar Confirmed Tornado Warning";
-
+    if (src === "LAW ENFORCEMENT CONFIRMED TORNADO")
+      return "Law Enforcement Confirmed Tornado Warning";
+    if (src === "PUBLIC CONFIRMED TORNADO")
+      return "Public Confirmed Tornado Warning";
     if (src === "RADAR INDICATED ROTATION") return "Tornado Warning";
 
     if (src === "WEATHER SPOTTERS CONFIRMED TORNADO")
       return "Spotter Confirmed Tornado Warning";
-
+    if (src === "CONFIRMED TORNADO")
+      return "Observed Tornado Warning";
     return "Tornado Warning";
   }
 
@@ -1177,16 +1185,16 @@ function showNotification(
   );
 
   // 🏷️ Notification label
-  let notificationType = "NEW WEATHER ALERT:"; // Default notification type
+  let notificationType = "NEW WEATHER ALERT"; // Default notification type
   if (isInit) {
-    notificationType = "INITIALIZED ALERT:";
+    notificationType = "INITIALIZED ALERT";
     // For INIT alerts, just update state without notification
     previousWarnings.set(warningId, eventName);
     notifiedWarnings.set(warningId, currentVersion);
     console.log(`🧠 State updated for ${warningId} (INIT, no notification)`);
     return; // Return early for INIT without showing notification
   } else if (isUpdated) {
-    notificationType = "ALERT UPDATED:";
+    notificationType = "ALERT UPDATED";
   }
 
   console.log(`🏷️ Notification Label: ${notificationType}`);
@@ -1311,7 +1319,7 @@ function displayNotification(warning, notificationType) {
   const expires = new Date(
     warning.expires || warning.properties?.expires || Date.now()
   );
-  expirationEl.textContent = `EXPIRES: ${expires.toLocaleTimeString("en-US", {
+  expirationEl.textContent = `EXPIRES ${expires.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
@@ -1357,6 +1365,8 @@ function displayNotification(warning, notificationType) {
     "tornado warning",
     "radar confirmed tornado warning",
     "spotter confirmed tornado warning",
+    "public confirmed tornado warning",
+    "law enforcement confirmed tornado warning",
     "observed tornado warning",
     "pds tornado warning",
     "tornado emergency",
@@ -1375,19 +1385,19 @@ function displayNotification(warning, notificationType) {
     // 🔥 Emoji selector for hazard severity/type
     const getHazardEmoji = (hazard) => {
       const h = hazard.toLowerCase();
-      if (h.includes("deadly tornado")) return "❗";
-      if (h.includes("damaging tornado")) return "❗";
-      if (h.includes("tornado")) return "⚠️";
+      if (h.includes("deadly tornado")) return "";
+      if (h.includes("damaging tornado")) return "";
+      if (h.includes("tornado")) return "";
       return "⚠️";
     };
 
     // 🕵️‍♂️ Emoji selector for source reliability/confirmation
     const getSourceEmoji = (source) => {
       const s = source.toLowerCase();
-      if (s.includes("weather spotter")) return "🔍";
-      if (s.includes("radar indicated")) return "📡";
-      if (s.includes("radar confirmed")) return "📡";
-      if (s.includes("public")) return "👁️";
+      if (s.includes("weather spotter")) return "";
+      if (s.includes("radar indicated")) return "";
+      if (s.includes("radar confirmed")) return "";
+      if (s.includes("public")) return "";
       return "❓";
     };
 
@@ -2175,6 +2185,10 @@ function getAlertColor(eventName) {
       return "#FF00FF";
     case "Spotter Confirmed Tornado Warning":
       return "#FF00FF";
+    case "Law Enforcement Confirmed Tornado Warning":
+      return "#FF00FF";
+    case "Public Confirmed Tornado Warning":
+      return "#FF00FF";    
     case "PDS Tornado Warning":
       return "#FF00FF";
     case "Tornado Emergency":
@@ -2280,19 +2294,19 @@ function playSoundById(soundId) {
 }
 function getWindEmoji(windSpeed) {
   const speed = parseInt(windSpeed, 10);
-  if (isNaN(speed)) return "<span class='emoji-animated tight-kerning'>🟢</span>";
+  if (isNaN(speed)) return "<span class='emoji-animated tight-kerning'></span>";
 
   if (speed >= 90) {
-    return "<span class='emoji-animated tight-kerning'>🚨</span>";
+    return "<span class='emoji-animated tight-kerning'></span>";
   }
   if (speed >= 80) {
-    return "<span class='emoji-animated tight-kerning'>❗❗</span>";
+    return "<span class='emoji-animated tight-kerning'></span>";
   }
   if (speed >= 70) {
-    return "<span class='emoji-animated tight-kerning'>❗</span>";
+    return "<span class='emoji-animated tight-kerning'></span>";
   }
   if (speed >= 60) {
-    return "<span class='emoji-animated tight-kerning'>⚠️</span>";
+    return "<span class='emoji-animated tight-kerning'></span>";
   }
   return "<span class='emoji-animated'></span>";
 }
@@ -2301,54 +2315,54 @@ function getWindEmoji(windSpeed) {
 
 function getHailEmoji(hailSize) {
   const size = parseFloat(hailSize);
-  if (isNaN(size)) return "<span class='emoji-animated'>🟠</span>";
+  if (isNaN(size)) return "<span class='emoji-animated'></span>";
 
   if (size >= 5.0) {
     // Softball
-    return "<span class='emoji-animated'>📀</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 4.0) {
     // Softball
-    return "<span class='emoji-animated'>🥎</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 3.0) {
     // Softball
-    return "<span class='emoji-animated'>🍎</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 2.75) {
     // Baseball
-    return "<span class='emoji-animated'>⚾</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 2.5) {
     // Tennis ball
-    return "<span class='emoji-animated'>🎾</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 2.0) {
     // Hen egg
-    return "<span class='emoji-animated'>🥚</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 1.75) {
     // Golf ball
-    return "<span class='emoji-animated'>⛳</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 1.5) {
     // Walnut/large grape
-    return "<span class='emoji-animated'>🏓</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 1.25) {
     // Half-dollar
-    return "<span class='emoji-animated'>🪙</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 1.0) {
     // Quarter (NWS severe hail)
-    return "<span class='emoji-animated'>🪙</span>";
+    return "<span class='emoji-animated'></span>";
   }
   if (size >= 0.75) {
     // Penny
-    return "<span class='emoji-animated'>🟠</span>";
+    return "<span class='emoji-animated'></span>";
   }
   // Smaller than pea-sized
-  return "<span class='emoji-animated'>🟠</span>";
+  return "<span class='emoji-animated'></span>";
 }
 
 document
@@ -2410,9 +2424,7 @@ function formatCountiesTopBar(areaDesc) {
 
   const parts = areaDesc.split(";").map((part) => part.trim());
 
-  if (parts.length > 5) {
-    return parts.slice(0, 5).join(", ") + "...";
-  }
+
 
   return parts.join(", ");
 }
@@ -3370,6 +3382,10 @@ function showWarningDashboard() {
     warningBar.classList.add("show");
   }
 }
+
+// Global variable to track if scrolling is active
+let isScrolling = false;
+
 
 function updateCountiesText(newHTML) {
   const countiesElement = document.querySelector("#counties");
