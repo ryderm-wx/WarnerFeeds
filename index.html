@@ -34,10 +34,7 @@
             <h2 id="alertTitle"></h2>
             <p id="alertDescription"></p>
 
-            <pre
-              id="rawTextBlock"
-              class="description-text"
-            ></pre>
+            <pre id="rawTextBlock" class="description-text"></pre>
 
             <p>
               <strong>Max Wind Gust:</strong> <span id="maxWindGust"></span>
@@ -83,93 +80,200 @@
           <div id="warningList" class="warning-list"></div>
           <div class="test-buttons" id="testButtons">
             <h3>Test Notifications</h3>
-            <button onclick="testNotification('Tornado Warning')">
-              Test Tornado Warning (Radar Indicated)
-            </button>
-            <button onclick="testNotification('Radar Confirmed Tornado Warning')">
-              Test Radar Confirmed Tornado Warning
-            </button>
-            <button onclick="testNotification('Spotter Confirmed Tornado Warning')">
-              Test Spotter Confirmed Tornado Warning
-            </button>
-            <button onclick="testNotification('Law Enforcement Confirmed Tornado Warning')">
-              Test Law Enforcement Confirmed Tornado Warning
-            </button>
-            <button onclick="testNotification('Observed Tornado Warning')">
-              Test Observed Tornado Warning
-            </button>
-            <button onclick="testNotification('PDS Tornado Warning')">
-              Test PDS Tornado Warning
-            </button>
-            <button onclick="testNotification('Tornado Emergency')">
-              Test Tornado Emergency
-            </button>
-            <button onclick="testNotification('Severe Thunderstorm Warning')">
-              Test Severe Thunderstorm Warning
-            </button>
-            <button
-              onclick="testNotification('Considerable Severe Thunderstorm Warning')"
-            >
-              Test Considerable Severe Thunderstorm Warning
-            </button>
-            <button
-              onclick="testNotification('Destructive Severe Thunderstorm Warning')"
-            >
-              Test Destructive Severe Thunderstorm Warning
-            </button>
-            <button onclick="testNotification('Flash Flood Warning')">
-              Test Flash Flood Warning
-            </button>
-            <button onclick="testNotification('Flash Flood Emergency')">
-              Test Flash Flood Emergency
-            </button>
-            <button onclick="testNotification('Tornado Watch')">
-              Test Tornado Watch
-            </button>
-            <button onclick="testNotification('Severe Thunderstorm Watch')">
-              Test Severe Thunderstorm Watch
-            </button>
-            <button onclick="testNotification('Snow Squall Warning')">
-              Snow Squall Warning
-            </button>
-            <button onclick="testNotification('Winter Weather Advisory')">
-              Test Winter Weather Advisory
-            </button>
-            <button onclick="testNotification('Winter Storm Watch')">
-              Test Winter Storm Watch
-            </button>
-            <button onclick="testNotification('Winter Storm Warning')">
-              Test Winter Storm Warning
-            </button>
-            <button onclick="testNotification('Special Weather Statement')">
-              Test Special Weather Statement
-            </button>
-            <button onclick="testNotification('Ice Storm Warning')">
-              Test Ice Storm Warning
-            </button>
-            <button onclick="testNotification('Blizzard Warning')">
-              Test Blizzard Warning
-            </button>
-            <button onclick="testNotification('High Wind Warning')">
-              Test High Wind Warning
-            </button>
-            <button onclick="testNotification('High Wind Watch')">
-              Test High Wind Watch
-            </button>
-            <button onclick="testNotification('Wind Advisory')">
-              Test Wind Advisory
-            </button>
-            <button onclick="testNotification('Dense Fog Advisory')">
-              Test Dense Fog Advisory
-            </button>
-            <button onclick="testMostRecentAlert()">
-              Test Most Recent Alert
-            </button>
+
+            <div
+              class="category-divider"
+              data-category="Tornado Warnings"
+            ></div>
+            <div class="button-group">
+              <button
+                class="tornado"
+                onclick="testNotification('Tornado Warning')"
+              >
+                Test Tornado Warning (Radar Indicated)
+              </button>
+              <button
+                class="tornado-special"
+                onclick="testNotification('Radar Confirmed Tornado Warning')"
+              >
+                Test Radar Confirmed Tornado Warning
+              </button>
+              <button
+                class="tornado-special"
+                onclick="testNotification('Spotter Confirmed Tornado Warning')"
+              >
+                Test Spotter Confirmed Tornado Warning
+              </button>
+              <button
+                class="tornado-special"
+                onclick="testNotification('Law Enforcement Confirmed Tornado Warning')"
+              >
+                Test Law Enforcement Confirmed Tornado Warning
+              </button>
+              <button
+                class="tornado-special"
+                onclick="testNotification('Observed Tornado Warning')"
+              >
+                Test Observed Tornado Warning
+              </button>
+              <button
+                class="tornado-special"
+                onclick="testNotification('PDS Tornado Warning')"
+              >
+                Test PDS Tornado Warning
+              </button>
+              <button
+                class="tornado-emergency"
+                onclick="testNotification('Tornado Emergency')"
+              >
+                Test Tornado Emergency
+              </button>
+            </div>
+
+            <div
+              class="category-divider"
+              data-category="Thunderstorm Warnings"
+            ></div>
+            <div class="button-group">
+              <button
+                class="thunderstorm"
+                onclick="testNotification('Severe Thunderstorm Warning')"
+              >
+                Test Severe Thunderstorm Warning
+              </button>
+              <button
+                class="thunderstorm"
+                onclick="testNotification('Considerable Severe Thunderstorm Warning')"
+              >
+                Test Considerable Severe Thunderstorm Warning
+              </button>
+              <button
+                class="thunderstorm"
+                onclick="testNotification('Destructive Severe Thunderstorm Warning')"
+              >
+                Test Destructive Severe Thunderstorm Warning
+              </button>
+            </div>
+
+            <div class="category-divider" data-category="Flood Warnings"></div>
+            <div class="button-group">
+              <button
+                class="flood"
+                onclick="testNotification('Flash Flood Warning')"
+              >
+                Test Flash Flood Warning
+              </button>
+              <button
+                class="flood-emergency"
+                onclick="testNotification('Flash Flood Emergency')"
+              >
+                Test Flash Flood Emergency
+              </button>
+            </div>
+
+            <div class="category-divider" data-category="Weather Watches"></div>
+            <div class="button-group">
+              <button
+                class="tornado-watch"
+                onclick="testNotification('Tornado Watch')"
+              >
+                Test Tornado Watch
+              </button>
+              <button
+                class="watch"
+                onclick="testNotification('Severe Thunderstorm Watch')"
+              >
+                Test Severe Thunderstorm Watch
+              </button>
+            </div>
+
+            <div class="category-divider" data-category="Winter Weather"></div>
+            <div class="button-group">
+              <button
+                class="winter"
+                onclick="testNotification('Winter Weather Advisory')"
+              >
+                Test Winter Weather Advisory
+              </button>
+              <button
+                class="winter"
+                onclick="testNotification('Winter Storm Watch')"
+              >
+                Test Winter Storm Watch
+              </button>
+              <button
+                class="winter-warning"
+                onclick="testNotification('Winter Storm Warning')"
+              >
+                Test Winter Storm Warning
+              </button>
+              <button
+                class="ice"
+                onclick="testNotification('Ice Storm Warning')"
+              >
+                Test Ice Storm Warning
+              </button>
+              <button
+                class="winter-blizzard"
+                onclick="testNotification('Blizzard Warning')"
+              >
+                Test Blizzard Warning
+              </button>
+              <button
+                class="snow-squall"
+                onclick="testNotification('Snow Squall Warning')"
+              >
+                Snow Squall Warning
+              </button>
+            </div>
+
+            <div class="category-divider" data-category="Other Alerts"></div>
+            <div class="button-group">
+              <button
+                class="special"
+                onclick="testNotification('Special Weather Statement')"
+              >
+                Test Special Weather Statement
+              </button>
+              <button
+                class="wind"
+                onclick="testNotification('High Wind Warning')"
+              >
+                Test High Wind Warning
+              </button>
+              <button
+                class="wind"
+                onclick="testNotification('High Wind Watch')"
+              >
+                Test High Wind Watch
+              </button>
+              <button class="wind" onclick="testNotification('Wind Advisory')">
+                Test Wind Advisory
+              </button>
+              <button
+                class="fog"
+                onclick="testNotification('Dense Fog Advisory')"
+              >
+                Test Dense Fog Advisory
+              </button>
+            </div>
+
+            <div class="category-divider" data-category="Test Functions"></div>
+            <div class="button-group">
+              <button class="test-recent" onclick="testMostRecentAlert()">
+                Test Most Recent Alert
+              </button>
+            </div>
           </div>
+
           <!-- ===== SPC / CONDITIONS TOGGLE =================================== -->
           <div class="spc-toggle-container">
             <label class="switch" for="spcModeToggle">
-              <input type="checkbox" id="spcModeToggle" title="Toggle SPC Mode" />
+              <input
+                type="checkbox"
+                id="spcModeToggle"
+                title="Toggle SPC Mode"
+              />
               <span class="slider round"></span>
               <span class="visually-hidden">Toggle SPC Mode</span>
             </label>
@@ -252,147 +356,28 @@
             </div>
           </div>
 
-          <div class="checkbox-container" id="checkboxContainer">
+          <div class="checkbox-section">
             <h3>Select Alerts to Show:</h3>
-            <label
-              ><input type="checkbox" value="Tornado Warning" checked /> Tornado
-              Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Radar Confirmed Tornado Warning" checked />Radar Confirmed Tornado
-              Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Spotter Confirmed Tornado Warning" checked />Spotter Confirmed Tornado
-              Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Public Confirmed Tornado Warning" checked />Law Enforcement Tornado
-              Warning</label
-            ><br />
-            <label
-              ><input
-                type="checkbox"
-                value="Observed Tornado Warning"
-                checked
-              />Observed Tornado Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="PDS Tornado Warning" checked /> PDS
-              Tornado Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Tornado Emergency" checked />
-              Tornado Emergency</label
-            ><br />
-            <label
-              ><input
-                type="checkbox"
-                value="Severe Thunderstorm Warning"
-                checked
-              />
-              Severe Thunderstorm Warning</label
-            ><br />
-            <label
-              ><input
-                type="checkbox"
-                value="Considerable Severe Thunderstorm Warning"
-                checked
-              />
-              Considerable Severe Thunderstorm Warning</label
-            ><br />
-            <label
-              ><input
-                type="checkbox"
-                value="Destructive Severe Thunderstorm Warning"
-                checked
-              />
-              Destructive Severe Thunderstorm Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Flash Flood Warning" checked />
-              Flash Flood Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Tornado Watch" checked /> Tornado
-              Watch</label
-            ><br />
-            <label
-              ><input
-                type="checkbox"
-                value="Severe Thunderstorm Watch"
-                checked
-              />
-              Severe Thunderstorm Watch</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Winter Weather Advisory" checked />
-              Winter Weather Advisory</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Winter Storm Warning" checked />
-              Winter Storm Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Snow Squall Warning" checked />
-              Snow Squall Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Winter Storm Watch" checked />
-              Winter Storm Watch</label
-            ><br />
-            <label
-              ><input
-                type="checkbox"
-                value="Special Weather Statement"
-                checked
-              />
-              Special Weather Statement</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Ice Storm Warning" checked /> Ice
-              Storm Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Blizzard Warning" checked />
-              Blizzard Warning</label
+            <div id="checkboxContainer" class="checkbox-container"></div>
+            <br />
+            <div class="state-controls">
+              <label for="stateInput"
+                >State Warnings (US for all US alerts):</label
               ><br />
-            <label
-            ><input type="checkbox" value="Flash Flood Emergency" checked />
-              Flash Flood Emergency</label
-            ><br />
-            <label
-              ><input type="checkbox" value="High Wind Warning" checked /> High
-              Wind Warning</label
-            ><br />
-            <label
-              ><input type="checkbox" value="High Wind Watch" checked /> High
-              Wind Watch</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Wind Advisory" checked /> Wind
-              Advisory</label
-            ><br />
-            <label
-              ><input type="checkbox" value="Dense Fog Advisory" checked />
-              Dense Fog Advisory</label
-            ><br />
-            <label for="stateInput"
-              >State Warnings (US for all US alerts):</label
-            ><br />
-            <input type="text" id="stateInput" placeholder="e.g., OK" /><br />
-            <button id="saveStateButton">
-              Save State And Listen For Warnings</button
-            ><br />
-            <button id="saveButton">
-              Begin Fetching Warnings from NWS API (Slower, More Reliable)</button
-            ><br />
-            <button id="tacticalModeButton">
-              Begin Listening for ALL US Alerts</button
-            ><br />
-            <button id="clearWarningsButton">
-              Clear All Warnings (Use for Test Notifications Only!)
-            </button>
+              <input type="text" id="stateInput" placeholder="e.g., OK" /><br />
+              <button id="saveStateButton">
+               Listen For Warnings</button
+              ><br />
+              <button id="saveButton">
+                Begin Fetching Warnings from NWS API (Slower, More Reliable)</button
+              ><br />
+              <button id="tacticalModeButton">
+                Begin Listening for ALL US Alerts</button
+              ><br />
+              <button id="clearWarningsButton">
+                Clear All Warnings (Use for Test Notifications Only!)
+              </button>
+            </div>
           </div>
 
           <div id="Central/Eastern Switch">
@@ -436,7 +421,7 @@
           <div id="counties-container" class="counties-container">
             <div id="counties" class="counties-bar fade">COUNTIES</div>
           </div>
-          
+
           <div id="expiration" class="expiration-bar">Expiration Time</div>
         </div>
         <div class="black-bar"></div>

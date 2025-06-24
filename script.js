@@ -245,6 +245,80 @@ function initAlertStream() {
   );
 }
 
+// Add this function to your script.js file
+function createCheckboxes() {
+  const alertTypes = [
+  { value: "Tornado Warning", category: "tornado" },
+  { value: "Radar Confirmed Tornado Warning", category: "tornado" },
+  { value: "Spotter Confirmed Tornado Warning", category: "tornado" },
+  { value: "Public Confirmed Tornado Warning", category: "tornado" }, // Law Enforcement
+  { value: "Law Enforcement Confirmed Tornado Warning", category: "tornado" }, // Law Enforcement
+  { value: "Observed Tornado Warning", category: "tornado" },
+  { value: "PDS Tornado Warning", category: "tornado" },
+  { value: "Tornado Emergency", category: "tornado" },
+  { value: "Severe Thunderstorm Warning", category: "thunderstorm" },
+  { value: "Considerable Severe Thunderstorm Warning", category: "thunderstorm" },
+  { value: "Destructive Severe Thunderstorm Warning", category: "thunderstorm" },
+  { value: "Flash Flood Warning", category: "flood" },
+  { value: "Tornado Watch", category: "tornado" },
+  { value: "Severe Thunderstorm Watch", category: "thunderstorm" },
+  { value: "Winter Weather Advisory", category: "winter" },
+  { value: "Winter Storm Warning", category: "winter" },
+  { value: "Snow Squall Warning", category: "winter" },
+  { value: "Winter Storm Watch", category: "winter" },
+  { value: "Special Weather Statement", category: "other" },
+  { value: "Ice Storm Warning", category: "winter" },
+  { value: "Blizzard Warning", category: "winter" },
+  { value: "Flash Flood Emergency", category: "flood" },
+  { value: "High Wind Warning", category: "wind" },
+  { value: "High Wind Watch", category: "wind" },
+  { value: "Wind Advisory", category: "wind" },
+  { value: "Dense Fog Advisory", category: "other" }
+  ];
+
+
+  const container = document.getElementById('checkboxContainer');
+  container.className = 'checkbox-container';
+  container.innerHTML = '';
+
+  alertTypes.forEach(alert => {
+    const label = document.createElement('label');
+    label.className = `custom-checkbox checkbox-${alert.category}`;
+    
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = alert.value;
+    input.checked = true; // Default to checked
+    
+    const span = document.createElement('span');
+    span.className = 'checkmark';
+    
+    const textSpan = document.createElement('span');
+    textSpan.className = 'checkbox-label';
+    textSpan.textContent = alert.value;
+    
+    label.appendChild(input);
+    label.appendChild(span);
+    label.appendChild(textSpan);
+    container.appendChild(label);
+  });
+
+  // Set up the selected alerts based on checked boxes
+  updateSelectedAlerts();
+
+  // Add event listener to update selected alerts when checkboxes change
+  container.addEventListener('change', updateSelectedAlerts);
+}
+
+function updateSelectedAlerts() {
+  const checkedBoxes = document.querySelectorAll('#checkboxContainer input:checked');
+  selectedAlerts = new Set(Array.from(checkedBoxes).map(cb => cb.value));
+  console.log('Selected alerts updated:', Array.from(selectedAlerts));
+}
+
+// Call this function when the page loads
+
+
 /**
  * Extract the core identifier from a VTEC string or alert object
  * @param {string|object} input - VTEC string or alert object with VTEC
@@ -594,44 +668,17 @@ function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
 }
 
 function testNotification(eventName) {
-  const eventType = getEventName({
-    properties: { event: eventName, parameters: {} },
-  });
-
   const expirationDate = new Date();
   expirationDate.setMinutes(expirationDate.getMinutes() + 30);
 
+  // Get random counties
   const allCounties = [
-    "Washtenaw, MI",
-    "Lenawee, MI",
-    "Monroe, MI",
-    "Wayne, MI",
-    "Oakland, MI",
-    "Macomb, MI",
-    "Livingston, MI",
-    "Genesee, MI",
-    "Ingham, MI",
-    "Jackson, MI",
-    "Hillsdale, MI",
-    "Calhoun, MI",
-    "Eaton, MI",
-    "Shiawassee, MI",
-    "Clinton, MI",
-    "Lapeer, MI",
-    "St. Clair, MI",
-    "Barry, MI",
-    "Kent, MI",
-    "Ottawa, MI",
-    "Muskegon, MI",
-    "Saginaw, MI",
-    "Bay, MI",
-    "Midland, MI",
-    "Isabella, MI",
-    "Gratiot, MI",
-    "Ionia, MI",
-    "Montcalm, MI",
-    "Mecosta, MI",
-    "Newaygo, MI",
+    "Washtenaw, MI", "Lenawee, MI", "Monroe, MI", "Wayne, MI", "Oakland, MI",
+    "Macomb, MI", "Livingston, MI", "Genesee, MI", "Ingham, MI", "Jackson, MI",
+    "Hillsdale, MI", "Calhoun, MI", "Eaton, MI", "Shiawassee, MI", "Clinton, MI",
+    "Lapeer, MI", "St. Clair, MI", "Barry, MI", "Kent, MI", "Ottawa, MI",
+    "Muskegon, MI", "Saginaw, MI", "Bay, MI", "Midland, MI", "Isabella, MI",
+    "Gratiot, MI", "Ionia, MI", "Montcalm, MI", "Mecosta, MI", "Newaygo, MI",
   ];
 
   const countyCount = Math.floor(Math.random() * 20) + 1;
@@ -646,79 +693,96 @@ function testNotification(eventName) {
     ).join("");
   }
 
-  const randomVTEC = `${generateRandomString(4)}.${generateRandomString(
-    4
-  )}.${generateRandomString(4)}.${generateRandomString(4)}`;
+  const randomVTEC = `${generateRandomString(4)}.${generateRandomString(4)}.${generateRandomString(4)}.${generateRandomString(4)}`;
   const randomID = `urn:oid:2.49.0.1.840.0.${generateRandomString(32)}.001.1`;
   const messageType = Math.random() < 0.5 ? "Alert" : "Update";
   const currentVersion = `v${Math.floor(Math.random() * 1000)}`;
 
+  // Create parameters object with threats
   const parameters = {
-    thunderstormDamageThreat: ["NONE"],
-    tornadoDamageThreat: ["NONE"],
-    tornadoDetection: ["RADAR INDICATED"],
+    threats: {}
   };
-
-  // Prepare description & hazard/source for Tornado Warning variants
-  let description = "";
-
-  if (
-    eventName === "Tornado Warning" ||
-    eventName === "PDS Tornado Warning" ||
-    eventName === "Tornado Emergency" ||
-    eventName === "Observed Tornado Warning"
-  ) {
-    if (eventName === "Tornado Warning") {
-      parameters.tornadoDamageThreat = ["NONE"];
-    } else if (eventName === "PDS Tornado Warning") {
-      parameters.tornadoDamageThreat = ["CONSIDERABLE"];
-    } else if (eventName === "Tornado Emergency") {
-      parameters.tornadoDamageThreat = ["CATASTROPHIC"];
+  
+  // Handle special tornado warning types
+  if (eventName.includes("Tornado Warning")) {
+    if (eventName === "Radar Confirmed Tornado Warning") {
+      parameters.source = ["RADAR CONFIRMED TORNADO"];
+      eventName = "Tornado Warning";
+    } else if (eventName === "Spotter Confirmed Tornado Warning") {
+      parameters.threats.tornadoDetection = ["OBSERVED"];
+      parameters.source = ["WEATHER SPOTTERS CONFIRMED TORNADO"];
+      eventName = "Tornado Warning";
+    } else if (eventName === "Law Enforcement Confirmed Tornado Warning") {
+      parameters.threats.tornadoDetection = ["OBSERVED"];
+      parameters.source = ["LAW ENFORCEMENT CONFIRMED TORNADO"];
+      eventName = "Tornado Warning";
+    } else if (eventName === "Public Confirmed Tornado Warning") {
+      parameters.threats.tornadoDetection = ["OBSERVED"];
+      parameters.source = ["PUBLIC CONFIRMED TORNADO"];
+      eventName = "Tornado Warning";
     } else if (eventName === "Observed Tornado Warning") {
-      parameters.tornadoDetection = ["OBSERVED"];
+      parameters.threats.tornadoDetection = ["OBSERVED"];
+      parameters.source = ["CONFIRMED TORNADO"];
+      eventName = "Tornado Warning";
+    } else if (eventName === "PDS Tornado Warning") {
+      parameters.threats.tornadoDamageThreat = ["CONSIDERABLE"];
+      parameters.source = ["RADAR INDICATED ROTATION"];
+      eventName = "Tornado Warning";
+    } else if (eventName === "Tornado Emergency") {
+      parameters.threats.tornadoDamageThreat = ["CATASTROPHIC"];
+      parameters.source = ["RADAR INDICATED ROTATION"];
+      eventName = "Tornado Warning";
+    } else if (eventName === "Tornado Warning") {
+      parameters.source = ["RADAR INDICATED ROTATION"];
     }
-
-    const possibleHazards = [
-      "Tornado.",
-      "Damaging Tornado.",
-      "Deadly Tornado.",
-    ];
-
-    const possibleSources = [
-      "NATIONAL WEATHER SERVICE RADAR",
-      "TRAINED SPOTTER",
-      "PUBLIC REPORT",
-      "LAW ENFORCEMENT",
-      "NWS DOPPLER RADAR",
-      "HAM RADIO OPERATOR",
-      "OFFICIAL STORM SURVEY",
-      "NATIONAL SEVERE WEATHER LAB",
-    ];
-
-    const randomHazard =
-      possibleHazards[Math.floor(Math.random() * possibleHazards.length)];
-    const randomSource =
-      possibleSources[Math.floor(Math.random() * possibleSources.length)];
-
-    parameters.hazard = [randomHazard];
-    parameters.source = [randomSource];
-
-    description = `HAZARD... ${randomHazard}\nSOURCE... ${randomSource}`;
+  } else if (eventName.includes("Severe Thunderstorm Warning")) {
+    if (eventName === "Destructive Severe Thunderstorm Warning") {
+      parameters.threats.thunderstormDamageThreat = ["DESTRUCTIVE"];
+      eventName = "Severe Thunderstorm Warning";
+    } else if (eventName === "Considerable Severe Thunderstorm Warning") {
+      parameters.threats.thunderstormDamageThreat = ["CONSIDERABLE"];
+      eventName = "Severe Thunderstorm Warning";
+    }
+  } else if (eventName === "Flash Flood Emergency") {
+    parameters.threats.flashFloodDamageThreat = ["CATASTROPHIC"];
+    eventName = "Flash Flood Warning";
   }
 
+  // Generate a description string that includes the SOURCE and HAZARD
+  let description = "";
+  if (parameters.source) {
+    description += `SOURCE... ${parameters.source[0]}\n`;
+  }
+
+  // Add hazard information based on event type
+  if (eventName === "Tornado Warning") {
+    const hazardText = eventName === "Tornado Emergency" ? 
+      "DEADLY TORNADO." : eventName === "PDS Tornado Warning" ? 
+      "DAMAGING TORNADO." : "TORNADO.";
+    description += `HAZARD... ${hazardText}\n`;
+  } else if (eventName === "Severe Thunderstorm Warning") {
+    const hazardText = parameters.threats.thunderstormDamageThreat === "DESTRUCTIVE" ? 
+      "DESTRUCTIVE THUNDERSTORM WINDS AND LARGE HAIL." : 
+      "DAMAGING WINDS AND LARGE HAIL.";
+    description += `HAZARD... ${hazardText}\n`;
+  } else if (eventName === "Flash Flood Warning") {
+    description += `HAZARD... FLASH FLOODING\n`;
+  }
+
+  // Create the warning object using the normalizeAlert format
   const warning = {
     id: randomID,
+    geometry: null, // Assuming no geometry for test notifications
+    rawText: description,
+    vtec: randomVTEC,
     properties: {
-      event: eventType,
-      areaDesc: areaDesc,
-      actionSection:
-        "THIS IS A TEST MESSAGE. DO NOT TAKE ACTION ON THIS MESSAGE.",
+      event: eventName,
       expires: expirationDate.toISOString(),
-      VTEC: randomVTEC,
+      areaDesc: areaDesc,
       parameters: parameters,
+      actionSection: "THIS IS A TEST MESSAGE. DO NOT TAKE ACTION ON THIS MESSAGE.",
       messageType: messageType,
       currentVersion: currentVersion,
-      description: description,
     },
   };
 
@@ -743,6 +807,11 @@ function testNotification(eventName) {
   showNotification(warning);
   updateDashboard(warning);
 }
+
+
+
+
+
 
 function normalizeAlert(alert) {
   if (!alert || typeof alert !== "object") return null;
@@ -1022,29 +1091,31 @@ function getEventName(alert) {
     alert.properties || alert.feature?.properties || alert.feature || alert;
 
   const event = props.eventName || props.event || "Unknown Event";
-
-  // Use rawText fallback for full alert text parsing
   const description = props.description || props.rawText || alert.rawText || "";
 
+  // 🔍 Extract threats from different possible paths
   const tornadoDamageThreat = (
-    alert.tornadoDamageThreat ||
-    alert.threats?.tornadoDamageThreat ||
+    props.tornadoDamageThreat ||
+    props.threats?.tornadoDamageThreat ||
+    props.parameters?.threats?.tornadoDamageThreat?.[0] ||
     ""
   ).toUpperCase();
 
   const thunderstormDamageThreat = (
-    alert.thunderstormDamageThreat ||
-    alert.threats?.thunderstormDamageThreat ||
+    props.thunderstormDamageThreat ||
+    props.threats?.thunderstormDamageThreat ||
+    props.parameters?.threats?.thunderstormDamageThreat?.[0] ||
     ""
   ).toUpperCase();
 
   const flashFloodDamageThreat = (
-    alert.flashFloodDamageThreat ||
-    alert.threats?.flashFloodDamageThreat ||
+    props.flashFloodDamageThreat ||
+    props.threats?.flashFloodDamageThreat ||
+    props.parameters?.threats?.flashFloodDamageThreat?.[0] ||
     ""
   ).toUpperCase();
 
-  // Clean and normalize SOURCE and HAZARD lines from description/rawText
+  // 🧼 Scrub source + hazard lines from raw text
   const src = (description.match(/SOURCE\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A")
     .replace(/[^\w\s]/g, "")
     .trim()
@@ -1055,6 +1126,7 @@ function getEventName(alert) {
     .trim()
     .toUpperCase();
 
+  // 🌪 Tornado logic
   if (event.includes("Tornado Warning")) {
     if (tornadoDamageThreat === "CATASTROPHIC") return "Tornado Emergency";
     if (tornadoDamageThreat === "CONSIDERABLE") return "PDS Tornado Warning";
@@ -1063,16 +1135,19 @@ function getEventName(alert) {
       return "Radar Confirmed Tornado Warning";
     if (src === "LAW ENFORCEMENT CONFIRMED TORNADO")
       return "Law Enforcement Confirmed Tornado Warning";
+    if (src === "EMERGENCY MANAGEMENT CONFIRMED TORNADO")
+      return "Observed Tornado Warning";
     if (src === "PUBLIC CONFIRMED TORNADO")
       return "Public Confirmed Tornado Warning";
-    if (src === "RADAR INDICATED ROTATION") return "Tornado Warning";
-
     if (src === "WEATHER SPOTTERS CONFIRMED TORNADO")
       return "Spotter Confirmed Tornado Warning";
     if (src === "CONFIRMED TORNADO") return "Observed Tornado Warning";
+    if (src === "RADAR INDICATED ROTATION") return "Tornado Warning";
+
     return "Tornado Warning";
   }
 
+  // ⛈️ Thunderstorm logic
   if (event.includes("Severe Thunderstorm Warning")) {
     if (thunderstormDamageThreat === "DESTRUCTIVE")
       return "Destructive Severe Thunderstorm Warning";
@@ -1081,6 +1156,7 @@ function getEventName(alert) {
     return "Severe Thunderstorm Warning";
   }
 
+  // 🌊 Flash Flood logic
   if (event.includes("Flash Flood Warning")) {
     if (flashFloodDamageThreat === "CATASTROPHIC")
       return "Flash Flood Emergency";
@@ -1089,6 +1165,7 @@ function getEventName(alert) {
 
   return event;
 }
+
 
 let currentCountyIndex = 0;
 
@@ -3583,6 +3660,7 @@ async function rotateCityWithDelay() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  createCheckboxes();
   updateDashboard();
   fetchAllWeatherData();
   startRotatingCities();
