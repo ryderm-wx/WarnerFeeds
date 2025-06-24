@@ -1,7 +1,7 @@
 const eventTypes = {
   "Tornado Warning": "tornado-warning",
-  "Radar Confirmed Tornado Warning": 'radar-confirmed-tornado',
-  "Spotter Confirmed Tornado Warning": 'spotter-confirmed-tornado',
+  "Radar Confirmed Tornado Warning": "radar-confirmed-tornado",
+  "Spotter Confirmed Tornado Warning": "spotter-confirmed-tornado",
   "Observed Tornado Warning": "observed-tornado-warning",
   "PDS Tornado Warning": "pds-tornado-warning",
   "Tornado Emergency": "tornado-emergency",
@@ -54,10 +54,6 @@ const priority = {
   "Wind Advisory": 25,
   "Dense Fog Advisory": 26,
 };
-
-
-
-
 
 const STATE_FIPS_TO_ABBR = {
   Any: "US",
@@ -156,32 +152,34 @@ const cancelTypes = [
 
 function initAlertStream() {
   console.log("🔛 Tactical Alert Stream Engaged!");
-  
+
   // Close existing connection if there is one
   if (window.eventSource) {
     window.eventSource.close();
     console.log("🔌 Closed existing SSE connection");
   }
-  
+
   const source = new EventSource("/api/xmpp-alerts");
   window.eventSource = source; // Store reference globally
-  
+
   // Setup heartbeat checker
   let lastMessageTime = Date.now();
   let heartbeatInterval;
-  
+
   source.addEventListener("open", () => {
     console.log("✅ SSE Connected at /api/xmpp-alerts");
-    
+
     // Start the heartbeat interval check
     heartbeatInterval = setInterval(() => {
       const timeSinceLastMessage = Date.now() - lastMessageTime;
       // If no message for 30 seconds, consider the connection dead
-      if (timeSinceLastMessage > 30000) {
-        console.warn("⚠️ No messages received for 30+ seconds, reconnecting...");
+      if (timeSinceLastMessage > 180000) {
+        console.warn(
+          "⚠️ No messages received for 180+ seconds, reconnecting..."
+        );
         clearInterval(heartbeatInterval);
         source.close();
-        
+
         setTimeout(() => {
           console.log("🔄 Attempting to reconnect SSE due to inactivity...");
           initAlertStream();
@@ -193,7 +191,7 @@ function initAlertStream() {
   source.addEventListener("error", (err) => {
     console.error("❌ SSE Error:", err);
     clearInterval(heartbeatInterval);
-    
+
     // Attempt to reconnect after a delay
     setTimeout(() => {
       console.log("🔄 Attempting to reconnect SSE after error...");
@@ -206,20 +204,33 @@ function initAlertStream() {
     lastMessageTime = Date.now();
     console.debug("💓 Heartbeat received");
   });
-  
+
   // Update lastMessageTime on any event
   const updateLastMessageTime = () => {
     lastMessageTime = Date.now();
   };
 
   // wire up all your normal alert events…
-  const normalTypes = ["NEW", "UPDATE", "INIT", "CONTINUE", "OTHER", "ALERT"];
+  // wire up all your normal alert events…
+  const normalTypes = [
+    "NEW",
+    "UPDATE",
+    "INIT",
+    "CONTINUE",
+    "OTHER",
+    "ALERT",
+    "SPECIAL_WEATHER_STATEMENT",
+  ];
   normalTypes.forEach((type) =>
     source.addEventListener(type, (event) => {
       updateLastMessageTime();
       const data = JSON.parse(event.data);
+
+      // Special handling for SPECIAL_WEATHER_STATEMENTS - treat as NEW
+      const processType = type === "SPECIAL_WEATHER_STATEMENT" ? "NEW" : type;
+
       console.log(`📩 Received ${type}`, data);
-      HandleAlertPayload(data, type);
+      HandleAlertPayload(data, processType);
     })
   );
 
@@ -1013,8 +1024,7 @@ function getEventName(alert) {
   const event = props.eventName || props.event || "Unknown Event";
 
   // Use rawText fallback for full alert text parsing
-  const description =
-    props.description || props.rawText || alert.rawText || "";
+  const description = props.description || props.rawText || alert.rawText || "";
 
   const tornadoDamageThreat = (
     alert.tornadoDamageThreat ||
@@ -1035,16 +1045,12 @@ function getEventName(alert) {
   ).toUpperCase();
 
   // Clean and normalize SOURCE and HAZARD lines from description/rawText
-  const src = (
-    description.match(/SOURCE\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
-  )
+  const src = (description.match(/SOURCE\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A")
     .replace(/[^\w\s]/g, "")
     .trim()
     .toUpperCase();
 
-  const hazard = (
-    description.match(/HAZARD\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
-  )
+  const hazard = (description.match(/HAZARD\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A")
     .replace(/[^\w\s]/g, "")
     .trim()
     .toUpperCase();
@@ -1063,8 +1069,7 @@ function getEventName(alert) {
 
     if (src === "WEATHER SPOTTERS CONFIRMED TORNADO")
       return "Spotter Confirmed Tornado Warning";
-    if (src === "CONFIRMED TORNADO")
-      return "Observed Tornado Warning";
+    if (src === "CONFIRMED TORNADO") return "Observed Tornado Warning";
     return "Tornado Warning";
   }
 
@@ -1077,14 +1082,13 @@ function getEventName(alert) {
   }
 
   if (event.includes("Flash Flood Warning")) {
-    if (flashFloodDamageThreat === "CATASTROPHIC") return "Flash Flood Emergency";
+    if (flashFloodDamageThreat === "CATASTROPHIC")
+      return "Flash Flood Emergency";
     return "Flash Flood Warning";
   }
 
   return event;
 }
-
-
 
 let currentCountyIndex = 0;
 
@@ -2188,7 +2192,7 @@ function getAlertColor(eventName) {
     case "Law Enforcement Confirmed Tornado Warning":
       return "#FF00FF";
     case "Public Confirmed Tornado Warning":
-      return "#FF00FF";    
+      return "#FF00FF";
     case "PDS Tornado Warning":
       return "#FF00FF";
     case "Tornado Emergency":
@@ -2311,8 +2315,6 @@ function getWindEmoji(windSpeed) {
   return "<span class='emoji-animated'></span>";
 }
 
-
-
 function getHailEmoji(hailSize) {
   const size = parseFloat(hailSize);
   if (isNaN(size)) return "<span class='emoji-animated'></span>";
@@ -2423,8 +2425,6 @@ function formatCountiesTopBar(areaDesc) {
   if (!areaDesc) return "Unknown Area";
 
   const parts = areaDesc.split(";").map((part) => part.trim());
-
-
 
   return parts.join(", ");
 }
@@ -3137,7 +3137,7 @@ function cancelAlert(id) {
   updateAlertBar();
 
   // Get the alert bar element
-  const alertBar = document.querySelector('.alert-bar');
+  const alertBar = document.querySelector(".alert-bar");
 
   if (activeWarnings.length === 0) {
     showNoWarningDashboard();
@@ -3147,16 +3147,16 @@ function cancelAlert(id) {
 
     // Set the thinbg glow style when no warnings active
     if (alertBar) {
-      alertBar.style.setProperty('--glow-color', 'rgba(255, 255, 255, 0.6)');
-      alertBar.classList.add('thinbg-glow');  // Optional if you have a CSS class for the glow
+      alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
+      alertBar.classList.add("thinbg-glow"); // Optional if you have a CSS class for the glow
     }
   } else {
     updateDashboard();
 
     // Reset glow color or remove class if you want to revert when warnings exist
     if (alertBar) {
-      alertBar.style.removeProperty('--glow-color');
-      alertBar.classList.remove('thinbg-glow');
+      alertBar.style.removeProperty("--glow-color");
+      alertBar.classList.remove("thinbg-glow");
     }
   }
 
@@ -3385,7 +3385,6 @@ function showWarningDashboard() {
 
 // Global variable to track if scrolling is active
 let isScrolling = false;
-
 
 function updateCountiesText(newHTML) {
   const countiesElement = document.querySelector("#counties");
