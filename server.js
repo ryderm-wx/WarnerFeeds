@@ -37,7 +37,7 @@ app.get("/api/xmpp-alerts", (req, res) => {
   res.write(`data: ${JSON.stringify(initialState)}\n\n`);
 
   // 3️⃣ Connect upstream
-  const upstreamUrl = "http://localhost:3500/live-alerts";
+  const upstreamUrl = "https://xmpp-api-production.up.railway.app/live-alerts";
   const source = new EventSource(upstreamUrl);
   console.log(`🔗 Connecting to upstream SSE: ${upstreamUrl}`);
 
@@ -45,7 +45,9 @@ app.get("/api/xmpp-alerts", (req, res) => {
   function handleEventData(evt) {
     try {
       console.log(
-        `[${new Date().toISOString()}] 🔥 Upstream ${evt.type || "message"} event received`
+        `[${new Date().toISOString()}] 🔥 Upstream ${
+          evt.type || "message"
+        } event received`
       );
       const data = JSON.parse(evt.data);
 
@@ -68,7 +70,20 @@ app.get("/api/xmpp-alerts", (req, res) => {
   source.onmessage = handleEventData;
 
   // 6️⃣ Relay known named events
-  const knownEvents = ["INIT", "ALERT", "UPDATE", "CANCEL", "OTHER", "ALERT_CANCELED", "EXPIRE_ALERT", "CONTINUE", "NEW", "EXPIRE", "SPECIAL_WEATHER_STATEMENT", "EXPIRE_BEFORE_OPEN"];
+  const knownEvents = [
+    "INIT",
+    "ALERT",
+    "UPDATE",
+    "CANCEL",
+    "OTHER",
+    "ALERT_CANCELED",
+    "EXPIRE_ALERT",
+    "CONTINUE",
+    "NEW",
+    "EXPIRE",
+    "SPECIAL_WEATHER_STATEMENT",
+    "EXPIRE_BEFORE_OPEN",
+  ];
   knownEvents.forEach((eventType) => {
     source.addEventListener(eventType, handleEventData);
   });
