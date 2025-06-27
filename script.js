@@ -1504,7 +1504,7 @@ function displayNotification(warning, notificationType) {
       if (s.includes("radar indicated")) return "";
       if (s.includes("radar confirmed")) return "";
       if (s.includes("public")) return "";
-      return "❓";
+      return "";
     };
 
     const hs = document.createElement("div");
@@ -3518,25 +3518,20 @@ let isScrolling = false;
 
 function updateCountiesText(newHTML) {
   const countiesElement = document.querySelector("#counties");
-  const eventTypeBar = document.querySelector("#eventType");
 
   // First fade out
   countiesElement.classList.add("fade-out");
 
   // After the fade out completes, update HTML and fade back in
   setTimeout(() => {
-    countiesElement.innerHTML = newHTML;
+    countiesElement.innerHTML = newHTML; // Changed from textContent to innerHTML
     countiesElement.classList.remove("fade-out");
 
-    // Check if we need scrolling (more than 9 commas)
-    const commaCount = (newHTML.match(/,/g) || []).length;
-
-    if (commaCount > 9 && !isScrolling) {
-      // Start scrolling
-      startScrolling(countiesElement, eventTypeBar);
-    } else if (commaCount <= 9 && isScrolling) {
-      // Stop scrolling if it was active
-      stopScrolling(countiesElement);
+    // Only now that counties text has fully faded out, update the event type
+    if (window.pendingEventTypeUpdate) {
+      const { newHTML, newBackgroundColor } = window.pendingEventTypeUpdate;
+      crossfadeEventTypeBar(newHTML, newBackgroundColor);
+      window.pendingEventTypeUpdate = null;
     }
   }, 400); // Match this with your CSS transition duration
 }
