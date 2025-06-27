@@ -2322,7 +2322,7 @@ function getAlertColor(eventName) {
     case "Blizzard Warning":
       return "#FF4500";
     case "Special Weather Statement":
-      return "#5AAFCE";
+      return "#FFE4B5";
     case "High Wind Warning":
       return "#DAA520";
     case "High Wind Watch":
@@ -3513,26 +3513,69 @@ function showWarningDashboard() {
 }
 
 // Global variable to track if scrolling is active
+// Global variable to track if scrolling is active
 let isScrolling = false;
 
 function updateCountiesText(newHTML) {
   const countiesElement = document.querySelector("#counties");
+  const eventTypeBar = document.querySelector("#eventType");
 
   // First fade out
   countiesElement.classList.add("fade-out");
 
   // After the fade out completes, update HTML and fade back in
   setTimeout(() => {
-    countiesElement.innerHTML = newHTML; // Changed from textContent to innerHTML
+    countiesElement.innerHTML = newHTML;
     countiesElement.classList.remove("fade-out");
 
-    // Only now that counties text has fully faded out, update the event type
-    if (window.pendingEventTypeUpdate) {
-      const { newHTML, newBackgroundColor } = window.pendingEventTypeUpdate;
-      crossfadeEventTypeBar(newHTML, newBackgroundColor);
-      window.pendingEventTypeUpdate = null;
+    // Check if we need scrolling (more than 9 commas)
+    const commaCount = (newHTML.match(/,/g) || []).length;
+
+    if (commaCount > 9 && !isScrolling) {
+      // Start scrolling
+      startScrolling(countiesElement, eventTypeBar);
+    } else if (commaCount <= 9 && isScrolling) {
+      // Stop scrolling if it was active
+      stopScrolling(countiesElement);
     }
   }, 400); // Match this with your CSS transition duration
+}
+
+function startScrolling(countiesElement, eventTypeBar) {
+  isScrolling = true;
+
+  // Create mask elements if they don't exist
+  if (!document.getElementById("counties-left-mask")) {
+    const leftMask = document.createElement("div");
+    leftMask.id = "counties-left-mask";
+    leftMask.className = "counties-mask left-mask";
+
+    // Position the left mask 30px to the right of the event type bar
+    const eventTypeRect = eventTypeBar.getBoundingClientRect();
+    leftMask.style.left = `${eventTypeRect.right + 30}px`;
+
+    // Insert the mask before the counties element
+    countiesElement.parentNode.insertBefore(leftMask, countiesElement);
+  }
+
+  // Set up scrolling animation
+  countiesElement.classList.add("scrolling");
+
+  // Calculate animation duration based on text length
+  const textWidth = countiesElement.scrollWidth;
+  const containerWidth = countiesElement.clientWidth;
+  const duration = Math.max(10, textWidth / 50); // Adjust speed as needed
+
+  countiesElement.style.animationDuration = `${duration}s`;
+}
+
+function stopScrolling(countiesElement) {
+  isScrolling = false;
+  countiesElement.classList.remove("scrolling");
+
+  // Remove mask elements
+  const leftMask = document.getElementById("counties-left-mask");
+  if (leftMask) leftMask.remove();
 }
 
 function crossfadeEventTypeBar(newHTML, newBackgroundColor) {
