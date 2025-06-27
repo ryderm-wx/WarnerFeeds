@@ -411,6 +411,12 @@ function HandleAlertPayload(payload, eventType) {
     type = eventType || "NEW";
   }
 
+  // Treat "SPECIAL_WEATHER_STATEMENT" as a "NEW" event type
+  if (type === "SPECIAL_WEATHER_STATEMENT") {
+    console.log("Remapping SPECIAL_WEATHER_STATEMENT to NEW");
+    type = "NEW";
+  }
+
   // 2) sanity check
   if (!Array.isArray(alerts) || !type) {
     console.warn("⚠️ Invalid alerts/type after unwrap:", { alerts, type });
@@ -421,7 +427,6 @@ function HandleAlertPayload(payload, eventType) {
   // 3) hand off to TacticalMode
   TacticalMode(alerts, type);
 }
-
 function normalizeAlertsFromEvent(event) {
   try {
     if (!event?.data) return [];
