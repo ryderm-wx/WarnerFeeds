@@ -173,9 +173,9 @@ function initAlertStream() {
     heartbeatInterval = setInterval(() => {
       const timeSinceLastMessage = Date.now() - lastMessageTime;
       // If no message for 30 seconds, consider the connection dead
-      if (timeSinceLastMessage > 180000) {
+      if (timeSinceLastMessage > 300000) {
         console.warn(
-          "⚠️ No messages received for 180+ seconds, reconnecting..."
+          "⚠️ No messages received for 300+ seconds, reconnecting..."
         );
         clearInterval(heartbeatInterval);
         source.close();
@@ -411,12 +411,6 @@ function HandleAlertPayload(payload, eventType) {
     type = eventType || "NEW";
   }
 
-  // Treat "SPECIAL_WEATHER_STATEMENT" as a "NEW" event type
-  if (type === "SPECIAL_WEATHER_STATEMENT") {
-    console.log("Remapping SPECIAL_WEATHER_STATEMENT to NEW");
-    type = "NEW";
-  }
-
   // 2) sanity check
   if (!Array.isArray(alerts) || !type) {
     console.warn("⚠️ Invalid alerts/type after unwrap:", { alerts, type });
@@ -427,6 +421,7 @@ function HandleAlertPayload(payload, eventType) {
   // 3) hand off to TacticalMode
   TacticalMode(alerts, type);
 }
+
 function normalizeAlertsFromEvent(event) {
   try {
     if (!event?.data) return [];
@@ -875,6 +870,7 @@ function normalizeAlert(alert) {
     rawText: alert.rawText || props.rawText || "",
     vtec: alert.vtec || props.vtec || "",
     properties: {
+      action: alert.action || null, // Added this line
       event: fallbackEvent,
       expires: props.expires || alert.expires || "",
       areaDesc: fallbackArea,
@@ -1215,163 +1211,237 @@ document
   });
 
 // globals—ensure these live outside any function
+
+function checkIfRecentAlert(warning) {
+  // Get the alert's issuance time, defaulting to properties.sent or properties.effective
+  const alertTime = new Date(
+    warning.properties.sent ||
+      warning.properties.effective ||
+      warning.properties.onset ||
+      Date.now()
+  );
+
+  // Consider alerts within the last 15 minutes as "recent" and worth notifying about
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+  return alertTime > fifteenMinutesAgo;
+}
+
 const notifiedWarnings = new Map();
 let emergencyText = "";
 
 function showNotification(
   warning,
-  actionType = "NEW",
-  isUpdate = false,
-  currentVersion
+  sseEventType = "NEW", // The type from the SSE stream (e.g., INIT, NEW, UPDATE, CANCEL)
+  currentVersion // Passed as an argument, usually from NWSheadline or properties.sent
 ) {
   const eventName = getEventName(warning);
   const warningId = warning.id.trim().toUpperCase();
 
-  // Use provided version or fall back to other properties
-  currentVersion =
-    currentVersion ||
-    warning.properties.parameters?.NWSheadline?.[0] ||
-    warning.properties.sent;
+  // Determine the CAP-style action, falling back to SSE event type if none.
+  // This `alertAction` is primarily for logging and understanding the message intent.
+  const alertAction =
+    (warning.properties.action || warning.action)?.toUpperCase() ||
+    sseEventType.toUpperCase();
 
-  const hasBeenNotified = notifiedWarnings.has(warningId);
+  // Check if we've processed this alert ID before (even if not visually notified)
+  const hasBeenInternallyTracked = previousWarnings.has(warningId);
+  const previousWarningObject = previousWarnings.get(warningId); // Will be undefined if not tracked
 
-  console.log("⚙️ Processing warning...");
-  console.log("Warning Object:", warning);
-  console.log(`🆔 ID: ${warningId}`);
-  console.log(`📛 Event Name: ${eventName}`);
-  console.log(`📤 Action Type: ${actionType}`);
-  console.log(`🔁 Already Notified: ${hasBeenNotified}`);
-  console.log(`📌 Current Version: ${currentVersion}`);
-  console.log(`📦 Raw Warning Object:`, warning);
-
-  // 🛑 Cancel logic first
-  if (["CAN", "EXP", "CANX", "CANCEL", "ALERT_CANCELED"].includes(actionType)) {
-    cancelAlert(warning.id);
-    console.log(`🛑 Alert Cancelled (${actionType}) - ID: ${warningId}`);
-    return;
-  }
-
-  // 🎯 Determine new vs update vs init
+  // --- Determine notification type (NEW vs UPDATED vs IGNORED) ---
   let isNew = false;
   let isUpdated = false;
-  let isInit = false;
+  let notificationType = "NEW WEATHER ALERT"; // Default for alerts that will be shown
 
-  const updateActions = ["CON", "EXT", "EXA", "UPG", "COR", "ROU"];
-  const newActions = ["NEW"];
-  const initActions = ["INIT"];
+  // 1. INIT alerts are special: always store, never notify explicitly
+  if (sseEventType.toUpperCase() === "INIT") {
+    previousWarnings.set(warningId, warning);
+    // Also track in notifiedWarnings so that future non-INIT messages are seen as "tracked"
+    // even if INIT itself didn't trigger a visual notification.
+    notifiedWarnings.set(warningId, currentVersion);
+    console.log(`🧠 State updated for ${warningId} (INIT, no notification)`);
+    return; // Exit, no visual notification
+  }
 
-  if (newActions.includes(actionType)) {
-    isNew = true;
-    console.log("🆕 Action indicates this is a NEW alert.");
-  } else if (updateActions.includes(actionType)) {
-    isUpdated = true;
-    console.log("🔄 Action indicates this is an UPDATED alert.");
-  } else if (initActions.includes(actionType)) {
-    isInit = true;
-    console.log("🏁 Action indicates this is an INIT alert.");
-  } else if (!hasBeenNotified) {
-    isNew = true;
-    console.log("🧠 This ID hasn't been notified before. Marking as NEW.");
-  } else if (notifiedWarnings.get(warningId) !== currentVersion) {
-    isUpdated = true;
+  // 2. Special handling for Special Weather Statements (SWS)
+  // SWS will NEVER be "UPDATED" based on action field. They are either NEW (first time seeing, or content changed)
+  // or ignored (content unchanged). This logic takes precedence for SWS.
+  if (eventName === "Special Weather Statement") {
+    if (hasBeenInternallyTracked) {
+      // If we've seen this SWS ID before
+      const previousSWS = previousWarningObject; // Use previousWarningObject directly
+      const prevRawText =
+        previousSWS?.rawText || previousSWS?.properties?.rawText || "";
+      const currentRawText =
+        warning.rawText || warning.properties?.rawText || "";
+      const prevAreaDesc = previousSWS?.properties?.areaDesc || "";
+      const currentAreaDesc = warning.properties?.areaDesc || "";
+
+      // If content is identical, do not re-notify.
+      if (prevRawText === currentRawText && prevAreaDesc === currentAreaDesc) {
+        console.log(
+          `⚠️ SWS [${warningId}] received again with identical content. Ignoring to prevent duplicate notifications.`
+        );
+        // Update version/object even if identical content, for robust tracking.
+        if (notifiedWarnings.get(warningId) !== currentVersion) {
+          notifiedWarnings.set(warningId, currentVersion);
+        }
+        previousWarnings.set(warningId, warning);
+        return; // Ignore this alert for visual notification purposes.
+      } else {
+        // Content has changed for an existing SWS ID. Treat this as a NEW alert (from notification perspective).
+        isNew = true;
+        notificationType = "NEW WEATHER ALERT";
+        console.log(
+          `🔄 SWS [${warningId}] content changed. Marking as NEW weather alert.`
+        );
+      }
+    } else {
+      // First time seeing this SWS ID.
+      isNew = true;
+      notificationType = "NEW WEATHER ALERT";
+      console.log(
+        `🆕 SWS [${warningId}] ID not previously tracked. Marking as NEW weather alert.`
+      );
+    }
+  }
+  // 3. Main logic driven by `alertAction` for non-SWS alerts
+  else {
+    switch (alertAction) {
+      case "NEW":
+        isNew = true;
+        notificationType = "NEW WEATHER ALERT";
+        console.log(`🆕 Action is NEW. Marking as NEW.`);
+        break;
+
+      case "UPDATE":
+      case "CON": // Group UPDATE and CON as they share upgrade logic.
+        // Per your request, if an alert's action is UPDATE or CON,
+        // it should ONLY trigger a notification if it's an UPGRADE.
+        // Otherwise, it's considered stale and will not be displayed.
+        if (previousWarningObject) {
+          const previousEventName = getEventName(previousWarningObject);
+          const currentPriority = priority[eventName];
+          const prevPriority = priority[previousEventName];
+
+          // Check if this is a severity upgrade (lower priority number means higher priority alert)
+          if (
+            currentPriority !== undefined &&
+            prevPriority !== undefined &&
+            currentPriority < prevPriority
+          ) {
+            isUpdated = true;
+            notificationType = "ALERT UPGRADED";
+            console.log(
+              `⬆️ Action is ${alertAction}, severity UPGRADED from ${previousEventName} to ${eventName}.`
+            );
+          } else {
+            // Not an upgrade, just a regular update / continuance - treat as stale.
+            console.log(
+              `⚠️ Action is ${alertAction}, but not a severity upgrade. Ignoring notification as stale.`
+            );
+            previousWarnings.set(warningId, warning); // Still update internal state
+            notifiedWarnings.set(warningId, currentVersion);
+            return; // DO NOT notify
+          }
+        } else {
+          // Alert is UPDATE/CON, but we haven't tracked it before.
+          // As per "no more useless tracking" for non-upgrades,
+          // if we receive an UPDATE/CON for a new ID, we silently track it.
+          // It's not an "upgrade" we can confirm, so it's not notified.
+          console.log(
+            `⚠️ Action is ${alertAction}, but alert ID not previously tracked. Tracking silently as potentially stale.`
+          );
+          previousWarnings.set(warningId, warning);
+          notifiedWarnings.set(warningId, currentVersion);
+          return; // DO NOT notify
+        }
+        break;
+
+      default:
+        // This default case handles alerts where the 'action' field is missing or unknown.
+        // It falls back to content comparison to decide if it's a visual update.
+        if (!hasBeenInternallyTracked) {
+          isNew = true;
+          notificationType = "NEW WEATHER ALERT";
+          console.log(
+            `🆕 Default action, not internally tracked. Marking as NEW.`
+          );
+        }
+        // If already tracked, determine if it's a visual update or a silent update.
+        else if (previousWarningObject) {
+          const prevRawText =
+            previousWarningObject?.rawText ||
+            previousWarningObject?.properties?.rawText ||
+            "";
+          const currentRawText =
+            warning.rawText || warning.properties?.rawText || "";
+          const prevAreaDesc =
+            previousWarningObject?.properties?.areaDesc || "";
+          const currentAreaDesc = warning.properties?.areaDesc || "";
+
+          // If any meaningful content changed or event name changed, consider it an implicit update.
+          if (
+            prevRawText !== currentRawText ||
+            prevAreaDesc !== currentAreaDesc ||
+            getEventName(previousWarningObject) !== eventName
+          ) {
+            isUpdated = true;
+            notificationType = "ALERT UPDATED";
+            console.log(
+              `🔃 Default action, but content/name changed. Marking as UPDATED.`
+            );
+          } else {
+            // No change, ignore.
+            console.log(`⚠️ Default action, no significant change. Ignoring.`);
+            return;
+          }
+        } else {
+          // Fallback if not tracked and no specific action, treat as new.
+          isNew = true;
+          notificationType = "NEW WEATHER ALERT";
+          console.log(
+            `🆕 Default action, not internally tracked. Marking as NEW.`
+          );
+        }
+        break;
+    }
+  }
+
+  // Final validation: Ensure either isNew or isUpdated is true. If not, it means an edge case was missed, so ignore.
+  if (!isNew && !isUpdated) {
     console.log(
-      `🔁 Version mismatch (was: ${notifiedWarnings.get(
-        warningId
-      )}, now: ${currentVersion}). Marking as UPDATED.`
+      `⛔ Final determination: No change for ${warningId}. Ignoring.`
     );
-  } else if (previousWarnings.get(warningId) !== eventName) {
-    isUpdated = true;
-    console.log(
-      `🔃 Event name changed (was: ${previousWarnings.get(
-        warningId
-      )}, now: ${eventName}). Marking as UPDATED.`
-    );
-  } else {
-    console.log(`⚠️ Duplicate/stale alert ignored: ${warningId}`);
     return;
   }
 
   console.log(
-    `✅ Determined notification status — New: ${isNew}, Updated: ${isUpdated}, Init: ${isInit}`
+    `✅ Determined notification status — New: ${isNew}, Updated: ${isUpdated}, Type: ${notificationType}`
   );
 
-  // 🏷️ Notification label
-  let notificationType = "NEW WEATHER ALERT"; // Default notification type
-  if (isInit) {
-    notificationType = "INITIALIZED ALERT";
-    // For INIT alerts, just update state without notification
-    previousWarnings.set(warningId, eventName);
-    notifiedWarnings.set(warningId, currentVersion);
-    console.log(`🧠 State updated for ${warningId} (INIT, no notification)`);
-    return; // Return early for INIT without showing notification
-  } else if (isUpdated) {
-    notificationType = "ALERT UPDATED";
-  }
-
-  console.log(`🏷️ Notification Label: ${notificationType}`);
-
   // 🔊 Pick your fighter
-  const soundId = getSoundForEvent(eventName, isUpdated);
+  const soundId = getSoundForEvent(eventName, notificationType);
   console.log(`🔊 Playing sound ID: ${soundId}`);
   playSoundById(soundId);
 
-  // 🧠 Track state
-  previousWarnings.set(warningId, eventName);
-  notifiedWarnings.set(warningId, currentVersion);
+  // 🧠 Track state - consistently store the full warning object for future comparisons
+  previousWarnings.set(warningId, warning); // Store the current warning object for next comparison
+  notifiedWarnings.set(warningId, currentVersion); // Store the version for future version comparisons
   console.log(`🧠 State updated for ${warningId}`);
 
-  switch (eventName) {
-    case "Destructive Severe Thunderstorm Warning":
-      emergencyText = "THIS IS A DANGEROUS SITUATION";
-      break;
-    case "Flash Flood Emergency":
-      emergencyText = "SEEK HIGHER GROUND IMMEDIATELY";
-      break;
-    case "Observed Tornado Warning":
-      emergencyText = "A TORNADO IS ON THE GROUND";
-      break;
-    case "Radar Confirmed Tornado Warning":
-      emergencyText = "RADAR HAS CONFIRMED A TORNADO";
-      break;
-    case "Spotter Confirmed Tornado Warning":
-      emergencyText = "A SPOTTER HAS CONFIRMED A TORNADO";
-      break;
-    case "PDS Tornado Warning":
-      emergencyText =
-        "A LARGE AND EXTREMELY DANGEROUS TORNADO IS ON THE GROUND";
-      break;
-    case "Tornado Emergency":
-      emergencyText = "A VIOLENT AND PERHAPS DEADLY TORNADO IS ON THE GROUND";
-      break;
-    default:
-      emergencyText = "";
-  }
-
-  // 🚀 Fire it off
-  if (isNotificationQueueEnabled) {
-    console.log("🧾 Notification queue enabled — pushing to queue.");
-    notificationQueue.push({ warning, notificationType, emergencyText });
-    processNotificationQueue();
-  } else {
-    console.log("⚡ Notification queue disabled — showing directly.");
-    displayNotification(warning, notificationType, emergencyText);
-  }
-
-  console.log(
-    `🔔 Notification shown for ${eventName} (ID: ${warningId}, ${
-      isNew ? "New" : "Updated"
-    })`
-  );
+  // Display the notification
+  displayNotification(warning, notificationType);
 }
 
-function getSoundForEvent(eventName, isUpdated) {
-  if (isUpdated) {
-    if (eventName.includes("Tornado Emergency"))
-      return "TorEmergencyUpdateSound";
-    if (eventName.includes("PDS Tornado Warning")) return "TorPDSUpdateSound";
-    if (eventName.includes("Tornado Warning")) return "TorUpdateSound";
-    return "SVRCSound";
+function getSoundForEvent(eventName, notificationType) {
+  if (notificationType === "ALERT UPGRADED") {
+    if (eventName.includes("Tornado Emergency")) return "TorUpgradeSound"; // Re-using update sound for upgrade to Tornado Warning
+    if (eventName.includes("Tornado Warning")) return "TorUpgradeSound"; // Re-using update sound for upgrade to Tornado Warning
+    if (eventName.includes("Severe Thunderstorm Warning"))
+      return "SvrUpgradeSound"; // Re-using update sound for upgrade to Tornado Warning
   } else {
+    // notificationType === "NEW WEATHER ALERT"
+    // Sounds for initial issuance of an alert
     if (eventName.includes("Tornado Emergency")) return "TOREISS";
     if (eventName.includes("PDS Tornado Warning")) return "TorPDSSound";
     if (eventName.includes("Tornado Warning")) return "TorIssSound";
@@ -1380,6 +1450,7 @@ function getSoundForEvent(eventName, isUpdated) {
     if (eventName.includes("Severe Thunderstorm Warning")) return "SVRCSound";
     if (eventName.includes("Tornado Watch")) return "TOAWatch";
     if (eventName.includes("Severe Thunderstorm Watch")) return "SVAWatch";
+    // Default sound if no specific match for new alerts
     return "SVRCSound";
   }
 }
@@ -2384,13 +2455,18 @@ const audioElements = {
   TorEmergencyUpdateSound: new Audio(
     "https://audio.jukehost.co.uk/pMOZALOjzSE6DmppsYP3DV4enDLVg0I2"
   ),
+  TorUpgradeSound: new Audio(
+    "https://audio.jukehost.co.uk/7UiGfREvpPwlHsrdTItmoXc26YKWud65"
+  ),
+  SvrUpgradeSound: new Audio(
+    "https://audio.jukehost.co.uk/2pBX1txWPzqySYtAlzveXcwRHb1jybGW"
+  ),
 };
 
 audioElements.TorPDSSound.volume = 0.4;
 audioElements.TOREISS.volume = 0.4;
 audioElements.TorPDSUpdateSound.volume = 0.4;
 audioElements.TorEmergencyUpdateSound.volume = 0.4;
-
 function playSoundById(soundId) {
   const sound = audioElements[soundId];
   if (!sound) {
@@ -3521,8 +3597,41 @@ function showWarningDashboard() {
 // Global variable to track if scrolling is active
 let isScrolling = false;
 
-function updateCountiesText(newHTML) {
+function extractTornadoEmergencyLocation(rawText) {
+  if (!rawText) return null;
+
+  // Look for the tornado emergency line with regex
+  const emergencyMatch =
+    rawText.match(/\.\.\.TORNADO EMERGENCY FOR ([^\.]+)\.\.\./) ||
+    rawText.match(/TORNADO EMERGENCY for ([^\.]+)/i);
+
+  if (emergencyMatch && emergencyMatch[1]) {
+    return emergencyMatch[1].trim();
+  }
+
+  return null;
+}
+
+function updateCountiesText(newHTML, warning) {
   const countiesElement = document.querySelector("#counties");
+
+  // If warning object is provided, check for tornado emergency
+  if (warning) {
+    const eventName = getEventName(warning);
+    const counties = typeof newHTML === "string" ? newHTML : "";
+
+    // Check if it's a tornado emergency
+    if (eventName === "Tornado Emergency" && warning.rawText) {
+      const emergencyLocation = extractTornadoEmergencyLocation(
+        warning.rawText
+      );
+
+      if (emergencyLocation) {
+        // Override newHTML with emergency location format
+        newHTML = `TORNADO EMERGENCY FOR ${emergencyLocation} | ${counties}`;
+      }
+    }
+  }
 
   // First fade out
   countiesElement.classList.add("fade-out");
@@ -3724,8 +3833,10 @@ function updateDashboard() {
 
   expirationElement.textContent = `Expires: ${fullFormattedExpirationTime}`;
   updateCountiesText(
-    `Counties: ${counties} | Until ${formattedExpirationTime}`
+    `Counties: ${counties} | Until ${formattedExpirationTime}`,
+    warning
   );
+
   eventTypeElement.textContent = eventName;
   activeAlertsBox.style.display = "block";
   activeAlertText.textContent = "ACTIVE ALERTS";
