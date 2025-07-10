@@ -38,6 +38,7 @@ app.get("/api/xmpp-alerts", (req, res) => {
 
   // 3️⃣ Connect upstream
   const upstreamUrl = "https://xmpp-api-production.up.railway.app/live-alerts";
+  //https://xmpp-api-production.up.railway.app/live-alerts is the upstream URL
   const source = new EventSource(upstreamUrl);
   console.log(`🔗 Connecting to upstream SSE: ${upstreamUrl}`);
 

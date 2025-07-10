@@ -1428,9 +1428,35 @@ function showNotification(
   previousWarnings.set(warningId, warning); // Store the current warning object for next comparison
   notifiedWarnings.set(warningId, currentVersion); // Store the version for future version comparisons
   console.log(`🧠 State updated for ${warningId}`);
+  switch (eventName) {
+    case "Destructive Severe Thunderstorm Warning":
+      emergencyText = "THIS IS A DANGEROUS SITUATION";
+      break;
+    case "Flash Flood Emergency":
+      emergencyText = "SEEK HIGHER GROUND IMMEDIATELY";
+      break;
+    case "Observed Tornado Warning":
+      emergencyText = "A TORNADO IS ON THE GROUND";
+      break;
+    case "Radar Confirmed Tornado Warning":
+      emergencyText = "RADAR HAS CONFIRMED A TORNADO";
+      break;
+    case "Spotter Confirmed Tornado Warning":
+      emergencyText = "A SPOTTER HAS CONFIRMED A TORNADO";
+      break;
+    case "PDS Tornado Warning":
+      emergencyText =
+        "A LARGE AND EXTREMELY DANGEROUS TORNADO IS ON THE GROUND";
+      break;
+    case "Tornado Emergency":
+      emergencyText = "A VIOLENT AND PERHAPS DEADLY TORNADO IS ON THE GROUND";
+      break;
+    default:
+      emergencyText = "";
+  }
 
   // Display the notification
-  displayNotification(warning, notificationType);
+  displayNotification(warning, notificationType, emergencyText);
 }
 
 function getSoundForEvent(eventName, notificationType) {
@@ -1455,7 +1481,7 @@ function getSoundForEvent(eventName, notificationType) {
   }
 }
 
-function displayNotification(warning, notificationType) {
+function displayNotification(warning, notificationType, emergencyText) {
   if (notificationsMuted) return; // no logging, keep it chill
 
   const eventName = getEventName(warning);
@@ -1469,31 +1495,102 @@ function displayNotification(warning, notificationType) {
   const notification = document.createElement("div");
   notification.className = "notification-popup";
 
+  // Determine if it's a special weather statement early
+  const isSpecialWeatherStatement =
+    eventName.toLowerCase() === "special weather statement";
+
+  // If eventName is 'special weather statement', set the primary text color to black for general inheritance
+  if (isSpecialWeatherStatement) {
+    notification.style.color = "black";
+  }
+
   const counties = cleanAreaDesc
     .split(";")
     .map((c) => c.trim())
     .filter(Boolean);
 
-  notification.style.bottom =
-    counties.length > 20 ? "170px" : counties.length > 10 ? "120px" : "70px";
+  notification.style.bottom = "70px";
 
   // Type label
   const typeLabel = document.createElement("div");
   typeLabel.className = "notification-type-label";
   typeLabel.textContent = notificationType;
+  if (isSpecialWeatherStatement) {
+    typeLabel.style.color = "black"; // Explicitly set color for type label
+  }
   notification.appendChild(typeLabel);
 
   // Title
   const title = document.createElement("div");
   title.className = "notification-title";
   title.textContent = eventName;
+  if (isSpecialWeatherStatement) {
+    title.style.color = "black"; // Explicitly set color for title
+  }
   notification.appendChild(title);
 
   // Area/counties
   const countyDiv = document.createElement("div");
   countyDiv.className = "notification-message";
-  countyDiv.textContent = cleanAreaDesc;
+  countyDiv.textContent = `COUNTIES: ${cleanAreaDesc}`;
+  if (isSpecialWeatherStatement) {
+    countyDiv.style.color = "black"; // Explicitly set color for county div
+  }
   notification.appendChild(countyDiv);
+
+  // Scroll logic based on comma/semicolon count:
+  requestAnimationFrame(() => {
+    const commaCount = (countyDiv.textContent.match(/,/g) || []).length;
+    const semiCount = (countyDiv.textContent.match(/;/g) || []).length;
+
+    const shouldScroll = commaCount > 9 || semiCount > 9;
+
+    if (shouldScroll) {
+      countyDiv.style.paddingLeft = "0px";
+      countyDiv.style.paddingRight = "5em";
+      countyDiv.style.whiteSpace = "nowrap";
+      countyDiv.style.overflow = "hidden";
+
+      // Wrap the text before measuring
+      const scrollWrapper = document.createElement("span");
+      scrollWrapper.style.display = "inline-block";
+      scrollWrapper.innerHTML = countyDiv.innerHTML;
+      countyDiv.innerHTML = "";
+      countyDiv.appendChild(scrollWrapper);
+
+      const extraPadding = 10;
+      const scrollDistance =
+        scrollWrapper.scrollWidth - countyDiv.offsetWidth + extraPadding;
+
+      const mask =
+        "linear-gradient(to right, transparent 0px, black 20px, black calc(100% - 20px), transparent 100%)";
+      countyDiv.style.webkitMaskImage = mask;
+      countyDiv.style.maskImage = mask;
+
+      const totalDuration =
+        eventName.toLowerCase().includes("tornado") || eventName.includes("PDS")
+          ? 10
+          : 7;
+
+      const animName = `scrollNotif${Date.now()}`;
+      const oldStyle = document.getElementById("notif-scroll-style");
+      if (oldStyle) oldStyle.remove();
+
+      const style = document.createElement("style");
+      style.id = "notif-scroll-style";
+      style.textContent = `
+        @keyframes ${animName} {
+          0%   { transform: translateX(0); }
+          20%  { transform: translateX(0); }
+          80%  { transform: translateX(-${scrollDistance}px); }
+          100% { transform: translateX(-${scrollDistance}px); }
+        }
+      `;
+      document.head.appendChild(style);
+
+      scrollWrapper.style.animation = `${animName} ${totalDuration}s linear forwards`;
+    }
+  });
 
   // Expiration
   const expirationEl = document.createElement("div");
@@ -1506,17 +1603,25 @@ function displayNotification(warning, notificationType) {
     minute: "2-digit",
     hour12: true,
   })}`;
+  if (isSpecialWeatherStatement) {
+    expirationEl.style.color = "black"; // Explicitly set color for expiration text
+  }
   notification.appendChild(expirationEl);
 
+  // Emergency block (if any)
   if (emergencyText) {
     const emergencyWrapper = document.createElement("div");
     emergencyWrapper.className = "emergency-alert";
     emergencyWrapper.style.display = "flex";
     emergencyWrapper.style.alignItems = "center";
-    emergencyWrapper.style.justifyContent = "flex-end"; // aligns icon + text right
-    emergencyWrapper.style.gap = "10px"; // space between icon and text
+    emergencyWrapper.style.justifyContent = "flex-end";
+    emergencyWrapper.style.gap = "10px";
     emergencyWrapper.style.fontSize = "36px";
     emergencyWrapper.style.color = "#FFFFFF";
+
+    if (isSpecialWeatherStatement) {
+      emergencyWrapper.style.color = "black";
+    }
 
     const iconDiv = document.createElement("div");
     iconDiv.className = "emergency-icon";
@@ -1538,11 +1643,9 @@ function displayNotification(warning, notificationType) {
     notification.appendChild(emergencyWrapper);
   }
 
-  // Hazard/source for Tornado warnings (using rawText description)
-  // normalize once
+  // Tornado hazard/source info
   const nameLC = eventName.toLowerCase().trim();
 
-  // list of allowed tornado alert types
   const allowedTornadoAlerts = [
     "tornado warning",
     "radar confirmed tornado warning",
@@ -1564,7 +1667,6 @@ function displayNotification(warning, notificationType) {
       description.match(/SOURCE\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
     ).trim();
 
-    // 🔥 Emoji selector for hazard severity/type
     const getHazardEmoji = (hazard) => {
       const h = hazard.toLowerCase();
       if (h.includes("deadly tornado")) return "";
@@ -1573,7 +1675,6 @@ function displayNotification(warning, notificationType) {
       return "⚠️";
     };
 
-    // 🕵️‍♂️ Emoji selector for source reliability/confirmation
     const getSourceEmoji = (source) => {
       const s = source.toLowerCase();
       if (s.includes("weather spotter")) return "";
@@ -1585,53 +1686,48 @@ function displayNotification(warning, notificationType) {
 
     const hs = document.createElement("div");
     hs.className = "hazard-source-info";
+    if (isSpecialWeatherStatement) {
+      hs.style.color = "black";
+    }
     hs.innerHTML = `
-    <div><strong>HAZARD:</strong> ${getHazardEmoji(haz)}${haz}${getHazardEmoji(
-      haz
-    )}</div>
-    <div><strong>SOURCE:</strong> ${getSourceEmoji(src)}${src}${getSourceEmoji(
-      src
-    )}</div>
-  `;
+      <div><strong>HAZARD:</strong> ${getHazardEmoji(
+        haz
+      )}${haz}${getHazardEmoji(haz)}</div>
+      <div><strong>SOURCE:</strong> ${getSourceEmoji(
+        src
+      )}${src}${getSourceEmoji(src)}</div>
+    `;
     notification.appendChild(hs);
   }
 
-  // Wind/hail for Severe Thunderstorm Warning - prefer new format fields
+  // Severe thunderstorm wind/hail info
   if (eventName.toLowerCase().includes("severe thunderstorm warning")) {
-    const maxWind =
-      warning.threats?.maxWindGust ||
-      warning.maxWindGust ||
-      warning.properties?.parameters?.maxWindGust?.[0] ||
-      "N/A";
-    const maxHail =
-      warning.threats?.maxHailSize ||
-      warning.maxHailSize ||
-      warning.properties?.parameters?.maxHailSize?.[0] ||
-      "N/A";
-    const windThreat =
-      warning.threats?.windThreat ||
-      warning.windThrat ||
-      warning.properties?.parameters?.windThreat?.[0] ||
-      "N/A";
-    const hailThreat =
-      warning.threats?.hailThreat ||
-      warning.hailThreat ||
-      warning.properties?.parameters?.hailThreat?.[0] ||
-      "N/A";
+    const haz = (
+      description.match(/HAZARD\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
+    ).trim();
+    const src = (
+      description.match(/SOURCE\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
+    ).trim();
+    const tornadoDetection = warning.threats?.tornadoDetection || "N/A";
 
     const wh = document.createElement("div");
     wh.className = "wind-hail-info";
-
-    // Separate divs for wind and hail, emoji + text inline
-    wh.innerHTML = `
-    <div>${getWindEmoji(maxWind)} Wind: ${maxWind}, ${windThreat}${getWindEmoji(
-      maxWind
-    )}</div>
-    <div>${getHailEmoji(maxHail)} Hail: ${maxHail}, ${hailThreat}${getHailEmoji(
-      maxHail
-    )}</div>
-  `;
-
+    wh.style.lineHeight = "1.2";
+    if (isSpecialWeatherStatement) {
+      wh.style.color = "black";
+    }
+    if (tornadoDetection.toUpperCase() === "POSSIBLE") {
+      wh.innerHTML = `
+        <div><strong>HAZARD:</strong> ${haz}</div>
+        <div><strong>SOURCE:</strong> ${src}</div>
+        <div style="font-weight: bold;">**A TORNADO IS ALSO POSSIBLE**</div>
+      `;
+    } else {
+      wh.innerHTML = `
+        <div><strong>HAZARD:</strong> ${haz}</div>
+        <div><strong>SOURCE:</strong> ${src}</div>
+      `;
+    }
     notification.appendChild(wh);
   }
 
@@ -1644,7 +1740,7 @@ function displayNotification(warning, notificationType) {
     setTimeout(() => logo.classList.remove("notification-pulse"), 2000);
   }
 
-  // Append & animate
+  // Append & animate popup
   document.body.appendChild(notification);
   notification.style.transform = "translateY(100%)";
   notification.style.backgroundColor = getAlertColor(eventName);
@@ -1829,12 +1925,16 @@ function updateAlertBar() {
 
   if (highestAlert.alert === "N/A" && activeWarnings.length === 0) {
     alertText.textContent = "MICHIGAN STORM CHASERS";
+    alertText.style.color = ""; // Reset to default color
     alertBar.style.backgroundColor = "#1F2593";
     activeAlertsBox.style.display = "none";
     semicircle.style.background =
       "linear-gradient(to right, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%)";
   } else if (highestAlert.alert) {
     alertText.textContent = currentText;
+    // Set text color to black if it's a Special Weather Statement
+    alertText.style.color =
+      currentText === "Special Weather Statement" ? "black" : "";
     alertBar.style.backgroundColor = highestAlert.color;
 
     // Darken glow by 20%
@@ -1847,6 +1947,7 @@ function updateAlertBar() {
       "linear-gradient(to right, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%)";
   } else {
     alertText.textContent = "No valid alert found.";
+    alertText.style.color = ""; // Reset to default color
     alertBar.style.backgroundColor = "#606060";
     activeAlertsBox.style.display = "none";
     semicircle.style.background =
@@ -3503,7 +3604,6 @@ clearWarningsButton.addEventListener("click", () => {
   updateAlertBar();
 });
 async function rotateCity() {
-  // Check if SPC mode is enabled
   const isSpcModeEnabled = document.getElementById("spcModeToggle").checked;
 
   // If SPC mode is enabled, do not update current conditions
@@ -3593,10 +3693,6 @@ function showWarningDashboard() {
   }
 }
 
-// Global variable to track if scrolling is active
-// Global variable to track if scrolling is active
-let isScrolling = false;
-
 function extractTornadoEmergencyLocation(rawText) {
   if (!rawText) return null;
 
@@ -3612,70 +3708,88 @@ function extractTornadoEmergencyLocation(rawText) {
   return null;
 }
 
+/**
+ * Updates the counties text with a fade transition and adds a conditional
+ * scrolling animation for long lists.
+ * @param {string} newHTML The new HTML content for the counties bar.
+ * @param {object} [warning] Optional warning object for special formatting.
+ */
+// Global: keep track of last scrolled text
+let lastScrollingHTML = "";
 function updateCountiesText(newHTML, warning) {
-  const countiesElement = document.querySelector("#counties");
+  const countiesEl = document.querySelector("#counties");
+  if (!countiesEl) {
+    console.warn("[updateCountiesText] Missing #counties, aborting.");
+    return;
+  }
 
-  // If warning object is provided, check for tornado emergency
-  if (warning) {
-    const eventName = getEventName(warning);
-    const counties = typeof newHTML === "string" ? newHTML : "";
-
-    // Check if it's a tornado emergency
-    if (eventName === "Tornado Emergency" && warning.rawText) {
-      const emergencyLocation = extractTornadoEmergencyLocation(
-        warning.rawText
-      );
-
-      if (emergencyLocation) {
-        // Override newHTML with emergency location format
-        newHTML = `TORNADO EMERGENCY FOR ${emergencyLocation} | ${counties}`;
-      }
+  if (
+    warning &&
+    getEventName(warning) === "Tornado Emergency" &&
+    warning.rawText
+  ) {
+    const loc = extractTornadoEmergencyLocation(warning.rawText);
+    if (loc) {
+      newHTML = `TORNADO EMERGENCY FOR ${loc} | ${newHTML}`;
     }
   }
 
-  // First fade out
-  countiesElement.classList.add("fade-out");
+  countiesEl.classList.add("fade-out");
 
-  // After the fade out completes, update HTML and fade back in
   setTimeout(() => {
-    countiesElement.innerHTML = newHTML; // Changed from textContent to innerHTML
-    countiesElement.classList.remove("fade-out");
+    countiesEl.innerHTML = "";
+    const scrollWrapper = document.createElement("span");
+    scrollWrapper.innerHTML = newHTML;
+    scrollWrapper.style.display = "inline-block";
+    scrollWrapper.style.paddingRight = "5em";
+    countiesEl.appendChild(scrollWrapper);
 
-    // Only now that counties text has fully faded out, update the event type
-    if (window.pendingEventTypeUpdate) {
-      const { newHTML, newBackgroundColor } = window.pendingEventTypeUpdate;
-      crossfadeEventTypeBar(newHTML, newBackgroundColor);
-      window.pendingEventTypeUpdate = null;
-    }
-  }, 400); // Match this with your CSS transition duration
-}
+    countiesEl.style.overflow = "hidden";
+    countiesEl.style.whiteSpace = "nowrap";
 
-function startScrolling(countiesElement, eventTypeBar) {
-  isScrolling = true;
+    requestAnimationFrame(() => {
+      const contentW = scrollWrapper.offsetWidth;
+      const containerW = countiesEl.offsetWidth;
+      const shouldScroll = contentW > containerW;
 
-  // Create mask elements if they don't exist
-  if (!document.getElementById("counties-left-mask")) {
-    const leftMask = document.createElement("div");
-    leftMask.id = "counties-left-mask";
-    leftMask.className = "counties-mask left-mask";
+      scrollWrapper.style.animation = "none";
 
-    // Position the left mask 30px to the right of the event type bar
-    const eventTypeRect = eventTypeBar.getBoundingClientRect();
-    leftMask.style.left = `${eventTypeRect.right + 30}px`;
+      if (shouldScroll) {
+        const mask =
+          "linear-gradient(to right, transparent 300px, black 320px, black calc(100% - 20px), transparent 100%)";
+        countiesEl.style.webkitMaskImage = mask;
+        countiesEl.style.maskImage = mask;
 
-    // Insert the mask before the counties element
-    countiesElement.parentNode.insertBefore(leftMask, countiesElement);
-  }
+        scrollWrapper.style.paddingLeft = "300px";
 
-  // Set up scrolling animation
-  countiesElement.classList.add("scrolling");
+        const totalDuration = 10; // 1s pause + 8s scroll + 1s pause
+        const scrollDistance = contentW + 300 - containerW;
 
-  // Calculate animation duration based on text length
-  const textWidth = countiesElement.scrollWidth;
-  const containerWidth = countiesElement.clientWidth;
-  const duration = Math.max(10, textWidth / 50); // Adjust speed as needed
+        const animName = `scrollLeftPause${Date.now()}`;
+        const oldStyle = document.getElementById("scrolling-animation-style");
+        if (oldStyle) oldStyle.remove();
 
-  countiesElement.style.animationDuration = `${duration}s`;
+        const style = document.createElement("style");
+        style.id = "scrolling-animation-style";
+        style.textContent = `
+          @keyframes ${animName} {
+            0%   { transform: translateX(0); }
+            10%  { transform: translateX(0); }
+            80%  { transform: translateX(-${scrollDistance}px); }
+            100% { transform: translateX(-${scrollDistance}px); }
+          }
+        `;
+        document.head.appendChild(style);
+
+        scrollWrapper.style.animation = `${animName} ${totalDuration}s linear infinite`;
+      } else {
+        countiesEl.style.webkitMaskImage = "";
+        countiesEl.style.maskImage = "";
+      }
+
+      countiesEl.classList.remove("fade-out");
+    });
+  }, 400);
 }
 
 function stopScrolling(countiesElement) {
@@ -3745,13 +3859,23 @@ function updateActiveAlertText() {
   }
 }
 
+// Helper you already have
+function isCountiesScrolling() {
+  const wrapper = document.querySelector("#counties span");
+  return Boolean(
+    wrapper &&
+      wrapper.style.animationName &&
+      wrapper.style.animationName !== "none"
+  );
+}
+
 function updateDashboard() {
   const expirationElement = document.querySelector("#expiration");
   const eventTypeElement = document.querySelector("#eventType");
   const countiesElement = document.querySelector("#counties");
   const activeAlertsBox = document.querySelector(".active-alerts-box");
   const activeAlertText = document.getElementById("ActiveAlertText");
-  const spcToggle = document.getElementById("spcModeToggle"); // ← grab the SPC switch
+  const spcToggle = document.getElementById("spcModeToggle");
 
   if (!Array.isArray(activeWarnings) || activeWarnings.length === 0) {
     expirationElement.textContent = "LOADING...";
@@ -3799,17 +3923,17 @@ function updateDashboard() {
   }
 
   const { event, areaDesc, expires } = warning.properties;
-
   const eventName = getEventName(warning);
   const alertColor = getAlertColor(eventName);
 
   const eventTypeBar = document.querySelector(".event-type-bar");
   if (eventTypeBar) {
     eventTypeBar.style.backgroundColor = alertColor;
+    eventTypeElement.style.color =
+      eventName === "Special Weather Statement" ? "black" : "";
   }
 
   const expirationDate = new Date(expires);
-
   const timeOptions = { hour: "numeric", minute: "2-digit", hour12: true };
   const fullOptions = {
     timeZoneName: "short",
@@ -3829,9 +3953,10 @@ function updateDashboard() {
     "en-US",
     fullOptions
   );
-  const counties = formatCountiesTopBar(areaDesc);
 
   expirationElement.textContent = `Expires: ${fullFormattedExpirationTime}`;
+
+  const counties = formatCountiesTopBar(areaDesc);
   updateCountiesText(
     `Counties: ${counties} | Until ${formattedExpirationTime}`,
     warning
@@ -3843,6 +3968,7 @@ function updateDashboard() {
 
   showWarningDashboard();
 
+  // ✅ always rotate index
   currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
 }
 
@@ -3860,7 +3986,7 @@ function stopRotatingCities() {
 async function rotateCityWithDelay() {
   if (rotateActive) {
     await rotateCity();
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 10000));
     if (rotateActive) rotateCityWithDelay();
   }
 }
