@@ -3718,8 +3718,15 @@ function updateCountiesText(newHTML, warning) {
   }
 
   const eventTypeBar = document.querySelector(".event-type-bar");
-  const leftGap = 40; // Increased base padding
-  const additionalSafetyMargin = 20; // Extra safety margin to prevent touching
+  const leftGap = 40; // Base padding from left/event bar
+  const additionalSafetyMargin = 20; // Extra margin so no touching right edge
+  const safeMargin = 50; // Right side safe margin
+
+  // Clear any existing observer so we don't stack multiple
+  if (countiesEl._resizeObserver) {
+    countiesEl._resizeObserver.disconnect();
+    countiesEl._resizeObserver = null;
+  }
 
   countiesEl.classList.add("fade-out");
 
@@ -3730,22 +3737,65 @@ function updateCountiesText(newHTML, warning) {
     scrollWrapper.style.display = "inline-block";
     scrollWrapper.style.paddingRight = "5em"; // default right padding
 
-    if (eventTypeBar) {
-      // Ensure event type bar has rendered fully
-      requestAnimationFrame(() => {
-        const barRect = eventTypeBar.getBoundingClientRect();
-        const containerRect = countiesEl.getBoundingClientRect();
-        const neededPadding = Math.max(
-          leftGap,
-          barRect.right - containerRect.left + leftGap + additionalSafetyMargin
-        );
-        scrollWrapper.style.paddingLeft = `${neededPadding}px`;
-        console.log(
-          `[updateCountiesText] Dynamic paddingLeft: ${neededPadding}px`
-        );
-      });
-    } else {
-      scrollWrapper.style.paddingLeft = `${leftGap}px`;
+    function updatePadding() {
+      if (!eventTypeBar) {
+        scrollWrapper.style.paddingLeft = `${leftGap}px`;
+        return;
+      }
+
+      const barRect = eventTypeBar.getBoundingClientRect();
+      const containerRect = countiesEl.getBoundingClientRect();
+      const neededPadding = Math.max(
+        leftGap,
+        barRect.right - containerRect.left + leftGap + additionalSafetyMargin
+      );
+      scrollWrapper.style.paddingLeft = `${neededPadding}px`;
+
+      // Right side checks for scrolling / padding
+      const contentW = scrollWrapper.offsetWidth;
+      const containerW = countiesEl.offsetWidth;
+
+      const shouldScroll = contentW > containerW;
+      const isTooClose =
+        contentW > containerW - safeMargin && contentW <= containerW;
+
+      scrollWrapper.style.animation = "none";
+
+      if (shouldScroll) {
+        const mask =
+          "linear-gradient(to right, transparent 300px, black 320px, black calc(100% - 20px), transparent 100%)";
+        countiesEl.style.webkitMaskImage = mask;
+        countiesEl.style.maskImage = mask;
+
+        scrollWrapper.style.paddingLeft = "300px";
+        const scrollDistance = contentW + 50 - containerW;
+        const animName = `scrollLeftPause${Date.now()}`;
+        const totalDuration = 10;
+
+        const oldStyle = document.getElementById("scrolling-animation-style");
+        if (oldStyle) oldStyle.remove();
+
+        const style = document.createElement("style");
+        style.id = "scrolling-animation-style";
+        style.textContent = `
+          @keyframes ${animName} {
+            0%   { transform: translateX(0); }
+            10%  { transform: translateX(0); }
+            80%  { transform: translateX(-${scrollDistance}px); }
+            100% { transform: translateX(-${scrollDistance}px); }
+          }
+        `;
+        document.head.appendChild(style);
+        scrollWrapper.style.animation = `${animName} ${totalDuration}s linear infinite`;
+      } else if (isTooClose) {
+        scrollWrapper.style.paddingRight = `${safeMargin + leftGap}px`;
+        countiesEl.style.webkitMaskImage = "";
+        countiesEl.style.maskImage = "";
+      } else {
+        countiesEl.style.webkitMaskImage = "";
+        countiesEl.style.maskImage = "";
+        scrollWrapper.style.paddingRight = "5em";
+      }
     }
 
     countiesEl.appendChild(scrollWrapper);
@@ -3753,56 +3803,19 @@ function updateCountiesText(newHTML, warning) {
     countiesEl.style.whiteSpace = "nowrap";
 
     requestAnimationFrame(() => {
-      // Give time for the padding to be applied before measuring
       setTimeout(() => {
-        const contentW = scrollWrapper.offsetWidth;
-        const containerW = countiesEl.offsetWidth;
-        const safeMargin = 50;
+        updatePadding();
 
-        const shouldScroll = contentW > containerW;
-        const isTooClose =
-          contentW > containerW - safeMargin && contentW <= containerW;
+        // Observe resizing of counties element and event type bar for dynamic padding updates
+        countiesEl._resizeObserver = new ResizeObserver(() => {
+          updatePadding();
+        });
 
-        scrollWrapper.style.animation = "none";
-
-        if (shouldScroll) {
-          const mask =
-            "linear-gradient(to right, transparent 300px, black 320px, black calc(100% - 20px), transparent 100%)";
-          countiesEl.style.webkitMaskImage = mask;
-          countiesEl.style.maskImage = mask;
-
-          // Ensure there's enough padding when scrolling starts
-          scrollWrapper.style.paddingLeft = "300px";
-          const scrollDistance = contentW + 300 - containerW;
-          const animName = `scrollLeftPause${Date.now()}`;
-          const totalDuration = 10;
-
-          const oldStyle = document.getElementById("scrolling-animation-style");
-          if (oldStyle) oldStyle.remove();
-
-          const style = document.createElement("style");
-          style.id = "scrolling-animation-style";
-          style.textContent = `
-            @keyframes ${animName} {
-              0%   { transform: translateX(0); }
-              10%  { transform: translateX(0); }
-              80%  { transform: translateX(-${scrollDistance}px); }
-              100% { transform: translateX(-${scrollDistance}px); }
-            }
-          `;
-          document.head.appendChild(style);
-          scrollWrapper.style.animation = `${animName} ${totalDuration}s linear infinite`;
-        } else if (isTooClose) {
-          scrollWrapper.style.paddingRight = `${safeMargin + leftGap}px`;
-          countiesEl.style.webkitMaskImage = "";
-          countiesEl.style.maskImage = "";
-        } else {
-          countiesEl.style.webkitMaskImage = "";
-          countiesEl.style.maskImage = "";
-        }
+        countiesEl._resizeObserver.observe(countiesEl);
+        if (eventTypeBar) countiesEl._resizeObserver.observe(eventTypeBar);
 
         countiesEl.classList.remove("fade-out");
-      }, 50); // Small delay to ensure measurements are accurate
+      }, 50);
     });
   }, 400);
 }
