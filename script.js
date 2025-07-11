@@ -3463,12 +3463,6 @@ function cancelAlert(id) {
     }
   } else {
     updateDashboard();
-
-    // Reset glow color or remove class if you want to revert when warnings exist
-    if (alertBar) {
-      alertBar.style.removeProperty("--glow-color");
-      alertBar.classList.remove("thinbg-glow");
-    }
   }
 
   console.log(`🧹 Alert ${id} canceled and cleaned up.`);
@@ -3723,16 +3717,9 @@ function updateCountiesText(newHTML, warning) {
     return;
   }
 
-  if (
-    warning &&
-    getEventName(warning) === "Tornado Emergency" &&
-    warning.rawText
-  ) {
-    const loc = extractTornadoEmergencyLocation(warning.rawText);
-    if (loc) {
-      newHTML = `TORNADO EMERGENCY FOR ${loc} | ${newHTML}`;
-    }
-  }
+  const eventTypeBar = document.querySelector(".event-type-bar");
+  const leftGap = 40; // Increased base padding
+  const additionalSafetyMargin = 20; // Extra safety margin to prevent touching
 
   countiesEl.classList.add("fade-out");
 
@@ -3741,53 +3728,81 @@ function updateCountiesText(newHTML, warning) {
     const scrollWrapper = document.createElement("span");
     scrollWrapper.innerHTML = newHTML;
     scrollWrapper.style.display = "inline-block";
-    scrollWrapper.style.paddingRight = "5em";
-    countiesEl.appendChild(scrollWrapper);
+    scrollWrapper.style.paddingRight = "5em"; // default right padding
 
+    if (eventTypeBar) {
+      // Ensure event type bar has rendered fully
+      requestAnimationFrame(() => {
+        const barRect = eventTypeBar.getBoundingClientRect();
+        const containerRect = countiesEl.getBoundingClientRect();
+        const neededPadding = Math.max(
+          leftGap,
+          barRect.right - containerRect.left + leftGap + additionalSafetyMargin
+        );
+        scrollWrapper.style.paddingLeft = `${neededPadding}px`;
+        console.log(
+          `[updateCountiesText] Dynamic paddingLeft: ${neededPadding}px`
+        );
+      });
+    } else {
+      scrollWrapper.style.paddingLeft = `${leftGap}px`;
+    }
+
+    countiesEl.appendChild(scrollWrapper);
     countiesEl.style.overflow = "hidden";
     countiesEl.style.whiteSpace = "nowrap";
 
     requestAnimationFrame(() => {
-      const contentW = scrollWrapper.offsetWidth;
-      const containerW = countiesEl.offsetWidth;
-      const shouldScroll = contentW > containerW;
+      // Give time for the padding to be applied before measuring
+      setTimeout(() => {
+        const contentW = scrollWrapper.offsetWidth;
+        const containerW = countiesEl.offsetWidth;
+        const safeMargin = 50;
 
-      scrollWrapper.style.animation = "none";
+        const shouldScroll = contentW > containerW;
+        const isTooClose =
+          contentW > containerW - safeMargin && contentW <= containerW;
 
-      if (shouldScroll) {
-        const mask =
-          "linear-gradient(to right, transparent 300px, black 320px, black calc(100% - 20px), transparent 100%)";
-        countiesEl.style.webkitMaskImage = mask;
-        countiesEl.style.maskImage = mask;
+        scrollWrapper.style.animation = "none";
 
-        scrollWrapper.style.paddingLeft = "300px";
+        if (shouldScroll) {
+          const mask =
+            "linear-gradient(to right, transparent 300px, black 320px, black calc(100% - 20px), transparent 100%)";
+          countiesEl.style.webkitMaskImage = mask;
+          countiesEl.style.maskImage = mask;
 
-        const totalDuration = 10; // 1s pause + 8s scroll + 1s pause
-        const scrollDistance = contentW + 300 - containerW;
+          // Ensure there's enough padding when scrolling starts
+          scrollWrapper.style.paddingLeft = "300px";
+          const scrollDistance = contentW + 300 - containerW;
+          const animName = `scrollLeftPause${Date.now()}`;
+          const totalDuration = 10;
 
-        const animName = `scrollLeftPause${Date.now()}`;
-        const oldStyle = document.getElementById("scrolling-animation-style");
-        if (oldStyle) oldStyle.remove();
+          const oldStyle = document.getElementById("scrolling-animation-style");
+          if (oldStyle) oldStyle.remove();
 
-        const style = document.createElement("style");
-        style.id = "scrolling-animation-style";
-        style.textContent = `
-          @keyframes ${animName} {
-            0%   { transform: translateX(0); }
-            10%  { transform: translateX(0); }
-            80%  { transform: translateX(-${scrollDistance}px); }
-            100% { transform: translateX(-${scrollDistance}px); }
-          }
-        `;
-        document.head.appendChild(style);
+          const style = document.createElement("style");
+          style.id = "scrolling-animation-style";
+          style.textContent = `
+            @keyframes ${animName} {
+              0%   { transform: translateX(0); }
+              10%  { transform: translateX(0); }
+              80%  { transform: translateX(-${scrollDistance}px); }
+              100% { transform: translateX(-${scrollDistance}px); }
+            }
+          `;
+          document.head.appendChild(style);
+          scrollWrapper.style.animation = `${animName} ${totalDuration}s linear infinite`;
+        } else if (isTooClose) {
+          scrollWrapper.style.paddingRight = `${safeMargin + leftGap}px`;
+          countiesEl.style.webkitMaskImage = "";
+          countiesEl.style.maskImage = "";
+        } else {
+          countiesEl.style.webkitMaskImage = "";
+          countiesEl.style.maskImage = "";
+        }
 
-        scrollWrapper.style.animation = `${animName} ${totalDuration}s linear infinite`;
-      } else {
-        countiesEl.style.webkitMaskImage = "";
-        countiesEl.style.maskImage = "";
-      }
-
-      countiesEl.classList.remove("fade-out");
+        countiesEl.classList.remove("fade-out");
+      }, 50); // Small delay to ensure measurements are accurate
     });
   }, 400);
 }
