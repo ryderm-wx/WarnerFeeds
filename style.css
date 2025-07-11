@@ -1516,12 +1516,6 @@ body {
   pointer-events: none;
 }
 
-.warning-group:hover {
-  transform: translateY(-5px) scale(1.02) rotateX(2deg);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset, 0 0 20px rgba(100, 100, 150, 0.15);
-}
-
 .warning-group-header {
   display: flex;
   align-items: center;
@@ -1788,14 +1782,6 @@ body {
   );
   pointer-events: none;
   border-radius: 14px;
-}
-
-.warning-card:hover {
-  background-color: rgba(55, 55, 70, 0.9);
-  transform: translateY(-4px) scale(1.02) rotateX(2deg);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset, 0 0 20px rgba(100, 100, 150, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .card-header {
