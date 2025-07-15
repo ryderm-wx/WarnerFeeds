@@ -1487,7 +1487,7 @@ function displayNotification(warning, notificationType, emergencyText) {
   const eventName = getEventName(warning);
   const description = warning.rawText || warning.properties?.rawText || "";
   const rawAreaDesc = Array.isArray(warning.counties)
-    ? warning.counties.join(", ")
+    ? warning.counties.join("; ")
     : warning.properties?.areaDesc || "";
   const cleanAreaDesc = rawAreaDesc.replace(/^TEST\s*-\s*/i, "").trim();
 
@@ -2737,7 +2737,7 @@ function formatCountiesTopBar(areaDesc) {
 
   const parts = areaDesc.split(";").map((part) => part.trim());
 
-  return parts.join(", ");
+  return parts.join("; ");
 }
 
 function formatCountiesNotification(areaDesc) {
