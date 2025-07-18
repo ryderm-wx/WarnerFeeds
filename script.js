@@ -1618,13 +1618,27 @@ function displayNotification(warning, notificationType, emergencyText) {
     emergencyWrapper.style.gap = "10px";
     emergencyWrapper.style.fontSize = "36px";
     emergencyWrapper.style.color = "#FFFFFF";
-
+    emergencyWrapper.style.right = "10px";
     if (isSpecialWeatherStatement) {
       emergencyWrapper.style.color = "black";
     }
 
     const iconDiv = document.createElement("div");
     iconDiv.className = "emergency-icon";
+
+    // Add keyframes animation inline
+    const styleSheet = document.createElement("style");
+    const animationName = `fade${Date.now()}`; // Create unique animation name
+    styleSheet.textContent = `
+      @keyframes ${animationName} {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+      }
+    `;
+    document.head.appendChild(styleSheet);
+
+    // Apply animation to iconDiv
+    iconDiv.style.animation = `${animationName} 2s ease-in-out infinite`;
 
     const iconImg = document.createElement("img");
     iconImg.src = "https://i.postimg.cc/DwFyZb3k/Exclamation.png";
