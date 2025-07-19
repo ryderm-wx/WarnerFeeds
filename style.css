@@ -22,8 +22,8 @@ body {
   width: 397px;
   height: 322px;
   background-color: black;
-  border-radius: 50px 50px 0 0;
-  z-index: 100;
+  border-radius: 60px 60px 0 0;
+  z-index: 1001;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 }
 
@@ -849,7 +849,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.5px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7), 0 0 10px rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
+  border-radius: 15px;
   position: relative;
   left: 350px;
   margin-left: 0;
@@ -866,29 +866,18 @@ body {
   text-transform: uppercase;
 }
 
-.event-type-bar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
-  transform: skewX(-15deg);
-  transition: 0.8s;
-  pointer-events: none;
-  z-index: 2;
+/* Add hover state for interactive elements */
+.event-type-bar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6),
+    inset 0 1px 3px rgba(255, 255, 255, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
-.event-type-bar:hover::before {
-  left: 100%;
+/* Style specifically for special weather statements */
+.event-type-bar.special-statement {
+  color: #000000;
+  text-shadow: 1px 1px 4px rgba(255, 255, 255, 0.7), 0 0 10px rgba(0, 0, 0, 0.2);
 }
-
 @keyframes pulseGlow {
   0% {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4),
@@ -1196,7 +1185,7 @@ body {
   display: flex;
   font-size: 1.5em;
   color: white;
-  z-index: 1000;
+  z-index: -2;
   padding: 10px;
   align-items: center;
   background-color: rgba(0, 0, 0, 0.3);
@@ -1238,7 +1227,7 @@ body {
   left: 297px;
   text-align: left;
   font-size: 1.3em;
-  font-weight: bold;
+  font-weight: normal;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
   color: white;
   padding: 0px;
@@ -3436,13 +3425,12 @@ button:hover {
   height: 65px;
   background-color: black;
   color: white;
-  border-radius: 10px;
+  border-radius: 0px 15px 0 0; /* Top-left, top-right, bottom-right, bottom-left */
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: "Saira Condensed", sans-serif;
   font-weight: bold;
-  font-size: 14px;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
   z-index: -15;
   font-size: 36px;

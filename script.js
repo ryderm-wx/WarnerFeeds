@@ -2550,7 +2550,7 @@ const audioElements = {
     "https://audio.jukehost.co.uk/cAZ0FjIgLrbX8kxErMb6DAKTq0BwKdlz"
   ),
   TORUPG: new Audio(
-    "https://audio.jukehost.co.uk/o6LRilMzywJkfY9QVreGyUjobxERtgwV"
+    "https://audio.jukehost.co.uk/X242ZLUEUAOXvdr05shOqjt5YBpWLIdg"
   ),
   TOREISS: new Audio(
     "https://audio.jukehost.co.uk/DELgBfmWgrg8lakettLP9mD9nomZaVA3"
@@ -2571,7 +2571,7 @@ const audioElements = {
     "https://audio.jukehost.co.uk/pMOZALOjzSE6DmppsYP3DV4enDLVg0I2"
   ),
   TorUpgradeSound: new Audio(
-    "https://audio.jukehost.co.uk/7UiGfREvpPwlHsrdTItmoXc26YKWud65"
+    "https://audio.jukehost.co.uk/X242ZLUEUAOXvdr05shOqjt5YBpWLIdg"
   ),
   SvrUpgradeSound: new Audio(
     "https://audio.jukehost.co.uk/2pBX1txWPzqySYtAlzveXcwRHb1jybGW"
