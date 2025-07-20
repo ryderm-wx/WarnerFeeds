@@ -1804,48 +1804,33 @@ let serverTimeOffset = 0; // global offset in ms
 const currentTimeZone = "ET"; // or "CT" if you need
 
 async function syncWithTimeServer() {
-  console.log("⏰ Syncing time with fallback servers...");
+  console.log("⏰ Syncing time with worldtimeapi.org...");
 
-  const urls = [
-    "https://worldtimeapi.org/api/timezone/America/New_York",
-
-    // add more if you want
-  ];
-
+  const url = "https://worldtimeapi.org/api/timezone/America/New_York";
   let data = null;
-  let lastError = null;
 
-  for (const url of urls) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        data = await response.json();
-        console.log(`✅ Got time data from: ${url}`);
-        break;
-      } else {
-        console.warn(`⚠️ HTTP ${response.status}: ${url}`);
-      }
-    } catch (err) {
-      console.warn(`💥 Error fetching from: ${url}`, err);
-      lastError = err;
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      data = await response.json();
+      console.log(`✅ Got time data from: ${url}`);
+    } else {
+      console.warn(`⚠️ HTTP ${response.status}: ${url}`);
+      throw new Error(`HTTP ${response.status} from time server`);
     }
-  }
-
-  if (!data) {
-    console.error("❌ All time servers failed 😭");
-    throw lastError || new Error("All time servers failed");
+  } catch (err) {
+    console.error("❌ Failed to fetch time data 😭", err);
+    throw err;
   }
 
   // 🧠 Build server time from 'datetime' field (ISO string)
-  let serverTime;
-  if (data.datetime) {
-    serverTime = new Date(data.datetime);
-  } else {
+  if (!data.datetime) {
     throw new Error("🤷‍♂️ Unknown time API format, missing 'datetime'");
   }
 
+  const serverTime = new Date(data.datetime);
   const localTime = new Date();
-  serverTimeOffset = serverTime.getTime() - localTime.getTime();
+  const serverTimeOffset = serverTime.getTime() - localTime.getTime();
 
   console.log(`🧊 Synced. Offset: ${serverTimeOffset} ms`);
 }
