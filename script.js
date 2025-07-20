@@ -121,7 +121,7 @@ const tornadoCountElement = document.getElementById("tornadoCount");
 const thunderstormCountElement = document.getElementById("thunderstormCount");
 const floodCountElement = document.getElementById("floodCount");
 const winterWeatherCountElement = document.getElementById("winterWeatherCount");
-const socket = null; // Initialize socket as null
+const socket = new WebSocket("");
 let isSpcMode = false;
 
 const alertEventTypes = [
@@ -160,36 +160,52 @@ function initAlertStream() {
   const source = new EventSource("/api/xmpp-alerts");
   window.eventSource = source; // Store reference globally
 
-  // Set timeout to 5 minutes
-  source.timeout = 600000;
+  // Setup heartbeat checker
+  let lastMessageTime = Date.now();
+  let heartbeatInterval;
 
-  // Setup event listeners
   source.addEventListener("open", () => {
     console.log("✅ SSE Connected at /api/xmpp-alerts");
+
+    // Start the heartbeat interval check
+    heartbeatInterval = setInterval(() => {
+      const timeSinceLastMessage = Date.now() - lastMessageTime;
+      // If no message for 30 seconds, consider the connection dead
+      if (timeSinceLastMessage > 300000) {
+        console.warn(
+          "⚠️ No messages received for 300+ seconds, reconnecting..."
+        );
+        clearInterval(heartbeatInterval);
+        source.close();
+
+        setTimeout(() => {
+          console.log("🔄 Attempting to reconnect SSE due to inactivity...");
+          initAlertStream();
+        }, 2000);
+      }
+    }, 10000); // Check every 10 seconds
   });
 
   source.addEventListener("error", (err) => {
     console.error("❌ SSE Error:", err);
-    if (source.readyState === 2) {
-      // Connection is closed
+    clearInterval(heartbeatInterval);
+
+    // Attempt to reconnect after a delay
+    setTimeout(() => {
       console.log("🔄 Attempting to reconnect SSE after error...");
       initAlertStream();
-    }
+    }, 5000); // 5 second delay before reconnect
   });
-
-  source.onclose = () => {
-    console.log("🔄 Connection closed, attempting to reconnect...");
-    initAlertStream();
-  };
 
   // Listen for ping events to update the lastMessageTime
   source.addEventListener("ping", () => {
+    lastMessageTime = Date.now();
     console.debug("💓 Heartbeat received");
   });
 
   // Update lastMessageTime on any event
   const updateLastMessageTime = () => {
-    const lastMessageTime = Date.now();
+    lastMessageTime = Date.now();
   };
 
   // Handle Special Weather Statements separately to ensure they always work
@@ -1783,79 +1799,64 @@ function getHighestActiveAlert() {
   };
 }
 
-// Sync with a solid time API
-let serverTimeOffset = 0; // global offset in ms
-const currentTimeZone = "ET"; // or "CT" if you need
-async function syncWithTimeServer() {
-  console.log("⏰ Syncing time with fallback servers...");
+let serverTimeOffset = 0; // ms
+let currentTimeZone = "ET"; // or "CT"
 
+async function syncWithTimeServer() {
+  console.log("⏰ Starting time sync…");
   const urls = [
     "https://worldtimeapi.org/api/timezone/America/New_York",
     "https://timeapi.io/api/Time/current/zone?timeZone=America/New_York",
-    // add more if u wanna vibe
   ];
+  const maxRetries = 10;
+  const retryDelay = 500; // ms
 
-  let data = null;
   let lastError = null;
-  const maxRetries = 5;
-  const retryDelay = 500; // 500ms delay between retries
 
   for (const url of urls) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`🔁 Trying ${url} (attempt ${attempt}/${maxRetries})`);
+      console.log(`🔁 Fetching ${url} (try ${attempt}/${maxRetries})`);
       try {
-        const response = await fetch(url);
-        if (response.ok) {
-          data = await response.json();
-          console.log(`✅ Got time data from: ${url}`);
-          break; // success, move on
+        const t0 = Date.now();
+        const resp = await fetch(url, { cache: "no-store" });
+        const t1 = Date.now();
+
+        if (!resp.ok) {
+          console.warn(`⚠️ HTTP ${resp.status} from ${url}`);
         } else {
-          console.warn(`⚠️ HTTP ${response.status}: ${url}`);
+          const data = await resp.json();
+          if (!data || !data.datetime) {
+            console.warn(`⚠️ Missing datetime in response from ${url}`);
+          } else {
+            const serverTime = new Date(data.datetime).getTime();
+            const rtt = t1 - t0;
+            serverTimeOffset = serverTime + rtt / 2 - t1;
+            console.log(
+              `✅ Synced. RTT: ${rtt} ms, offset: ${serverTimeOffset} ms`
+            );
+            return;
+          }
         }
       } catch (err) {
-        console.warn(`💥 Error fetching from: ${url}`, err);
+        console.warn(`💥 Fetch error from ${url}`, err);
         lastError = err;
       }
       if (attempt < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        await new Promise((r) => setTimeout(r, retryDelay));
       }
     }
-    if (data) break; // got data, stop trying others
-    console.warn(
-      `😤 All ${maxRetries} attempts failed for: ${url}. Trying next URL...`
-    );
+    console.warn(`😤 All retries failed for ${url}, moving on...`);
   }
-
-  if (!data) {
-    console.error("❌ All retries and time servers failed 😭");
-    throw lastError || new Error("All time servers failed after retries");
-  }
-
-  // 🧠 Build server time from 'datetime' field (ISO string)
-  let serverTime;
-  if (data.datetime) {
-    serverTime = new Date(data.datetime);
-  } else {
-    throw new Error("🤷‍♂️ Unknown time API format, missing 'datetime'");
-  }
-
-  const localTime = new Date();
-  const serverTimeOffset = serverTime.getTime() - localTime.getTime();
-
-  console.log(`🧊 Synced. Offset: ${serverTimeOffset} ms`);
-  return serverTimeOffset;
+  throw lastError || new Error("❌ Couldn’t fetch valid time 😭");
 }
 
-// Always get time adjusted by offset
 function getCurrentTime() {
   return new Date(Date.now() + serverTimeOffset);
 }
 
 function updateClock() {
   const now = getCurrentTime();
-
-  // ET is the server timezone; CT = ET -1h
-  const tzOffsetMs = currentTimeZone === "CT" ? -1 * 60 * 60 * 1000 : 0;
+  const tzOffsetMs = currentTimeZone === "CT" ? -3600000 : 0;
   const displayTime = new Date(now.getTime() + tzOffsetMs);
 
   const hours = displayTime.getHours() % 12 || 12;
@@ -1881,14 +1882,21 @@ function toggleTimeZone() {
   updateClock();
 }
 
-// Hard fail init: don't start clock if sync fails
 async function initClock() {
   try {
     await syncWithTimeServer();
-
     updateClock();
-    setInterval(updateClock, 1000); // update every second
-    setInterval(syncWithTimeServer, 3600000); // re-sync hourly
+
+    // Align next tick to the next full second
+    const now = getCurrentTime();
+    const delay = 1000 - now.getMilliseconds();
+    setTimeout(() => {
+      updateClock();
+      setInterval(updateClock, 1000);
+    }, delay);
+
+    // Re-sync every hour to stay precise
+    setInterval(syncWithTimeServer, 3600000);
   } catch (err) {
     console.error(
       "💥 Failed to sync time from server. Clock will not start.",
@@ -1898,6 +1906,9 @@ async function initClock() {
       "⚠️ Failed to sync time from server";
   }
 }
+
+// Go!
+initClock();
 
 document.addEventListener("DOMContentLoaded", initClock);
 setInterval(() => {
@@ -2792,9 +2803,6 @@ function formatCountiesNotification(areaDesc) {
 
 function updateWarningList(warnings) {
   const warningList = document.getElementById("warningList");
-  if (!Array.isArray(warnings)) {
-    warnings = [];
-  }
   if (!warningList) return;
 
   warningList.innerHTML = "";
@@ -3089,27 +3097,48 @@ function getCallToAction(eventName) {
   }
 }
 
-document
-  .getElementById("saveStateButton")
-  .addEventListener("click", saveStateButtonHandler);
-
-function saveStateButtonHandler() {
+document.getElementById("saveStateButton").addEventListener("click", () => {
   const rawInput = document.getElementById("stateInput").value.toUpperCase();
   window.selectedStates = rawInput
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
+  const stateFipsCodes = window.selectedStates.map((state) => {
+    const fipsCode = Object.keys(STATE_FIPS_TO_ABBR).find(
+      (key) => STATE_FIPS_TO_ABBR[key] === state
+    );
+    return fipsCode || "Unknown";
+  });
+
   console.log(`State filter set to: ${window.selectedStates.join(", ")}`);
+  console.log(`State FIPS codes set to: ${stateFipsCodes.join(", ")}`);
+
   updateDashboard();
 
   if (window.tacticalModeAbort) {
     window.tacticalModeAbort();
   }
+  let abort = false;
   window.tacticalModeAbort = () => {
-    console.log("Aborting tactical mode...");
+    abort = true;
   };
-}
+
+  (async function tacticalModeLoop() {
+    const interval = none;
+    while (!abort) {
+      const start = Date.now();
+
+      await tacticalMode();
+
+      const elapsed = Date.now() - start;
+      const remainingTime = Math.max(0, interval - elapsed);
+
+      await new Promise((resolve) => setTimeout(resolve, remainingTime));
+    }
+  })();
+});
+
 document.getElementById("tacticalModeButton").addEventListener("click", () => {
   initAlertStream();
   console.log("Save button clicked. Starting to listen for alerts...");
@@ -3132,6 +3161,21 @@ let abort = false;
 window.tacticalModeAbort = () => {
   abort = true;
 };
+
+(async function tacticalModeLoop() {
+  const interval = none;
+  while (!abort) {
+    const start = Date.now();
+
+    await tacticalMode(true);
+    updateWarningList(activeWarnings);
+
+    const elapsed = Date.now() - start;
+    const remainingTime = Math.max(0, interval - elapsed);
+
+    await new Promise((resolve) => setTimeout(resolve, remainingTime));
+  }
+})();
 
 function parseRawAlert(raw) {
   let jsonStr =
@@ -3991,6 +4035,9 @@ function isCountiesScrolling() {
   );
 }
 
+let sortedWarnings = [];
+let lastActiveIds = [];
+
 function updateDashboard() {
   const expirationElement = document.querySelector("#expiration");
   const eventTypeElement = document.querySelector("#eventType");
@@ -4009,41 +4056,36 @@ function updateDashboard() {
     return;
   }
 
-  if (
-    typeof currentWarningIndex !== "number" ||
-    currentWarningIndex >= activeWarnings.length
-  ) {
-    currentWarningIndex = 0;
-  }
-
-  let warning = activeWarnings[currentWarningIndex];
-
-  if (!warning || !warning.properties) {
-    console.warn("⚠️ Skipping invalid warning entry:", warning);
-
-    let validFound = false;
-    let attempts = 0;
-    while (attempts < activeWarnings.length) {
-      currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
-      const nextWarning = activeWarnings[currentWarningIndex];
-      if (nextWarning && nextWarning.properties) {
-        warning = nextWarning;
-        validFound = true;
-        break;
-      }
-      attempts++;
-    }
-
-    if (!validFound) {
-      console.warn(
-        "⚠️ No valid warnings found. Falling back to current conditions."
+  // Check if activeWarnings changed by comparing IDs
+  const activeIds = activeWarnings.map((w) => w.id).join(",");
+  if (activeIds !== lastActiveIds.join(",")) {
+    // New alerts, re-sort by priority & expiration
+    sortedWarnings = activeWarnings
+      .slice()
+      .sort(
+        (a, b) =>
+          (priority[getEventName(a)] || 9999) -
+          (priority[getEventName(b)] || 9999)
       );
-      activeWarnings = [];
-      showNoWarningDashboard();
-      return;
-    }
+
+    currentWarningIndex = 0; // Reset cycle index on new data
+    lastActiveIds = activeIds.split(",");
   }
 
+  if (sortedWarnings.length === 0) {
+    expirationElement.textContent = "LOADING...";
+    eventTypeElement.textContent = "LOADING...";
+    countiesElement.textContent = "LOADING...";
+    document.querySelector(".event-type-bar").style.backgroundColor = "#333";
+    updateActiveAlertText();
+    showNoWarningDashboard();
+    return;
+  }
+
+  // Wrap index if needed
+  currentWarningIndex = currentWarningIndex % sortedWarnings.length;
+
+  const warning = sortedWarnings[currentWarningIndex];
   const { event, areaDesc, expires } = warning.properties;
   const eventName = getEventName(warning);
   const alertColor = getAlertColor(eventName);
@@ -4090,10 +4132,9 @@ function updateDashboard() {
 
   showWarningDashboard();
 
-  // ✅ always rotate index
-  currentWarningIndex = (currentWarningIndex + 1) % activeWarnings.length;
+  // Rotate index for next call
+  currentWarningIndex = (currentWarningIndex + 1) % sortedWarnings.length;
 }
-
 let rotateActive = false;
 
 async function startRotatingCities() {
@@ -4151,6 +4192,8 @@ document.addEventListener("DOMContentLoaded", () => {
     while (!abort) {
       const start = Date.now();
 
+      await tacticalMode();
+
       const elapsed = Date.now() - start;
       const remainingTime = Math.max(0, (interval || 0) - elapsed);
 
@@ -4164,7 +4207,15 @@ document.addEventListener("DOMContentLoaded", () => {
 let fetchConditionsActive = false;
 let fetchInterval, rotateInterval;
 
-fetchInterval = setInterval(fetchAllWeatherData, 30 * 60 * 1000);
-startRotatingCities();
-fetchAllWeatherData();
-updateDashboard();
+document
+  .getElementById("animatedToggleButton")
+  .addEventListener("click", () => {
+    fetchConditionsActive = true;
+
+    document.getElementById("animatedToggleButton").classList.add("active");
+
+    fetchInterval = setInterval(fetchAllWeatherData, 30 * 60 * 1000);
+    startRotatingCities();
+    fetchAllWeatherData();
+    updateDashboard();
+  });
