@@ -112,8 +112,6 @@ const STATE_FIPS_TO_ABBR = {
 
 let notificationsMuted = false;
 
-let currentTimeZone = "ET";
-
 const warningListElement = document.getElementById("warningList");
 const expirationElement = document.getElementById("expiration");
 const eventTypeElement = document.getElementById("eventType");
@@ -423,87 +421,61 @@ function HandleAlertPayload(payload, eventType) {
 }
 
 function normalizeAlertsFromEvent(event) {
+  if (!event?.data) return [];
+
   try {
-    if (!event?.data) return [];
+    const data = JSON.parse(event.data.trim());
+    const rawAlerts = data?.features || [data?.feature] || data || [];
 
-    const jsonStr = event.data
-      .trim()
-      .replace(/,\s*([\]}])/g, "$1")
-      .replace(/^[\uFEFF\xA0]+|[\uFEFF\xA0]+$/g, "");
-
-    const parsed = JSON.parse(jsonStr);
-    let rawAlerts = [];
-
-    if (parsed?.features && Array.isArray(parsed.features)) {
-      rawAlerts = parsed.features;
-    } else if (parsed?.feature) {
-      rawAlerts = [parsed.feature];
-    } else if (Array.isArray(parsed)) {
-      rawAlerts = parsed;
-    } else if (parsed?.id && parsed?.eventName) {
-      rawAlerts = [parsed];
-    } else if (parsed?.id && parsed?.type === "CANCEL") {
-      rawAlerts = [
-        {
-          id: parsed.id,
-          eventName: "Alert Canceled",
-          eventCode: "",
-          counties: [],
-          office: "",
-          action: "",
-          vtec: "",
-          effective: "",
-          expires: "",
-          rawText: "",
-          geocode: {},
-          threats: {},
-          source: "cancel_event",
-          polygon: null,
-          geometry: null,
-        },
-      ];
-    }
-
-    rawAlerts = rawAlerts.filter((a) => a && typeof a === "object");
-
-    return rawAlerts.map((alert) => {
-      const props = {
-        event: alert.eventName || "Unknown Event",
-        areaDesc: Array.isArray(alert.counties)
-          ? alert.counties.join("; ")
-          : "Unknown area",
-        expires: alert.expires || null,
-        office: alert.office || null,
-        action: alert.action || null,
-        vtec: alert.vtec || null,
-        effective: alert.effective || null,
-        rawText: alert.rawText || null,
-        geocode: alert.geocode || {},
-        parameters: {},
-      };
-
-      if (alert.threats && typeof alert.threats === "object") {
-        for (const [key, val] of Object.entries(alert.threats)) {
-          props.parameters[key] = Array.isArray(val) ? val : [val];
-        }
-      }
-
-      if (alert.source) {
-        props.parameters.source = [alert.source];
-      }
-
-      return {
-        id: alert.id || null,
-        normalizedId: alert.id || null,
-        properties: props,
-        geometry: alert.polygon?.type
-          ? {
-              type: alert.polygon.type,
-              coordinates: alert.polygon.coordinates,
-            }
-          : alert.geometry || null,
-      };
-    });
+    return rawAlerts
+      .filter((a) => a && typeof a === "object")
+      .map(
+        ({
+          id,
+          eventName = "Unknown Event",
+          counties = [],
+          office = "",
+          action = "",
+          vtec = "",
+          effective = "",
+          expires = "",
+          rawText = "",
+          geocode = {},
+          threats = {},
+          source = "",
+          polygon = null,
+          geometry = null,
+        }) => ({
+          id,
+          normalizedId: id,
+          properties: {
+            event: eventName,
+            areaDesc: counties.join("; "),
+            expires,
+            office,
+            action,
+            vtec,
+            effective,
+            rawText,
+            geocode,
+            parameters: {
+              ...Object.fromEntries(
+                Object.entries(threats).map(([key, val]) => [
+                  key,
+                  Array.isArray(val) ? val : [val],
+                ])
+              ),
+              source: [source],
+            },
+          },
+          geometry: polygon?.type
+            ? {
+                type: polygon.type,
+                coordinates: polygon.coordinates,
+              }
+            : geometry || null,
+        })
+      );
   } catch (err) {
     console.error(`❌ normalizeAlertsFromEvent() failed:`, err);
     console.error("Raw event data:", event?.data);
@@ -1618,7 +1590,7 @@ function displayNotification(warning, notificationType, emergencyText) {
     emergencyWrapper.style.gap = "10px";
     emergencyWrapper.style.fontSize = "36px";
     emergencyWrapper.style.color = "#FFFFFF";
-    emergencyWrapper.style.right = "10px";
+    emergencyWrapper.style.right = "35px";
     if (isSpecialWeatherStatement) {
       emergencyWrapper.style.color = "black";
     }
@@ -1827,54 +1799,97 @@ function getHighestActiveAlert() {
   };
 }
 
-function updateClock() {
-  const now = new Date();
+let currentTimeZone = "ET";
+let serverTimeOffset = 0; // ms difference between local and server time
 
-  const displayTime = new Date(
-    now.getTime() - (currentTimeZone === "CT" ? 1 : 0) * 60 * 60 * 1000
+// Sync with a solid time API
+async function syncWithTimeServer() {
+  console.log("⏰ Syncing time with server...");
+  const response = await fetch(
+    "https://timeapi.io/api/Time/current/zone?timeZone=America/New_York"
+  );
+  const data = await response.json();
+  console.log("✅ Time data:", data);
+
+  // Build server Date from returned fields
+  const serverTime = new Date(
+    `${data.year}-${String(data.month).padStart(2, "0")}-${String(
+      data.day
+    ).padStart(2, "0")}T${String(data.hour).padStart(2, "0")}:${String(
+      data.minute
+    ).padStart(2, "0")}:${String(data.seconds).padStart(2, "0")}.${String(
+      data.milliSeconds
+    ).padStart(3, "0")}`
   );
 
-  let hours = displayTime.getHours();
+  const localTime = new Date();
+  serverTimeOffset = serverTime.getTime() - localTime.getTime();
+
+  console.log(`🧊 Synced. Offset: ${serverTimeOffset} ms`);
+}
+
+// Always get time adjusted by offset
+function getCurrentTime() {
+  return new Date(Date.now() + serverTimeOffset);
+}
+
+function updateClock() {
+  const now = getCurrentTime();
+
+  // ET is the server timezone; CT = ET -1h
+  const tzOffsetMs = currentTimeZone === "CT" ? -1 * 60 * 60 * 1000 : 0;
+  const displayTime = new Date(now.getTime() + tzOffsetMs);
+
+  const hours = displayTime.getHours() % 12 || 12;
   const minutes = displayTime.getMinutes().toString().padStart(2, "0");
   const seconds = displayTime.getSeconds().toString().padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12 || 12;
+  const ampm = displayTime.getHours() >= 12 ? "PM" : "AM";
 
-  const timeString = `${hours
-    .toString()
-    .padStart(2, "0")}:${minutes}:${seconds} ${ampm} ${currentTimeZone}`;
-  const dateString = `${(displayTime.getMonth() + 1)
-    .toString()
-    .padStart(2, "0")}/${displayTime.getDate().toString().padStart(2, "0")}/${(
-    displayTime.getFullYear() % 100
-  )
-    .toString()
-    .padStart(2, "0")}`;
-
-  document.getElementById(
-    "clockDisplay"
-  ).innerHTML = `<span class="time">${timeString}</span><span class="date">${dateString}</span>`;
+  document.getElementById("clockDisplay").innerHTML =
+    `<span class="time">${hours
+      .toString()
+      .padStart(
+        2,
+        "0"
+      )}:${minutes}:${seconds} ${ampm} ${currentTimeZone}</span>` +
+    `<span class="date">${(displayTime.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}/` +
+    `${displayTime.getDate().toString().padStart(2, "0")}/` +
+    `${(displayTime.getFullYear() % 100).toString().padStart(2, "0")}</span>`;
 }
 
 function toggleTimeZone() {
-  if (currentTimeZone === "ET") {
-    currentTimeZone = "CT";
-    document.getElementById("toggleTimeZone").textContent =
-      "Switch to Eastern Time";
-  } else {
-    currentTimeZone = "ET";
-    document.getElementById("toggleTimeZone").textContent =
-      "Switch to Central Time";
-  }
+  currentTimeZone = currentTimeZone === "ET" ? "CT" : "ET";
+  document.getElementById("toggleTimeZone").textContent =
+    currentTimeZone === "ET"
+      ? "Switch to Central Time"
+      : "Switch to Eastern Time";
   updateClock();
 }
-// Call this after DOMContentLoaded or after activeWarnings is initialized
+
+// Hard fail init: don't start clock if sync fails
+async function initClock() {
+  try {
+    await syncWithTimeServer();
+
+    updateClock();
+    setInterval(updateClock, 1000); // update every second
+    setInterval(syncWithTimeServer, 3600000); // re-sync hourly
+  } catch (err) {
+    console.error(
+      "💥 Failed to sync time from server. Clock will not start.",
+      err
+    );
+    document.getElementById("clockDisplay").textContent =
+      "⚠️ Failed to sync time from server";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initClock);
 setInterval(() => {
   updateWarningList(activeWarnings);
 }, 30000);
-
-setInterval(updateClock, 1000);
-updateClock();
 
 let lastAlertText = "";
 let lastAlertColor = "";
@@ -3549,25 +3564,58 @@ async function fetchWeatherForCity(city, station, targetMap = lastFetchedData) {
       }
       return;
     }
+
     const json = await resp.json();
     const obs = json.properties;
 
-    const tempC = obs.temperature.value;
+    // Temp (°C → °F)
+    const tempC = obs.temperature?.value;
     const tempF = tempC != null ? ((tempC * 9) / 5 + 32).toFixed(1) : "N/A";
 
-    const text = obs.textDescription.toLowerCase();
+    // Description
+    const text = obs.textDescription?.toLowerCase() || "unknown";
 
+    // Wind speed & dir
     let windSpeed = "N/A";
-    if (obs.windSpeed && obs.windSpeed.value !== undefined) {
+    if (obs.windSpeed?.value != null) {
       windSpeed = (obs.windSpeed.value * 0.621371).toFixed(0);
-      console.log(`Wind speed for ${city}: ${windSpeed} MPH`);
-    } else {
-      console.warn(`No wind speed data for ${city}`);
     }
-
-    const windDirection = obs.windDirection ? obs.windDirection.value : "N/A";
+    const windDirection = obs.windDirection?.value ?? "N/A";
     const cardinalDirection = getCardinalDirection(windDirection);
 
+    // Store raw wind direction degrees for arrow rotation
+    const windDirectionValue = windDirection !== "N/A" ? windDirection : null;
+
+    // Humidity
+    const humidity =
+      obs.relativeHumidity?.value != null
+        ? `${Math.round(obs.relativeHumidity.value)}%`
+        : "N/A";
+
+    // Heat Index (°C → °F)
+    const heatIndexC = obs.heatIndex?.value;
+    const heatIndexF =
+      heatIndexC != null ? ((heatIndexC * 9) / 5 + 32).toFixed(1) : "N/A";
+
+    // Wind Chill (°C → °F)
+    const windChillC = obs.windChill?.value;
+    const windChillF =
+      windChillC != null ? ((windChillC * 9) / 5 + 32).toFixed(1) : "N/A";
+
+    // Pressure (Pa → inHg)
+    const pressurePa = obs.barometricPressure?.value;
+    const pressureInHg =
+      pressurePa != null ? (pressurePa / 3386.39).toFixed(2) : "N/A";
+
+    // Clouds summary
+    let clouds = "N/A";
+    if (obs.cloudLayers?.length > 0) {
+      clouds = obs.cloudLayers
+        .map((layer) => `${layer.amount} @ ${layer.base?.value} m`)
+        .join(", ");
+    }
+
+    // Icon logic
     let iconUrl = WEATHER_ICONS.clear;
     if (text.includes("thunder")) iconUrl = WEATHER_ICONS.thunderstorm;
     else if (text.includes("rain")) iconUrl = WEATHER_ICONS.rain;
@@ -3576,17 +3624,24 @@ async function fetchWeatherForCity(city, station, targetMap = lastFetchedData) {
       iconUrl = WEATHER_ICONS.fog;
     else if (text.includes("cloud")) iconUrl = WEATHER_ICONS.cloudy;
 
+    // Store all fields in map
     targetMap.set(city, {
       tempF,
       text,
       iconUrl,
       windSpeed,
       cardinalDirection,
+      windDirectionValue, // raw degrees for arrow rotation
+      humidity,
+      heatIndexF,
+      windChillF,
+      pressureInHg,
+      clouds,
     });
 
-    console.log(`Weather data fetched for ${city} at:`, new Date());
+    console.log(`✅ Weather data fetched for ${city}:`, new Date());
   } catch (err) {
-    console.error("Weather fetch error:", err);
+    console.error("❌ Weather fetch error:", err);
   }
 }
 
@@ -3650,23 +3705,61 @@ async function rotateCity() {
 
   const updatedWeatherData = lastFetchedData.get(city);
   if (updatedWeatherData) {
-    updateCountiesText(`
+    // First part: icon + condition + temp (NO trailing |)
+    const firstPart = `
       <img src="${updatedWeatherData.iconUrl}" alt="${
       updatedWeatherData.text
     }" style="width:24px;height:24px;vertical-align:middle;">
       ${
         updatedWeatherData.text.charAt(0).toUpperCase() +
         updatedWeatherData.text.slice(1)
-      }, ${updatedWeatherData.tempF}\u00B0F
-      | Wind: ${updatedWeatherData.cardinalDirection} @ ${
-      updatedWeatherData.windSpeed
-    } mph
-    `);
+      }, ${updatedWeatherData.tempF}°F
+    `;
+
+    const parts = [];
+
+    // Wind arrow SVG + rotation calc
+    if (
+      updatedWeatherData.windSpeed !== "N/A" &&
+      updatedWeatherData.cardinalDirection !== "N/A"
+    ) {
+      const windDirFrom = updatedWeatherData.windDirectionValue ?? null;
+      const windDirTo = windDirFrom !== null ? (windDirFrom + 180) % 360 : null;
+
+      const arrowSvg =
+        windDirTo !== null
+          ? `
+        <svg 
+          style="vertical-align:middle; width:24px; height:24px; transform: rotate(${windDirTo}deg);" 
+          xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"/>
+            <polyline points="5 12 12 5 19 12"/>
+        </svg>`
+          : "";
+
+      parts.push(
+        `Wind: ${arrowSvg} ${updatedWeatherData.cardinalDirection} @ ${updatedWeatherData.windSpeed} mph`
+      );
+    }
+
+    if (updatedWeatherData.humidity !== "N/A") {
+      parts.push(`Humidity: ${updatedWeatherData.humidity}`);
+    }
+    if (updatedWeatherData.heatIndexF !== "N/A") {
+      parts.push(`Heat Index: ${updatedWeatherData.heatIndexF}°F`);
+    }
+    if (updatedWeatherData.windChillF !== "N/A") {
+      parts.push(`Wind Chill: ${updatedWeatherData.windChillF}°F`);
+    }
+
+    const fullText =
+      parts.length > 0 ? `${firstPart} | ${parts.join(" | ")}` : firstPart;
+
+    updateCountiesText(fullText);
   } else {
     console.log("Weather data still not available for city:", city);
   }
-
-  console.log(`City changed to: ${city}`);
 }
 
 function showNoWarningDashboard() {
@@ -3682,7 +3775,14 @@ function showNoWarningDashboard() {
     noWarningsBar.classList.add("fade-in");
     noWarningsBar.classList.add("show");
   }
+  const eventTypeBar = document.querySelector(".event-type-bar");
+  eventTypeBar.style.backgroundColor = "#1F2593";
 
+  // Explicitly reset the text color to white
+  const eventTypeElement = document.querySelector("#eventType");
+  if (eventTypeElement) {
+    eventTypeElement.style.color = "white"; // or "" to use default color
+  }
   document.querySelector(".event-type-bar").style.backgroundColor = "#1F2593";
 }
 
