@@ -1808,8 +1808,7 @@ async function syncWithTimeServer() {
 
   const urls = [
     "https://worldtimeapi.org/api/timezone/America/New_York",
-    "https://worldtimeapi.io/api/timezone/America/New_York", // mirror-ish
-    "https://timeapi.io/api/Time/current/zone?timeZone=America/New_York",
+
     // add more if you want
   ];
 
