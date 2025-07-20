@@ -1799,28 +1799,51 @@ function getHighestActiveAlert() {
   };
 }
 
-let currentTimeZone = "ET";
-let serverTimeOffset = 0; // ms difference between local and server time
-
 // Sync with a solid time API
-async function syncWithTimeServer() {
-  console.log("⏰ Syncing time with server...");
-  const response = await fetch(
-    "https://timeapi.io/api/Time/current/zone?timeZone=America/New_York"
-  );
-  const data = await response.json();
-  console.log("✅ Time data:", data);
+let serverTimeOffset = 0; // global offset in ms
+const currentTimeZone = "ET"; // or "CT" if you need
 
-  // Build server Date from returned fields
-  const serverTime = new Date(
-    `${data.year}-${String(data.month).padStart(2, "0")}-${String(
-      data.day
-    ).padStart(2, "0")}T${String(data.hour).padStart(2, "0")}:${String(
-      data.minute
-    ).padStart(2, "0")}:${String(data.seconds).padStart(2, "0")}.${String(
-      data.milliSeconds
-    ).padStart(3, "0")}`
-  );
+async function syncWithTimeServer() {
+  console.log("⏰ Syncing time with fallback servers...");
+
+  const urls = [
+    "https://worldtimeapi.org/api/timezone/America/New_York",
+    "https://worldtimeapi.io/api/timezone/America/New_York", // mirror-ish
+    "https://timeapi.io/api/Time/current/zone?timeZone=America/New_York",
+    // add more if you want
+  ];
+
+  let data = null;
+  let lastError = null;
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        data = await response.json();
+        console.log(`✅ Got time data from: ${url}`);
+        break;
+      } else {
+        console.warn(`⚠️ HTTP ${response.status}: ${url}`);
+      }
+    } catch (err) {
+      console.warn(`💥 Error fetching from: ${url}`, err);
+      lastError = err;
+    }
+  }
+
+  if (!data) {
+    console.error("❌ All time servers failed 😭");
+    throw lastError || new Error("All time servers failed");
+  }
+
+  // 🧠 Build server time from 'datetime' field (ISO string)
+  let serverTime;
+  if (data.datetime) {
+    serverTime = new Date(data.datetime);
+  } else {
+    throw new Error("🤷‍♂️ Unknown time API format, missing 'datetime'");
+  }
 
   const localTime = new Date();
   serverTimeOffset = serverTime.getTime() - localTime.getTime();
@@ -1846,12 +1869,7 @@ function updateClock() {
   const ampm = displayTime.getHours() >= 12 ? "PM" : "AM";
 
   document.getElementById("clockDisplay").innerHTML =
-    `<span class="time">${hours
-      .toString()
-      .padStart(
-        2,
-        "0"
-      )}:${minutes}:${seconds} ${ampm} ${currentTimeZone}</span>` +
+    `<span class="time">${hours}:${minutes}:${seconds} ${ampm} ${currentTimeZone}</span>` +
     `<span class="date">${(displayTime.getMonth() + 1)
       .toString()
       .padStart(2, "0")}/` +
