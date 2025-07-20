@@ -121,7 +121,7 @@ const tornadoCountElement = document.getElementById("tornadoCount");
 const thunderstormCountElement = document.getElementById("thunderstormCount");
 const floodCountElement = document.getElementById("floodCount");
 const winterWeatherCountElement = document.getElementById("winterWeatherCount");
-const socket = new WebSocket("");
+const socket = null; // Initialize socket as null
 let isSpcMode = false;
 
 const alertEventTypes = [
@@ -160,52 +160,36 @@ function initAlertStream() {
   const source = new EventSource("/api/xmpp-alerts");
   window.eventSource = source; // Store reference globally
 
-  // Setup heartbeat checker
-  let lastMessageTime = Date.now();
-  let heartbeatInterval;
+  // Set timeout to 5 minutes
+  source.timeout = 600000;
 
+  // Setup event listeners
   source.addEventListener("open", () => {
     console.log("✅ SSE Connected at /api/xmpp-alerts");
-
-    // Start the heartbeat interval check
-    heartbeatInterval = setInterval(() => {
-      const timeSinceLastMessage = Date.now() - lastMessageTime;
-      // If no message for 30 seconds, consider the connection dead
-      if (timeSinceLastMessage > 300000) {
-        console.warn(
-          "⚠️ No messages received for 300+ seconds, reconnecting..."
-        );
-        clearInterval(heartbeatInterval);
-        source.close();
-
-        setTimeout(() => {
-          console.log("🔄 Attempting to reconnect SSE due to inactivity...");
-          initAlertStream();
-        }, 2000);
-      }
-    }, 10000); // Check every 10 seconds
   });
 
   source.addEventListener("error", (err) => {
     console.error("❌ SSE Error:", err);
-    clearInterval(heartbeatInterval);
-
-    // Attempt to reconnect after a delay
-    setTimeout(() => {
+    if (source.readyState === 2) {
+      // Connection is closed
       console.log("🔄 Attempting to reconnect SSE after error...");
       initAlertStream();
-    }, 5000); // 5 second delay before reconnect
+    }
   });
+
+  source.onclose = () => {
+    console.log("🔄 Connection closed, attempting to reconnect...");
+    initAlertStream();
+  };
 
   // Listen for ping events to update the lastMessageTime
   source.addEventListener("ping", () => {
-    lastMessageTime = Date.now();
     console.debug("💓 Heartbeat received");
   });
 
   // Update lastMessageTime on any event
   const updateLastMessageTime = () => {
-    lastMessageTime = Date.now();
+    const lastMessageTime = Date.now();
   };
 
   // Handle Special Weather Statements separately to ensure they always work
@@ -1802,30 +1786,29 @@ function getHighestActiveAlert() {
 // Sync with a solid time API
 let serverTimeOffset = 0; // global offset in ms
 const currentTimeZone = "ET"; // or "CT" if you need
-
 async function syncWithTimeServer() {
   console.log("⏰ Syncing time with fallback servers...");
 
   const urls = [
     "https://worldtimeapi.org/api/timezone/America/New_York",
-    "https://worldtimeapi.io/api/timezone/America/New_York", // mirror-ish
     "https://timeapi.io/api/Time/current/zone?timeZone=America/New_York",
-    // add more if you vibe
+    // add more if u wanna vibe
   ];
 
   let data = null;
   let lastError = null;
   const maxRetries = 5;
+  const retryDelay = 500; // 500ms delay between retries
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(`🔁 Attempt ${attempt} of ${maxRetries}...`);
-    for (const url of urls) {
+  for (const url of urls) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`🔁 Trying ${url} (attempt ${attempt}/${maxRetries})`);
       try {
         const response = await fetch(url);
         if (response.ok) {
           data = await response.json();
           console.log(`✅ Got time data from: ${url}`);
-          break;
+          break; // success, move on
         } else {
           console.warn(`⚠️ HTTP ${response.status}: ${url}`);
         }
@@ -1833,10 +1816,14 @@ async function syncWithTimeServer() {
         console.warn(`💥 Error fetching from: ${url}`, err);
         lastError = err;
       }
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      }
     }
-    if (data) break; // exit retry loop if successful
-
-    console.warn(`😤 Attempt ${attempt} failed. Retrying...`);
+    if (data) break; // got data, stop trying others
+    console.warn(
+      `😤 All ${maxRetries} attempts failed for: ${url}. Trying next URL...`
+    );
   }
 
   if (!data) {
@@ -2805,6 +2792,9 @@ function formatCountiesNotification(areaDesc) {
 
 function updateWarningList(warnings) {
   const warningList = document.getElementById("warningList");
+  if (!Array.isArray(warnings)) {
+    warnings = [];
+  }
   if (!warningList) return;
 
   warningList.innerHTML = "";
@@ -3099,48 +3089,27 @@ function getCallToAction(eventName) {
   }
 }
 
-document.getElementById("saveStateButton").addEventListener("click", () => {
+document
+  .getElementById("saveStateButton")
+  .addEventListener("click", saveStateButtonHandler);
+
+function saveStateButtonHandler() {
   const rawInput = document.getElementById("stateInput").value.toUpperCase();
   window.selectedStates = rawInput
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const stateFipsCodes = window.selectedStates.map((state) => {
-    const fipsCode = Object.keys(STATE_FIPS_TO_ABBR).find(
-      (key) => STATE_FIPS_TO_ABBR[key] === state
-    );
-    return fipsCode || "Unknown";
-  });
-
   console.log(`State filter set to: ${window.selectedStates.join(", ")}`);
-  console.log(`State FIPS codes set to: ${stateFipsCodes.join(", ")}`);
-
   updateDashboard();
 
   if (window.tacticalModeAbort) {
     window.tacticalModeAbort();
   }
-  let abort = false;
   window.tacticalModeAbort = () => {
-    abort = true;
+    console.log("Aborting tactical mode...");
   };
-
-  (async function tacticalModeLoop() {
-    const interval = none;
-    while (!abort) {
-      const start = Date.now();
-
-      await tacticalMode();
-
-      const elapsed = Date.now() - start;
-      const remainingTime = Math.max(0, interval - elapsed);
-
-      await new Promise((resolve) => setTimeout(resolve, remainingTime));
-    }
-  })();
-});
-
+}
 document.getElementById("tacticalModeButton").addEventListener("click", () => {
   initAlertStream();
   console.log("Save button clicked. Starting to listen for alerts...");
@@ -3163,21 +3132,6 @@ let abort = false;
 window.tacticalModeAbort = () => {
   abort = true;
 };
-
-(async function tacticalModeLoop() {
-  const interval = none;
-  while (!abort) {
-    const start = Date.now();
-
-    await tacticalMode(true);
-    updateWarningList(activeWarnings);
-
-    const elapsed = Date.now() - start;
-    const remainingTime = Math.max(0, interval - elapsed);
-
-    await new Promise((resolve) => setTimeout(resolve, remainingTime));
-  }
-})();
 
 function parseRawAlert(raw) {
   let jsonStr =
@@ -4197,8 +4151,6 @@ document.addEventListener("DOMContentLoaded", () => {
     while (!abort) {
       const start = Date.now();
 
-      await tacticalMode();
-
       const elapsed = Date.now() - start;
       const remainingTime = Math.max(0, (interval || 0) - elapsed);
 
@@ -4212,27 +4164,7 @@ document.addEventListener("DOMContentLoaded", () => {
 let fetchConditionsActive = false;
 let fetchInterval, rotateInterval;
 
-document
-  .getElementById("animatedToggleButton")
-  .addEventListener("click", () => {
-    fetchConditionsActive = !fetchConditionsActive;
-    const buttonText = fetchConditionsActive
-      ? "STOP FETCHING"
-      : "FETCH CURRENT CONDITIONS";
-    document.getElementById("animatedToggleButton").textContent = buttonText;
-
-    document
-      .getElementById("animatedToggleButton")
-      .classList.toggle("active", fetchConditionsActive);
-
-    if (fetchConditionsActive) {
-      fetchInterval = setInterval(fetchAllWeatherData, 30 * 60 * 1000);
-      startRotatingCities();
-      fetchAllWeatherData();
-      updateDashboard();
-    } else {
-      clearInterval(fetchInterval);
-      updateDashboard();
-      stopRotatingCities();
-    }
-  });
+fetchInterval = setInterval(fetchAllWeatherData, 30 * 60 * 1000);
+startRotatingCities();
+fetchAllWeatherData();
+updateDashboard();
