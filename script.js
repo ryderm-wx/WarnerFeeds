@@ -661,36 +661,89 @@ function testNotification(eventName) {
 
   // Get random counties
   const allCounties = [
-    "Washtenaw, MI",
-    "Lenawee, MI",
-    "Monroe, MI",
-    "Wayne, MI",
-    "Oakland, MI",
-    "Macomb, MI",
-    "Livingston, MI",
-    "Genesee, MI",
-    "Ingham, MI",
-    "Jackson, MI",
-    "Hillsdale, MI",
-    "Calhoun, MI",
-    "Eaton, MI",
-    "Shiawassee, MI",
-    "Clinton, MI",
-    "Lapeer, MI",
-    "St. Clair, MI",
+    "Alcona, MI",
+    "Alger, MI",
+    "Allegan, MI",
+    "Alpena, MI",
+    "Antrim, MI",
+    "Arenac, MI",
+    "Baraga, MI",
     "Barry, MI",
-    "Kent, MI",
-    "Ottawa, MI",
-    "Muskegon, MI",
-    "Saginaw, MI",
     "Bay, MI",
-    "Midland, MI",
-    "Isabella, MI",
+    "Benzie, MI",
+    "Berrien, MI",
+    "Branch, MI",
+    "Calhoun, MI",
+    "Cass, MI",
+    "Charlevoix, MI",
+    "Cheboygan, MI",
+    "Chippewa, MI",
+    "Clare, MI",
+    "Clinton, MI",
+    "Crawford, MI",
+    "Delta, MI",
+    "Dickinson, MI",
+    "Eaton, MI",
+    "Emmet, MI",
+    "Genesee, MI",
+    "Gladwin, MI",
+    "Gogebic, MI",
+    "Grand Traverse, MI",
     "Gratiot, MI",
+    "Hillsdale, MI",
+    "Houghton, MI",
+    "Huron, MI",
+    "Ingham, MI",
     "Ionia, MI",
-    "Montcalm, MI",
+    "Iosco, MI",
+    "Iron, MI",
+    "Isabella, MI",
+    "Jackson, MI",
+    "Kalamazoo, MI",
+    "Kalkaska, MI",
+    "Kent, MI",
+    "Keweenaw, MI",
+    "Lake, MI",
+    "Lapeer, MI",
+    "Leelanau, MI",
+    "Lenawee, MI",
+    "Livingston, MI",
+    "Luce, MI",
+    "Mackinac, MI",
+    "Macomb, MI",
+    "Manistee, MI",
+    "Marquette, MI",
+    "Mason, MI",
     "Mecosta, MI",
+    "Menominee, MI",
+    "Midland, MI",
+    "Missaukee, MI",
+    "Monroe, MI",
+    "Montcalm, MI",
+    "Montmorency, MI",
+    "Muskegon, MI",
     "Newaygo, MI",
+    "Oakland, MI",
+    "Oceana, MI",
+    "Ogemaw, MI",
+    "Ontonagon, MI",
+    "Osceola, MI",
+    "Oscoda, MI",
+    "Otsego, MI",
+    "Ottawa, MI",
+    "Presque Isle, MI",
+    "Roscommon, MI",
+    "Saginaw, MI",
+    "St. Clair, MI",
+    "St. Joseph, MI",
+    "Sanilac, MI",
+    "Schoolcraft, MI",
+    "Shiawassee, MI",
+    "Tuscola, MI",
+    "Van Buren, MI",
+    "Washtenaw, MI",
+    "Wayne, MI",
+    "Wexford, MI",
   ];
 
   const countyCount = Math.floor(Math.random() * 20) + 1;
@@ -824,7 +877,6 @@ function testNotification(eventName) {
   updateWarningList(activeWarnings);
   updateHighestAlert();
   showNotification(warning);
-  updateDashboard(warning);
 }
 
 function normalizeAlert(alert) {
@@ -1733,7 +1785,7 @@ function displayNotification(warning, notificationType, emergencyText) {
   notification.style.opacity = 1;
   notification.style.transition = "transform 0.85s cubic-bezier(0.4,0,0.2,1)";
 
-  setTimeout(() => (notification.style.transform = "translateY(50%)"), 50);
+  setTimeout(() => (notification.style.transform = "translateY(50%)"), 25);
 
   const duration =
     eventName.toLowerCase().includes("tornado") || eventName.includes("PDS")
@@ -1745,21 +1797,6 @@ function displayNotification(warning, notificationType, emergencyText) {
   }, duration);
 
   updateWarningList(activeWarnings);
-}
-
-function processNotificationQueue() {
-  if (isShowingNotification || notificationQueue.length === 0) {
-    return;
-  }
-
-  isShowingNotification = true;
-  const { warning, notificationType } = notificationQueue.shift();
-  displayNotification(warning, notificationType);
-
-  setTimeout(() => {
-    isShowingNotification = false;
-    processNotificationQueue();
-  }, 5000);
 }
 
 function typeEffect(element, text, delay = 25, startDelay = 150) {
@@ -1802,7 +1839,15 @@ function getHighestActiveAlert() {
 let serverTimeOffset = 0; // ms
 let currentTimeZone = "ET"; // or "CT"
 
+let isFirstSync = true; // track if it’s first sync or not
+
 async function syncWithTimeServer() {
+  const clock = document.getElementById("clockDisplay");
+
+  if (isFirstSync) {
+    clock.textContent = "Connecting to time server... ⏳"; // placeholder only on first try
+  }
+
   console.log("⏰ Starting time sync…");
   const urls = [
     "https://worldtimeapi.org/api/timezone/America/New_York",
@@ -1825,16 +1870,18 @@ async function syncWithTimeServer() {
           console.warn(`⚠️ HTTP ${resp.status} from ${url}`);
         } else {
           const data = await resp.json();
-          if (!data || !data.datetime) {
-            console.warn(`⚠️ Missing datetime in response from ${url}`);
-          } else {
+          if (data && data.datetime) {
             const serverTime = new Date(data.datetime).getTime();
             const rtt = t1 - t0;
             serverTimeOffset = serverTime + rtt / 2 - t1;
             console.log(
               `✅ Synced. RTT: ${rtt} ms, offset: ${serverTimeOffset} ms`
             );
+            if (isFirstSync) clock.textContent = ""; // clear placeholder only first time
+            isFirstSync = false; // mark that first sync done
             return;
+          } else {
+            console.warn(`⚠️ Missing datetime in response from ${url}`);
           }
         }
       } catch (err) {
@@ -1896,7 +1943,6 @@ async function initClock() {
     }, delay);
 
     // Re-sync every hour to stay precise
-    setInterval(syncWithTimeServer, 3600000);
   } catch (err) {
     console.error(
       "💥 Failed to sync time from server. Clock will not start.",
@@ -2810,7 +2856,7 @@ function updateWarningList(warnings) {
   const listHeader = document.createElement("div");
   listHeader.className = "warning-list-header";
   listHeader.innerHTML = `
-    <h2>Active Warnings <span class="warning-count-badge">${warnings.length}</span></h2>
+    <h2>Active Warnings (Click to expand/collapse)<span class="warning-count-badge">${warnings.length}</span></h2>
     <div class="warning-list-controls">
       <button class="list-control-btn sort-btn" title="Sort warnings by time">
         <i class="fa fa-clock"></i> Sort by Time
@@ -2870,17 +2916,17 @@ function updateWarningList(warnings) {
     const warnings = warningGroups[eventType];
 
     const groupContainer = document.createElement("div");
-    groupContainer.className = "warning-group";
+    groupContainer.className = "warning-group collapsed"; // Start collapsed
 
     const groupHeader = document.createElement("div");
     groupHeader.className = `warning-group-header ${getWarningClass(
       eventType
     )}`;
     groupHeader.innerHTML = `
-  <div class="group-icon">${getWarningEmoji(eventType)}</div>
-  <h3>${eventType} <span class="group-count">${warnings.length}</span></h3>
-  <div class="group-toggle"><i class="fa fa-chevron-down"></i></div>
-  `;
+      <div class="group-icon">${getWarningEmoji(eventType)}</div>
+      <h3>${eventType} <span class="group-count">${warnings.length}</span></h3>
+      <div class="group-toggle"><i class="fa fa-chevron-right"></i></div>
+    `;
 
     groupContainer.appendChild(groupHeader);
 
@@ -2991,7 +3037,7 @@ function createWarningCard(warning, index) {
         props.instruction
           ? `
         <div class="card-instruction">
-          <div class="instruction-toggle">Safety Instructions <i class="fa fa-chevron-down"></i></div>
+          <div class="instruction-toggle">Safety Instructions <i class="fa fa-chevron-right"></i></div>
           <div class="instruction-content hidden">${props.instruction}</div>
         </div>
       `
@@ -3025,7 +3071,7 @@ function createWarningCard(warning, index) {
         content.classList.toggle("hidden");
         const icon = instructionToggle.querySelector("i");
         icon.classList.toggle("fa-chevron-down");
-        icon.classList.toggle("fa-chevron-up");
+        icon.classList.toggle("fa-chevron-right");
       });
     }
 
@@ -3036,7 +3082,6 @@ function createWarningCard(warning, index) {
 
   return card;
 }
-
 function getWarningClass(eventName) {
   const eventNameLower = eventName.toLowerCase();
 
@@ -3515,7 +3560,7 @@ function cancelAlert(id) {
       alertBar.classList.add("thinbg-glow"); // Optional if you have a CSS class for the glow
     }
   } else {
-    updateDashboard();
+    return;
   }
 
   console.log(`🧹 Alert ${id} canceled and cleaned up.`);
@@ -3564,9 +3609,18 @@ const weatherCities = CITY_STATIONS.concat(EXTRA_CITIES);
 function getCardinalDirection(degrees) {
   if (degrees === "N/A") return "N/A";
 
-  const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const directionsFull = [
+    "North",
+    "Northeast",
+    "East",
+    "Southeast",
+    "South",
+    "Southwest",
+    "West",
+    "Northwest",
+  ];
   const index = Math.floor((degrees + 22.5) / 45) % 8;
-  return directions[index];
+  return directionsFull[index];
 }
 
 const weatherConditionsMap = new Map();
@@ -3753,17 +3807,17 @@ async function rotateCity() {
       const arrowSvg =
         windDirTo !== null
           ? `
-        <svg 
-          style="vertical-align:middle; width:24px; height:24px; transform: rotate(${windDirTo}deg);" 
-          xmlns="http://www.w3.org/2000/svg" 
-          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="19" x2="12" y2="5"/>
-            <polyline points="5 12 12 5 19 12"/>
-        </svg>`
+    <svg 
+      style="vertical-align:middle; width:24px; height:24px; transform: rotate(${windDirTo}deg);" 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="19" x2="12" y2="5"/>
+        <polyline points="5 12 12 5 19 12"/>
+    </svg>`
           : "";
 
       parts.push(
-        `Wind: ${arrowSvg} ${updatedWeatherData.cardinalDirection} @ ${updatedWeatherData.windSpeed} mph`
+        `Wind from the ${updatedWeatherData.cardinalDirection} at ${updatedWeatherData.windSpeed} mph ${arrowSvg}`
       );
     }
 
@@ -4038,6 +4092,9 @@ function isCountiesScrolling() {
 let sortedWarnings = [];
 let lastActiveIds = [];
 
+// Keep this map outside the function to track previous alert states
+const lastAlertsMap = new Map();
+
 function updateDashboard() {
   const expirationElement = document.querySelector("#expiration");
   const eventTypeElement = document.querySelector("#eventType");
@@ -4056,10 +4113,34 @@ function updateDashboard() {
     return;
   }
 
-  // Check if activeWarnings changed by comparing IDs
-  const activeIds = activeWarnings.map((w) => w.id).join(",");
-  if (activeIds !== lastActiveIds.join(",")) {
-    // New alerts, re-sort by priority & expiration
+  // Check for new or updated alerts by comparing serialized JSON for each alert ID
+  let hasChanges = false;
+
+  // Build set of current alert IDs to clean up old ones later
+  const currentIds = new Set();
+
+  for (const alert of activeWarnings) {
+    const id = alert.id;
+    currentIds.add(id);
+    const alertStr = JSON.stringify(alert);
+
+    if (!lastAlertsMap.has(id) || lastAlertsMap.get(id) !== alertStr) {
+      // New alert or updated alert found!
+      hasChanges = true;
+      lastAlertsMap.set(id, alertStr);
+    }
+  }
+
+  // Clean up any old alerts that disappeared
+  for (const oldId of lastAlertsMap.keys()) {
+    if (!currentIds.has(oldId)) {
+      hasChanges = true;
+      lastAlertsMap.delete(oldId);
+    }
+  }
+
+  if (hasChanges) {
+    // Sort by priority & expiration (your original logic)
     sortedWarnings = activeWarnings
       .slice()
       .sort(
@@ -4068,11 +4149,10 @@ function updateDashboard() {
           (priority[getEventName(b)] || 9999)
       );
 
-    currentWarningIndex = 0; // Reset cycle index on new data
-    lastActiveIds = activeIds.split(",");
+    currentWarningIndex = 0; // Reset index when alerts update
   }
 
-  if (sortedWarnings.length === 0) {
+  if (!sortedWarnings || sortedWarnings.length === 0) {
     expirationElement.textContent = "LOADING...";
     eventTypeElement.textContent = "LOADING...";
     countiesElement.textContent = "LOADING...";
@@ -4082,11 +4162,11 @@ function updateDashboard() {
     return;
   }
 
-  // Wrap index if needed
+  // Wrap current index if out of bounds
   currentWarningIndex = currentWarningIndex % sortedWarnings.length;
 
   const warning = sortedWarnings[currentWarningIndex];
-  const { event, areaDesc, expires } = warning.properties;
+  const { event, areaDesc, expires, rawText } = warning.properties || warning;
   const eventName = getEventName(warning);
   const alertColor = getAlertColor(eventName);
 
@@ -4120,11 +4200,23 @@ function updateDashboard() {
 
   expirationElement.textContent = `Expires: ${fullFormattedExpirationTime}`;
 
+  // Extract tornado emergency location, if any
+  const tornadoEmergencyLocation = extractTornadoEmergencyLocation(rawText);
+
   const counties = formatCountiesTopBar(areaDesc);
-  updateCountiesText(
-    `Counties: ${counties} | Until ${formattedExpirationTime}`,
-    warning
-  );
+
+  // If tornado emergency found, show that prominently
+  if (tornadoEmergencyLocation) {
+    updateCountiesText(
+      `***TORNADO EMERGENCY FOR ${tornadoEmergencyLocation.toUpperCase()}*** | Counties: ${counties} | Until ${formattedExpirationTime}`,
+      warning
+    );
+  } else {
+    updateCountiesText(
+      `Counties: ${counties} | Until ${formattedExpirationTime}`,
+      warning
+    );
+  }
 
   eventTypeElement.textContent = eventName;
   activeAlertsBox.style.display = "block";
@@ -4135,6 +4227,7 @@ function updateDashboard() {
   // Rotate index for next call
   currentWarningIndex = (currentWarningIndex + 1) % sortedWarnings.length;
 }
+
 let rotateActive = false;
 
 async function startRotatingCities() {
