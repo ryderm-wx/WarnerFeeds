@@ -32,7 +32,7 @@ const priority = {
   "Observed Tornado Warning": 3,
   "Spotter Confirmed Tornado Warning": 4,
   "Law Enforcement Confirmed Tornado Warning": 5,
-  "Public Confirmed Tornado Warning": 6, // added here
+  "Public Confirmed Tornado Warning": 6,
   "Radar Confirmed Tornado Warning": 7,
   "Tornado Warning": 8,
   "Destructive Severe Thunderstorm Warning": 9,
@@ -164,17 +164,14 @@ function initAlertStream() {
   let lastMessageTime = Date.now();
   let heartbeatInterval;
 
-  source.addEventListener("open", () => {
+  source.onopen = () => {
     console.log("✅ SSE Connected at /api/xmpp-alerts");
 
     // Start the heartbeat interval check
     heartbeatInterval = setInterval(() => {
-      const timeSinceLastMessage = Date.now() - lastMessageTime;
-      // If no message for 30 seconds, consider the connection dead
-      if (timeSinceLastMessage > 300000) {
-        console.warn(
-          "⚠️ No messages received for 300+ seconds, reconnecting..."
-        );
+      if (Date.now() - lastMessageTime > 300000) {
+        // 5 minutes
+        console.warn("⚠️ No messages received, reconnecting...");
         clearInterval(heartbeatInterval);
         source.close();
 
@@ -184,9 +181,9 @@ function initAlertStream() {
         }, 2000);
       }
     }, 10000); // Check every 10 seconds
-  });
+  };
 
-  source.addEventListener("error", (err) => {
+  source.onerror = (err) => {
     console.error("❌ SSE Error:", err);
     clearInterval(heartbeatInterval);
 
@@ -195,17 +192,35 @@ function initAlertStream() {
       console.log("🔄 Attempting to reconnect SSE after error...");
       initAlertStream();
     }, 5000); // 5 second delay before reconnect
-  });
-
-  // Listen for ping events to update the lastMessageTime
-  source.addEventListener("ping", () => {
-    lastMessageTime = Date.now();
-    console.debug("💓 Heartbeat received");
-  });
+  };
 
   // Update lastMessageTime on any event
-  const updateLastMessageTime = () => {
-    lastMessageTime = Date.now();
+  const updateLastMessageTime = () => (lastMessageTime = Date.now());
+
+  // Listen for ping events to update the lastMessageTime
+  source.addEventListener("ping", updateLastMessageTime);
+
+  const handleEvent = (type, event) => {
+    updateLastMessageTime();
+    try {
+      const data = JSON.parse(event.data);
+      console.log(`📩 Received ${type}`, data);
+      HandleAlertPayload(data, type);
+    } catch (error) {
+      console.error(`Error processing ${type} event:`, error);
+    }
+  };
+
+  const handleCancelEvent = (type, event) => {
+    updateLastMessageTime();
+    try {
+      const data = JSON.parse(event.data);
+      console.log(`🚨 Received ${type} for ${data.id || "unknown ID"}`);
+      HandleAlertPayload(data, type);
+      cancelAlert(data.id);
+    } catch (error) {
+      console.error(`Error processing ${type} event:`, error);
+    }
   };
 
   // Handle Special Weather Statements separately to ensure they always work
@@ -219,37 +234,13 @@ function initAlertStream() {
     "ALERT",
     "SPECIAL_WEATHER_STATEMENT",
   ];
-
   normalTypes.forEach((type) =>
-    source.addEventListener(type, (event) => {
-      updateLastMessageTime();
-      try {
-        const data = JSON.parse(event.data);
-        console.log(`📩 Received ${type}`, data);
-        HandleAlertPayload(data, type);
-      } catch (error) {
-        console.error(`Error processing ${type} event:`, error);
-      }
-    })
+    source.addEventListener(type, (event) => handleEvent(type, event))
   );
 
   // Cancel events
   cancelTypes.forEach((type) =>
-    source.addEventListener(type, (event) => {
-      updateLastMessageTime();
-      try {
-        const data = JSON.parse(event.data);
-        console.log(`🚨 Received ${type} for ${data.id || "unknown ID"}`);
-
-        // Force push the cancel payload into the regular handler
-        HandleAlertPayload(data, type); // <-- key line
-
-        // Also cancel the ID to clean up UI
-        cancelAlert(data.id);
-      } catch (error) {
-        console.error(`Error processing ${type} event:`, error);
-      }
-    })
+    source.addEventListener(type, (event) => handleCancelEvent(type, event))
   );
 }
 
@@ -321,6 +312,7 @@ function createCheckboxes() {
 
   // Add event listener to update selected alerts when checkboxes change
   container.addEventListener("change", updateSelectedAlerts);
+  console.log("Checkboxes created.");
 }
 
 function updateSelectedAlerts() {
@@ -339,7 +331,10 @@ function updateSelectedAlerts() {
  * @returns {string|null} - Core identifier or null if not found
  */
 function parseVtecCore(input) {
-  if (!input) return null;
+  if (!input) {
+    console.log("parseVtecCore: No input");
+    return null;
+  }
 
   // Handle objects with vtec property or properties.vtec
   if (typeof input === "object") {
@@ -350,20 +345,31 @@ function parseVtecCore(input) {
         input.properties.parameters &&
         input.properties.parameters.VTEC);
 
+    console.log(
+      "parseVtecCore: Object input detected, extracting VTEC",
+      input,
+      vtec
+    );
+
     if (Array.isArray(vtec) && vtec.length > 0) {
+      console.log("parseVtecCore: VTEC is an array, using the first element");
       return parseVtecCore(vtec[0]);
     } else if (typeof vtec === "string") {
+      console.log("parseVtecCore: VTEC is a string, parsing directly");
       return parseVtecCore(vtec);
     }
+    console.log("parseVtecCore: No VTEC found in object");
     return null;
   }
 
   // Handle VTEC string directly
   if (typeof input === "string") {
+    console.log("parseVtecCore: String input detected, parsing directly");
     const parsed = parseVTEC(input);
     return parsed.core || null;
   }
 
+  console.log("parseVtecCore: Unknown input type");
   return null;
 }
 
@@ -1220,7 +1226,6 @@ function getEventName(alert) {
 let currentCountyIndex = 0;
 
 let isNotificationQueueEnabled = false;
-let notificationQueue = [];
 let isShowingNotification = false;
 
 document
@@ -1259,7 +1264,7 @@ function showNotification(
   currentVersion // Passed as an argument, usually from NWSheadline or properties.sent
 ) {
   const eventName = getEventName(warning);
-  const warningId = warning.id.trim().toUpperCase();
+  const warningId = getCoreAlertId(warning.id); // Use the core ID instead
 
   // Determine the CAP-style action, falling back to SSE event type if none.
   // This `alertAction` is primarily for logging and understanding the message intent.
@@ -1279,8 +1284,6 @@ function showNotification(
   // 1. INIT alerts are special: always store, never notify explicitly
   if (sseEventType.toUpperCase() === "INIT") {
     previousWarnings.set(warningId, warning);
-    // Also track in notifiedWarnings so that future non-INIT messages are seen as "tracked"
-    // even if INIT itself didn't trigger a visual notification.
     notifiedWarnings.set(warningId, currentVersion);
     console.log(`🧠 State updated for ${warningId} (INIT, no notification)`);
     return; // Exit, no visual notification
@@ -1444,9 +1447,6 @@ function showNotification(
   );
 
   // 🔊 Pick your fighter
-  const soundId = getSoundForEvent(eventName, notificationType);
-  console.log(`🔊 Playing sound ID: ${soundId}`);
-  playSoundById(soundId);
 
   // 🧠 Track state - consistently store the full warning object for future comparisons
   previousWarnings.set(warningId, warning); // Store the current warning object for next comparison
@@ -1481,6 +1481,7 @@ function showNotification(
 
   // Display the notification
   displayNotification(warning, notificationType, emergencyText);
+  updateDashboard();
 }
 
 function getSoundForEvent(eventName, notificationType) {
@@ -1505,9 +1506,56 @@ function getSoundForEvent(eventName, notificationType) {
   }
 }
 
+// Queue to store pending notifications
+const notificationQueue = [];
+let isNotificationDisplaying = false;
+
+/**
+ * Displays a notification and processes the queue
+ * @param {Object} warning - The warning object
+ * @param {string} notificationType - Type of notification
+ * @param {string|null} emergencyText - Emergency text if applicable
+ */
 function displayNotification(warning, notificationType, emergencyText) {
   if (notificationsMuted) return; // no logging, keep it chill
 
+  // Add the notification to the queue
+  notificationQueue.push({
+    warning,
+    notificationType,
+    emergencyText,
+  });
+
+  // Process the queue if no notification is currently displaying
+  if (!isNotificationDisplaying) {
+    processNotificationQueue();
+  }
+}
+
+/**
+ * Process notifications in the queue one by one
+ */
+function processNotificationQueue() {
+  if (notificationQueue.length === 0) {
+    isNotificationDisplaying = false;
+    return;
+  }
+
+  isNotificationDisplaying = true;
+  const { warning, notificationType, emergencyText } =
+    notificationQueue.shift();
+
+  // Create and display the notification
+  showNotificationElement(warning, notificationType, emergencyText);
+}
+
+/**
+ * Shows the actual notification element
+ * @param {Object} warning - The warning object
+ * @param {string} notificationType - Type of notification
+ * @param {string|null} emergencyText - Emergency text if applicable
+ */
+function showNotificationElement(warning, notificationType, emergencyText) {
   const eventName = getEventName(warning);
   const description = warning.rawText || warning.properties?.rawText || "";
   const rawAreaDesc = Array.isArray(warning.counties)
@@ -1527,11 +1575,6 @@ function displayNotification(warning, notificationType, emergencyText) {
   if (isSpecialWeatherStatement) {
     notification.style.color = "black";
   }
-
-  const counties = cleanAreaDesc
-    .split(";")
-    .map((c) => c.trim())
-    .filter(Boolean);
 
   notification.style.bottom = "70px";
 
@@ -1561,6 +1604,10 @@ function displayNotification(warning, notificationType, emergencyText) {
     countyDiv.style.color = "black"; // Explicitly set color for county div
   }
   notification.appendChild(countyDiv);
+
+  const soundId = getSoundForEvent(eventName, notificationType);
+  console.log(`🔊 Playing sound ID: ${soundId}`);
+  playSoundById(soundId);
 
   // Scroll logic based on comma/semicolon count:
   requestAnimationFrame(() => {
@@ -1783,20 +1830,54 @@ function displayNotification(warning, notificationType, emergencyText) {
   notification.style.transform = "translateY(100%)";
   notification.style.backgroundColor = getAlertColor(eventName);
   notification.style.opacity = 1;
-  notification.style.transition = "transform 0.85s cubic-bezier(0.4,0,0.2,1)";
 
-  setTimeout(() => (notification.style.transform = "translateY(50%)"), 25);
+  // Snappy slide-in
+  notification.style.transition =
+    "transform 1.1s cubic-bezier(0.22, 1, 0.36, 1)";
+
+  setTimeout(() => {
+    notification.style.transform = "translateY(50%)";
+  }, 50);
 
   const duration =
     eventName.toLowerCase().includes("tornado") || eventName.includes("PDS")
       ? 10000
       : 7000;
+
+  // Set timeout for the notification to disappear
   setTimeout(() => {
+    // Change to a slower, softer slide-down
+    notification.style.transition = "transform 0.5s cubic-bezier(0.7, 0, 1, 1)";
+
+    // Force reflow to make sure browser registers the new transition
+    void notification.offsetHeight;
+
+    // Now apply transform to start slide-down
     notification.style.transform = "translateY(100%)";
-    setTimeout(() => notification.remove(), 500);
+
+    // Remove after slide-down finishes and process next notification
+    setTimeout(() => {
+      notification.remove();
+
+      // Process next notification in queue
+      processNotificationQueue();
+    }, 600);
   }, duration);
 
-  updateWarningList(activeWarnings);
+  // Update warning list if needed
+  if (
+    typeof updateWarningList === "function" &&
+    typeof activeWarnings !== "undefined"
+  ) {
+    updateWarningList(activeWarnings);
+  }
+}
+
+/**
+ * Clear all pending notifications
+ */
+function clearNotificationQueue() {
+  notificationQueue.length = 0;
 }
 
 function typeEffect(element, text, delay = 25, startDelay = 150) {
@@ -1845,7 +1926,7 @@ async function syncWithTimeServer() {
   const clock = document.getElementById("clockDisplay");
 
   if (isFirstSync) {
-    clock.textContent = "Connecting to time server... ⏳"; // placeholder only on first try
+    clock.textContent = "Syncronizing Time..."; // placeholder only on first try
   }
 
   console.log("⏰ Starting time sync…");
@@ -1905,19 +1986,17 @@ function updateClock() {
   const now = getCurrentTime();
   const tzOffsetMs = currentTimeZone === "CT" ? -3600000 : 0;
   const displayTime = new Date(now.getTime() + tzOffsetMs);
+  const h = displayTime.getHours() % 12 || 12;
+  const m = displayTime.getMinutes().toString().padStart(2, "0");
+  const s = displayTime.getSeconds().toString().padStart(2, "0");
+  const a = displayTime.getHours() >= 12 ? "PM" : "AM";
+  const d = displayTime.getDate().toString().padStart(2, "0");
+  const M = (displayTime.getMonth() + 1).toString().padStart(2, "0");
+  const y = (displayTime.getFullYear() % 100).toString().padStart(2, "0");
 
-  const hours = displayTime.getHours() % 12 || 12;
-  const minutes = displayTime.getMinutes().toString().padStart(2, "0");
-  const seconds = displayTime.getSeconds().toString().padStart(2, "0");
-  const ampm = displayTime.getHours() >= 12 ? "PM" : "AM";
-
-  document.getElementById("clockDisplay").innerHTML =
-    `<span class="time">${hours}:${minutes}:${seconds} ${ampm} ${currentTimeZone}</span>` +
-    `<span class="date">${(displayTime.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}/` +
-    `${displayTime.getDate().toString().padStart(2, "0")}/` +
-    `${(displayTime.getFullYear() % 100).toString().padStart(2, "0")}</span>`;
+  document.getElementById(
+    "clockDisplay"
+  ).innerHTML = `<span class="time">${h}:${m}:${s} ${a} ${currentTimeZone}</span><span class="date">${M}/${d}/${y}</span>`;
 }
 
 function toggleTimeZone() {
@@ -2558,64 +2637,38 @@ function getPolygonColor(eventClass) {
 setInterval(updateAlertBar, 10);
 
 function getAlertColor(eventName) {
-  switch (eventName) {
-    case "Tornado Warning":
-      return "#FF0000";
-    case "Observed Tornado Warning":
-      return "#FF00FF";
-    case "Radar Confirmed Tornado Warning":
-      return "#FF00FF";
-    case "Spotter Confirmed Tornado Warning":
-      return "#FF00FF";
-    case "Law Enforcement Confirmed Tornado Warning":
-      return "#FF00FF";
-    case "Public Confirmed Tornado Warning":
-      return "#FF00FF";
-    case "PDS Tornado Warning":
-      return "#FF00FF";
-    case "Tornado Emergency":
-      return "#FF0080";
-    case "Severe Thunderstorm Warning":
-    case "Considerable Severe Thunderstorm Warning":
-    case "Destructive Severe Thunderstorm Warning":
-      return "#FF8000";
-    case "Flash Flood Warning":
-      return "#228B22";
-    case "Flash Flood Emergency":
-      return "#8B0000";
-    case "Tornado Watch":
-      return "#8B0000";
-    case "Severe Thunderstorm Watch":
-      return "#DB7093";
-    case "Winter Weather Advisory":
-      return "#7B68EE";
-    case "Winter Storm Warning":
-      return "#FF69B4";
-    case "Winter Storm Watch":
-      return "#6699CC";
-    case "Ice Storm Warning":
-      return "#8B008B";
-    case "Blizzard Warning":
-      return "#FF4500";
-    case "Special Weather Statement":
-      return "#FFE4B5";
-    case "High Wind Warning":
-      return "#DAA520";
-    case "High Wind Watch":
-      return "#B8860B";
-    case "Wind Advisory":
-      return "#D2B48C";
-    case "Snow Squall Warning":
-      return "#64B5F6";
-    case "Freezing Fog Advisory":
-      return "#008080";
-    case "Dense Fog Advisory":
-      return "#708090";
-    case "Dust Advisory":
-      return "#BDB76B";
-    default:
-      return "rgba(255, 255, 255, 0.9)";
-  }
+  const colorMap = {
+    "Tornado Warning": "#FF0000",
+    "Observed Tornado Warning": "#FF00FF",
+    "Radar Confirmed Tornado Warning": "#FF00FF",
+    "Spotter Confirmed Tornado Warning": "#FF00FF",
+    "Law Enforcement Confirmed Tornado Warning": "#FF00FF",
+    "Public Confirmed Tornado Warning": "#FF00FF",
+    "PDS Tornado Warning": "#FF00FF",
+    "Tornado Emergency": "#FF0080",
+    "Severe Thunderstorm Warning": "#FF8000",
+    "Considerable Severe Thunderstorm Warning": "#FF8000",
+    "Destructive Severe Thunderstorm Warning": "#FF8000",
+    "Flash Flood Warning": "#228B22",
+    "Flash Flood Emergency": "#8B0000",
+    "Tornado Watch": "#8B0000",
+    "Severe Thunderstorm Watch": "#DB7093",
+    "Winter Weather Advisory": "#7B68EE",
+    "Winter Storm Warning": "#FF69B4",
+    "Winter Storm Watch": "#6699CC",
+    "Ice Storm Warning": "#8B008B",
+    "Blizzard Warning": "#FF4500",
+    "Special Weather Statement": "#FFE4B5",
+    "High Wind Warning": "#DAA520",
+    "High Wind Watch": "#B8860B",
+    "Wind Advisory": "#D2B48C",
+    "Snow Squall Warning": "#64B5F6",
+    "Freezing Fog Advisory": "#008080",
+    "Dense Fog Advisory": "#708090",
+    "Dust Advisory": "#BDB76B",
+  };
+
+  return colorMap[eventName] || "rgba(255, 255, 255, 0.9)";
 }
 
 const audioElements = {
@@ -3318,7 +3371,7 @@ function TacticalMode(alerts, type = "NEW") {
       return;
     }
 
-    const id = alert.id || alert.properties?.id || alert.eventCode || null;
+    const id = getCoreAlertId(alert.id); // Replace with core ID
     const eventName = getEventName(alert);
 
     if (!id) {
@@ -3408,7 +3461,7 @@ function TacticalMode(alerts, type = "NEW") {
   console.log("📦 Active Warnings Summary:");
   console.table(
     activeWarnings.map((w) => ({
-      ID: w.id,
+      ID: getCoreAlertId(w.id),
       Event: getEventName(w),
       Polygon: !!(
         w.polygon?.type === "Polygon" && Array.isArray(w.polygon.coordinates)
@@ -3453,9 +3506,27 @@ function updateActiveWarningsList() {
   updateHighestAlert();
 }
 
+function getCoreAlertId(id) {
+  if (!id) return "";
+
+  // If the ID contains a dash, extract everything before it
+  const dashIndex = id.indexOf("-");
+  if (dashIndex !== -1) {
+    return id.substring(0, dashIndex).trim().toUpperCase();
+  }
+
+  // If no dash found, return the original ID (trimmed and uppercase)
+  return id.trim().toUpperCase();
+}
+
+// Modify the processNewWarning function to properly check for duplicates
 function processNewWarning(warning, action, isUpdate, currentVersion) {
   // Set default action if not provided
   const actionType = action ? action.toUpperCase() : "NEW";
+
+  // Store original ID and get core ID
+  warning.originalId = warning.id;
+  warning.id = getCoreAlertId(warning.id);
 
   // For INIT alerts, add them to activeWarnings but don't show notifications
   if (actionType === "INIT") {
@@ -3466,16 +3537,19 @@ function processNewWarning(warning, action, isUpdate, currentVersion) {
       activeWarnings = [];
     }
 
-    // Add to active warnings if not already there
-    if (!activeWarnings.some((w) => w.id === warning.id)) {
+    // Check if this warning (by core ID) already exists in the active warnings
+    const existingIndex = activeWarnings.findIndex((w) => w.id === warning.id);
+    if (existingIndex === -1) {
+      // Only add if it doesn't already exist
       activeWarnings.push(warning);
-    }
 
-    // Update UI without notifications
-    updateWarningCounters(warning);
-    updateWarningList(activeWarnings);
-    updateHighestAlert();
-    updateDashboard(warning);
+      // Update UI without notifications
+      updateWarningCounters(warning);
+      updateWarningList(activeWarnings);
+      updateHighestAlert();
+    } else {
+      console.log(`⚠️ Skipping duplicate INIT warning: ${warning.id}`);
+    }
     return;
   }
 
@@ -3487,10 +3561,12 @@ function processNewWarning(warning, action, isUpdate, currentVersion) {
   // Check if warning already exists in activeWarnings
   const existingIndex = activeWarnings.findIndex((w) => w.id === warning.id);
   if (existingIndex >= 0) {
-    // Update existing warning
+    // Update existing warning instead of adding a duplicate
+    console.log(`🔄 Updating existing warning: ${warning.id}`);
     activeWarnings[existingIndex] = warning;
   } else {
     // Add new warning
+    console.log(`➕ Adding new warning: ${warning.id}`);
     activeWarnings.push(warning);
   }
 
@@ -3553,7 +3629,6 @@ function cancelAlert(id) {
     updateActiveAlertText();
     updateHighestAlert();
     updateAlertBar();
-
     // Set the thinbg glow style when no warnings active
     if (alertBar) {
       alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
@@ -3739,10 +3814,32 @@ const clearWarningsButton = document.getElementById("clearWarningsButton");
 
 // Add the click handler
 clearWarningsButton.addEventListener("click", () => {
-  activeWarnings.length = 0;
-  updateWarningList(activeWarnings);
-  updateHighestAlert();
-  updateAlertBar();
+  try {
+    if (!Array.isArray(activeWarnings)) {
+      console.error("activeWarnings is not an array:", activeWarnings);
+      return;
+    }
+
+    activeWarnings.length = 0;
+
+    if (!previousWarnings || !previousWarnings.clear) {
+      console.error("previousWarnings is not a Map:", previousWarnings);
+      return;
+    }
+
+    previousWarnings.clear();
+
+    let highestAlertText = "N/A";
+    updateWarningList(activeWarnings);
+    updateHighestAlert();
+    updateAlertBar();
+    updateCurrentConditions();
+    updateWarningCounters();
+
+    console.log("All warnings cleared.");
+  } catch (err) {
+    console.error("Error clearing warnings:", err);
+  }
 });
 async function rotateCity() {
   const isSpcModeEnabled = document.getElementById("spcModeToggle").checked;
@@ -4200,29 +4297,60 @@ function updateDashboard() {
 
   expirationElement.textContent = `Expires: ${fullFormattedExpirationTime}`;
 
-  // Extract tornado emergency location, if any
-  const tornadoEmergencyLocation = extractTornadoEmergencyLocation(rawText);
+  try {
+    // Extract tornado emergency location, if any
+    const tornadoEmergencyLocation = extractTornadoEmergencyLocation(rawText);
 
-  const counties = formatCountiesTopBar(areaDesc);
+    const counties = formatCountiesTopBar(areaDesc);
 
-  // If tornado emergency found, show that prominently
-  if (tornadoEmergencyLocation) {
-    updateCountiesText(
-      `***TORNADO EMERGENCY FOR ${tornadoEmergencyLocation.toUpperCase()}*** | Counties: ${counties} | Until ${formattedExpirationTime}`,
-      warning
-    );
-  } else {
-    updateCountiesText(
-      `Counties: ${counties} | Until ${formattedExpirationTime}`,
-      warning
-    );
+    // Extract hazard information
+    const threats = warning.threats || warning.properties?.threats || {};
+    const maxWindGust = threats.maxWindGust || "N/A";
+    const maxHailSize = threats.maxHailSize || "N/A";
+    const tornadoDetection = threats.tornadoDetection || "N/A";
+
+    // Create enhanced counties text with hazard information
+    let countiesText = `Counties: ${counties}`;
+
+    // Add hazard information if available
+    if (
+      maxWindGust !== "N/A" ||
+      maxHailSize !== "N/A" ||
+      tornadoDetection !== "N/A"
+    ) {
+      countiesText += " |";
+
+      if (maxWindGust !== "N/A") {
+        countiesText += ` Wind: ${maxWindGust}`;
+      }
+
+      if (maxHailSize !== "N/A") {
+        if (maxWindGust !== "N/A") {
+          countiesText += ",";
+        }
+        countiesText += ` Hail: ${maxHailSize}`;
+      }
+
+      if (tornadoDetection !== "N/A") {
+        if (maxWindGust !== "N/A" || maxHailSize !== "N/A") {
+          countiesText += ",";
+        }
+        countiesText += ` Tornado: ${tornadoDetection}`;
+      }
+    }
+
+    countiesText += ` | Until ${formattedExpirationTime}`;
+
+    updateCountiesText(countiesText, warning);
+
+    eventTypeElement.textContent = eventName;
+    activeAlertsBox.style.display = "block";
+    activeAlertText.textContent = "ACTIVE ALERTS";
+
+    showWarningDashboard();
+  } catch (err) {
+    console.error("Error updating dashboard:", err);
   }
-
-  eventTypeElement.textContent = eventName;
-  activeAlertsBox.style.display = "block";
-  activeAlertText.textContent = "ACTIVE ALERTS";
-
-  showWarningDashboard();
 
   // Rotate index for next call
   currentWarningIndex = (currentWarningIndex + 1) % sortedWarnings.length;
@@ -4299,7 +4427,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 let fetchConditionsActive = false;
 let fetchInterval, rotateInterval;
-
 document
   .getElementById("animatedToggleButton")
   .addEventListener("click", () => {

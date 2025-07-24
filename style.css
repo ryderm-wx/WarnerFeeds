@@ -3197,6 +3197,14 @@ button:active {
   }
 }
 
+.notification-description {
+  white-space: pre-line;
+  font-family: "Saira Condensed", sans-serif;
+  color: white;
+  margin-top: 10px;
+  font-size: 1.1em;
+}
+
 .notification-popup {
   position: fixed;
   bottom: 125px;
@@ -3213,7 +3221,6 @@ button:active {
     inset 0 0 60px rgba(255, 255, 255, 0.1), 0 0 15px rgba(0, 0, 0, 0.5);
 
   /* Smooth celestial transitions */
-  transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 
   overflow: hidden;
   white-space: normal;
