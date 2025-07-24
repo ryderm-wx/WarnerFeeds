@@ -1264,7 +1264,7 @@ function showNotification(
   currentVersion // Passed as an argument, usually from NWSheadline or properties.sent
 ) {
   const eventName = getEventName(warning);
-  const warningId = getCoreAlertId(warning.id); // Use the core ID instead
+  const warningId = warning.id.trim().toUpperCase();
 
   // Determine the CAP-style action, falling back to SSE event type if none.
   // This `alertAction` is primarily for logging and understanding the message intent.
@@ -3371,7 +3371,7 @@ function TacticalMode(alerts, type = "NEW") {
       return;
     }
 
-    const id = getCoreAlertId(alert.id); // Replace with core ID
+    const id = alert.id || alert.properties?.id || alert.eventCode || null;
     const eventName = getEventName(alert);
 
     if (!id) {
@@ -3461,7 +3461,7 @@ function TacticalMode(alerts, type = "NEW") {
   console.log("📦 Active Warnings Summary:");
   console.table(
     activeWarnings.map((w) => ({
-      ID: getCoreAlertId(w.id),
+      ID: w.id,
       Event: getEventName(w),
       Polygon: !!(
         w.polygon?.type === "Polygon" && Array.isArray(w.polygon.coordinates)
@@ -3506,27 +3506,9 @@ function updateActiveWarningsList() {
   updateHighestAlert();
 }
 
-function getCoreAlertId(id) {
-  if (!id) return "";
-
-  // If the ID contains a dash, extract everything before it
-  const dashIndex = id.indexOf("-");
-  if (dashIndex !== -1) {
-    return id.substring(0, dashIndex).trim().toUpperCase();
-  }
-
-  // If no dash found, return the original ID (trimmed and uppercase)
-  return id.trim().toUpperCase();
-}
-
-// Modify the processNewWarning function to properly check for duplicates
 function processNewWarning(warning, action, isUpdate, currentVersion) {
   // Set default action if not provided
   const actionType = action ? action.toUpperCase() : "NEW";
-
-  // Store original ID and get core ID
-  warning.originalId = warning.id;
-  warning.id = getCoreAlertId(warning.id);
 
   // For INIT alerts, add them to activeWarnings but don't show notifications
   if (actionType === "INIT") {
@@ -3537,19 +3519,15 @@ function processNewWarning(warning, action, isUpdate, currentVersion) {
       activeWarnings = [];
     }
 
-    // Check if this warning (by core ID) already exists in the active warnings
-    const existingIndex = activeWarnings.findIndex((w) => w.id === warning.id);
-    if (existingIndex === -1) {
-      // Only add if it doesn't already exist
+    // Add to active warnings if not already there
+    if (!activeWarnings.some((w) => w.id === warning.id)) {
       activeWarnings.push(warning);
-
-      // Update UI without notifications
-      updateWarningCounters(warning);
-      updateWarningList(activeWarnings);
-      updateHighestAlert();
-    } else {
-      console.log(`⚠️ Skipping duplicate INIT warning: ${warning.id}`);
     }
+
+    // Update UI without notifications
+    updateWarningCounters(warning);
+    updateWarningList(activeWarnings);
+    updateHighestAlert();
     return;
   }
 
@@ -3561,12 +3539,10 @@ function processNewWarning(warning, action, isUpdate, currentVersion) {
   // Check if warning already exists in activeWarnings
   const existingIndex = activeWarnings.findIndex((w) => w.id === warning.id);
   if (existingIndex >= 0) {
-    // Update existing warning instead of adding a duplicate
-    console.log(`🔄 Updating existing warning: ${warning.id}`);
+    // Update existing warning
     activeWarnings[existingIndex] = warning;
   } else {
     // Add new warning
-    console.log(`➕ Adding new warning: ${warning.id}`);
     activeWarnings.push(warning);
   }
 
