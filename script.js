@@ -148,19 +148,6 @@ const cancelTypes = [
   "EXPIRE_BEFORE_OPEN",
 ];
 
-function getCoreAlertId(alertId) {
-  if (!alertId) return alertId;
-
-  // If the ID contains a hyphen, extract only the part before the hyphen
-  const hyphenIndex = alertId.indexOf("-");
-  if (hyphenIndex !== -1) {
-    return alertId.substring(0, hyphenIndex).trim();
-  }
-
-  // If no hyphen exists, return the original ID
-  return alertId.trim();
-}
-
 function initAlertStream() {
   console.log("🔛 Tactical Alert Stream Engaged!");
 
@@ -1277,7 +1264,7 @@ function showNotification(
   currentVersion // Passed as an argument, usually from NWSheadline or properties.sent
 ) {
   const eventName = getEventName(warning);
-  const warningId = getCoreAlertId(warning.id.trim().toUpperCase());
+  const warningId = warning.id.trim().toUpperCase();
 
   // Determine the CAP-style action, falling back to SSE event type if none.
   // This `alertAction` is primarily for logging and understanding the message intent.
@@ -3384,12 +3371,7 @@ function TacticalMode(alerts, type = "NEW") {
       return;
     }
 
-    // Get the raw ID first
-    const rawId = alert.id || alert.properties?.id || alert.eventCode || null;
-
-    // Then process it with getCoreAlertId to remove UGC codes
-    const id = rawId ? getCoreAlertId(rawId) : null;
-
+    const id = alert.id || alert.properties?.id || alert.eventCode || null;
     const eventName = getEventName(alert);
 
     if (!id) {
@@ -3440,9 +3422,7 @@ function TacticalMode(alerts, type = "NEW") {
       return;
     }
 
-    // When normalizing the alert, store the core ID
     const normalized = normalizeAlert(alert);
-    normalized.id = id; // Ensure we're using the core ID consistently
 
     if (!window.previousWarnings.has(id)) {
       console.log(`📝 Adding to previousWarnings: ${eventName} (${id})`);
@@ -3492,6 +3472,7 @@ function TacticalMode(alerts, type = "NEW") {
 
   console.log(`✅ [Done] ${activeWarnings.length} active warnings in memory`);
 }
+
 function isWarningExpired(warning) {
   if (!warning || !warning.properties || !warning.properties.expires) {
     return false;
