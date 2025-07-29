@@ -10,6 +10,7 @@ const eventTypes = {
     "severe-thunderstorm-considerable",
   "Destructive Severe Thunderstorm Warning": "pds-severe-thunderstorm-warning",
   "Flash Flood Warning": "flash-flood-warning",
+  "Considerable Flash Flood Warning": "considerable-flash-flood-warning",
   "Flash Flood Emergency": "flash-flood-emergency",
   "Tornado Watch": "tornado-watch",
   "Severe Thunderstorm Watch": "severe-thunderstorm-watch",
@@ -24,6 +25,9 @@ const eventTypes = {
   "Wind Advisory": "wind-advisory",
   "Dense Fog Advisory": "dense-fog-advisory",
   "Snow Squall Warning": "snow-squall-warning",
+  "Extreme Heat Warning": "extreme-heat-warning",
+  "Extreme Heat Watch": "extreme-heat-watch",
+  "Heat Advisory": "heat-advisory",
 };
 
 const priority = {
@@ -42,17 +46,21 @@ const priority = {
   "Tornado Watch": 13,
   "Severe Thunderstorm Watch": 14,
   "Flash Flood Emergency": 15,
-  "Flash Flood Warning": 16,
-  "Snow Squall Warning": 17,
-  "Blizzard Warning": 18,
-  "Ice Storm Warning": 19,
-  "Winter Storm Warning": 20,
-  "Winter Storm Watch": 21,
-  "Winter Weather Advisory": 22,
-  "High Wind Warning": 23,
-  "High Wind Watch": 24,
-  "Wind Advisory": 25,
-  "Dense Fog Advisory": 26,
+  "Considerable Flash Flood Warning": 16,
+  "Flash Flood Warning": 17,
+  "Snow Squall Warning": 18,
+  "Blizzard Warning": 19,
+  "Ice Storm Warning": 20,
+  "Winter Storm Warning": 21,
+  "Winter Storm Watch": 22,
+  "Winter Weather Advisory": 23,
+  "High Wind Warning": 24,
+  "High Wind Watch": 25,
+  "Wind Advisory": 26,
+  "Dense Fog Advisory": 27,
+  "Extreme Heat Warning": 28,
+  "Extreme Heat Watch": 29,
+  "Heat Advisory": 30,
 };
 
 const STATE_FIPS_TO_ABBR = {
@@ -275,10 +283,14 @@ function createCheckboxes() {
     { value: "Ice Storm Warning", category: "winter" },
     { value: "Blizzard Warning", category: "winter" },
     { value: "Flash Flood Emergency", category: "flood" },
+    { value: "Considerable Flash Flood Warning", category: "flood" },
     { value: "High Wind Warning", category: "wind" },
     { value: "High Wind Watch", category: "wind" },
     { value: "Wind Advisory", category: "wind" },
     { value: "Dense Fog Advisory", category: "other" },
+    { value: "Extreme Heat Warning", category: "other" },
+    { value: "Extreme Heat Watch", category: "other" },
+    { value: "Heat Advisory", category: "other" },
   ];
 
   const container = document.getElementById("checkboxContainer");
@@ -292,7 +304,7 @@ function createCheckboxes() {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.value = alert.value;
-    input.checked = true; // Default to checked
+    input.checked = alert.checked === undefined ? true : alert.checked; // Default to checked unless specified
 
     const span = document.createElement("span");
     span.className = "checkmark";
@@ -319,12 +331,73 @@ function updateSelectedAlerts() {
   const checkedBoxes = document.querySelectorAll(
     "#checkboxContainer input:checked"
   );
-  selectedAlerts = new Set(Array.from(checkedBoxes).map((cb) => cb.value));
-  console.log("Selected alerts updated:", Array.from(selectedAlerts));
+  // Store new selection without immediately applying it
+  const newSelectedAlerts = new Set(
+    Array.from(checkedBoxes).map((cb) => cb.value)
+  );
+
+  // Check if selections have changed
+  const currentSelectionString = JSON.stringify(
+    Array.from(selectedAlerts).sort()
+  );
+  const newSelectionString = JSON.stringify(
+    Array.from(newSelectedAlerts).sort()
+  );
+
+  if (currentSelectionString !== newSelectionString) {
+    // Show apply button only when there are actual changes
+    showApplyButton(newSelectedAlerts);
+  }
+
+  console.log("Selected alerts ready to apply:", Array.from(newSelectedAlerts));
 }
 
-// Call this function when the page loads
+function showApplyButton(newAlerts) {
+  // Remove existing button if present
+  const existingButton = document.getElementById("applyChangesButton");
+  if (existingButton) {
+    existingButton.remove();
+  }
 
+  // Create the apply button
+  const applyButton = document.createElement("button");
+  applyButton.id = "applyChangesButton";
+  applyButton.className = "apply-changes-button";
+  applyButton.textContent = "Apply Alert Changes";
+
+  // Add pulsing animation class
+  applyButton.classList.add("pulse-animation");
+
+  // Add click handler
+  applyButton.addEventListener("click", () => {
+    // Update the actual selectedAlerts with the new selection
+    selectedAlerts = newAlerts;
+
+    // Clear activeWarnings and previousWarnings
+    activeWarnings.length = 0;
+    previousWarnings.clear();
+
+    // Get the alert bar element
+    const alertBar = document.querySelector(".alert-bar");
+
+    if (alertBar) {
+      alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
+      alertBar.classList.add("thinbg-glow"); // Optional if you have a CSS class for the glow
+    }
+
+    // Call initAlertStream to apply changes
+    initAlertStream();
+
+    // Remove the button after applying
+    applyButton.remove();
+
+    console.log("Changes applied! Alert stream reinitialized.");
+  });
+
+  // Add button to the page (after checkbox container)
+  const container = document.getElementById("checkboxContainer");
+  container.parentNode.insertBefore(applyButton, container.nextSibling);
+}
 /**
  * Extract the core identifier from a VTEC string or alert object
  * @param {string|object} input - VTEC string or alert object with VTEC
@@ -819,6 +892,9 @@ function testNotification(eventName) {
   } else if (eventName === "Flash Flood Emergency") {
     parameters.threats.flashFloodDamageThreat = ["CATASTROPHIC"];
     eventName = "Flash Flood Warning";
+  } else if (eventName === "Considerable Flash Flood Warning") {
+    parameters.threats.flashFloodDamageThreat = ["CONSIDERABLE"];
+    eventName = "Flash Flood Warning";
   }
 
   // Generate a description string that includes the SOURCE and HAZARD
@@ -1215,8 +1291,10 @@ function getEventName(alert) {
 
   // 🌊 Flash Flood logic
   if (event.includes("Flash Flood Warning")) {
-    if (flashFloodDamageThreat === "CATASTROPHIC")
-      return "Flash Flood Emergency";
+    const floodthreat = (flashFloodDamageThreat || "").toUpperCase();
+    if (floodthreat === "CATASTROPHIC") return "Flash Flood Emergency";
+    if (floodthreat === "CONSIDERABLE")
+      return "Considerable Flash Flood Warning";
     return "Flash Flood Warning";
   }
 
@@ -1481,7 +1559,6 @@ function showNotification(
 
   // Display the notification
   displayNotification(warning, notificationType, emergencyText);
-  updateDashboard();
 }
 
 function getSoundForEvent(eventName, notificationType) {
@@ -1497,7 +1574,8 @@ function getSoundForEvent(eventName, notificationType) {
     if (eventName.includes("PDS Tornado Warning")) return "TorPDSSound";
     if (eventName.includes("Tornado Warning")) return "TorIssSound";
     if (eventName.includes("Destructive")) return "PDSSVRSound";
-    if (eventName.includes("Considerable")) return "SVRCNEWSound";
+    if (eventName.includes("Considerable Severe Thunderstorm Warning"))
+      return "SVRCNEWSound";
     if (eventName.includes("Severe Thunderstorm Warning")) return "SVRCSound";
     if (eventName.includes("Tornado Watch")) return "TOAWatch";
     if (eventName.includes("Severe Thunderstorm Watch")) return "SVAWatch";
@@ -1744,12 +1822,13 @@ function showNotificationElement(warning, notificationType, emergencyText) {
 
   if (allowedTornadoAlerts.includes(nameLC)) {
     const haz = (
-      description.match(/HAZARD\.{3}\s*([^\n\r]*)/i)?.[1] ||
+      description.match(/HAZARD\.{3}\s*(.*?)(?=SOURCE\.{3}|$)/is)?.[1] ||
       warning.tornadoDamageThreat ||
       "N/A"
     ).trim();
+
     const src = (
-      description.match(/SOURCE\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
+      description.match(/SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is)?.[1] || "N/A"
     ).trim();
 
     const getHazardEmoji = (hazard) => {
@@ -1788,16 +1867,18 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   // Severe thunderstorm wind/hail info
   if (eventName.toLowerCase().includes("severe thunderstorm warning")) {
     const haz = (
-      description.match(/HAZARD\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
+      description.match(/HAZARD\.{3}\s*(.*?)(?=SOURCE\.{3}|$)/is)?.[1] || "N/A"
     ).trim();
+
     const src = (
-      description.match(/SOURCE\.{3}\s*([^\n\r]*)/i)?.[1] || "N/A"
+      description.match(/SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is)?.[1] || "N/A"
     ).trim();
     const tornadoDetection = warning.threats?.tornadoDetection || "N/A";
 
     const wh = document.createElement("div");
     wh.className = "wind-hail-info";
     wh.style.lineHeight = "1.2";
+    wh.style.fontSize = "1.6em";
     if (isSpecialWeatherStatement) {
       wh.style.color = "black";
     }
@@ -2108,6 +2189,7 @@ function updateAlertBar() {
     activeAlertsBox.style.display = "none";
     semicircle.style.background =
       "linear-gradient(to right, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%)";
+    updateDashboard();
   } else if (highestAlert.alert) {
     alertText.textContent = currentText;
     // Set text color to black if it's a Special Weather Statement
@@ -2123,6 +2205,7 @@ function updateAlertBar() {
     activeAlertsBox.style.display = "block";
     semicircle.style.background =
       "linear-gradient(to right, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%)";
+    updateDashboard();
   } else {
     alertText.textContent = "No valid alert found.";
     alertText.style.color = ""; // Reset to default color
@@ -2256,7 +2339,7 @@ function displayWarningDetails(warning) {
   content.appendChild(closeButton);
 
   // Header & title
-  const eventName = warning.eventName || getEventName(warning);
+  const eventName = getEventName(warning);
   const eventClass = eventTypes[eventName] || "unknown-event";
   content.className = `warning-detail-content ${eventClass}`;
 
@@ -2518,6 +2601,7 @@ function getWarningEmoji(eventName) {
     "Considerable Severe Thunderstorm Warning": "⚡⛈️",
     "Destructive Severe Thunderstorm Warning": "💥⛈️",
     "Flash Flood Warning": "🌊",
+    "Considerable Flash Flood Warning": "🌊⚠️",
     "Flash Flood Emergency": "🚨🌊",
     "Flood Warning": "💧",
     "Flood Advisory": "💦",
@@ -2528,6 +2612,9 @@ function getWarningEmoji(eventName) {
     "Special Weather Statement": "ℹ️",
     "Tornado Watch": "👀🌪️",
     "Severe Thunderstorm Watch": "👀⛈️",
+    "Extreme Heat Warning": "🌡️",
+    "Extreme Heat Watch": "🫠",
+    "Heat Advisory": "🔥",
   };
 
   return emojiMap[eventName] || "⚠️";
@@ -2650,6 +2737,7 @@ function getAlertColor(eventName) {
     "Considerable Severe Thunderstorm Warning": "#FF8000",
     "Destructive Severe Thunderstorm Warning": "#FF8000",
     "Flash Flood Warning": "#228B22",
+    "Considerable Flash Flood Warning": "#228B22", // Same color as flash flood warning
     "Flash Flood Emergency": "#8B0000",
     "Tornado Watch": "#8B0000",
     "Severe Thunderstorm Watch": "#DB7093",
@@ -2666,9 +2754,12 @@ function getAlertColor(eventName) {
     "Freezing Fog Advisory": "#008080",
     "Dense Fog Advisory": "#708090",
     "Dust Advisory": "#BDB76B",
+    "Extreme Heat Warning": "#C71585",
+    "Extreme Heat Watch": "#800000",
+    "Heat Advisory": "#FF4500",
   };
 
-  return colorMap[eventName] || "rgba(255, 255, 255, 0.9)";
+  return colorMap[eventName] || "rgba(85, 84, 165, 0.9)";
 }
 
 const audioElements = {
@@ -2943,6 +3034,7 @@ function updateWarningList(warnings) {
     "Considerable Severe Thunderstorm Warning",
     "Severe Thunderstorm Warning",
     "Flash Flood Warning",
+    "Considerable Flash Flood Warning",
     "Flash Flood Emergency",
     "Snow Squall Warning",
     "Tornado Watch",
@@ -2956,6 +3048,9 @@ function updateWarningList(warnings) {
     "Wind Advisory",
     "Dense Fog Advisory",
     "Special Weather Statement",
+    "Extreme Heat Warning",
+    "Extreme Heat Watch",
+    "Heat Advisory",
   ];
 
   const warningGroupsContainer = document.createElement("div");
@@ -3032,7 +3127,7 @@ function createWarningCard(warning, index) {
   const props = warning.properties || warning;
 
   // eventName may exist at root or inside properties
-  const eventName = warning.eventName || props.event || "Unknown Event";
+  const eventName = getEventName(warning) || props.eventName || "Unknown Event";
 
   // counties can be array at root or string in properties.areaDesc
   const counties = Array.isArray(warning.counties)
@@ -3797,14 +3892,17 @@ clearWarningsButton.addEventListener("click", () => {
     }
 
     activeWarnings.length = 0;
-
+    previousWarnings.length = 0;
     if (!previousWarnings || !previousWarnings.clear) {
       console.error("previousWarnings is not a Map:", previousWarnings);
       return;
     }
 
     previousWarnings.clear();
-
+    if (alertBar) {
+      alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
+      alertBar.classList.add("thinbg-glow"); // Optional if you have a CSS class for the glow
+    }
     let highestAlertText = "N/A";
     updateWarningList(activeWarnings);
     updateHighestAlert();
@@ -4284,7 +4382,7 @@ function updateDashboard() {
     const maxWindGust = threats.maxWindGust || "N/A";
     const maxHailSize = threats.maxHailSize || "N/A";
     const tornadoDetection = threats.tornadoDetection || "N/A";
-
+    const tornadoDamageThreat = threats.tornadoDamageThreat || "N/A";
     // Create enhanced counties text with hazard information
     let countiesText = `Counties: ${counties}`;
 
@@ -4311,7 +4409,13 @@ function updateDashboard() {
         if (maxWindGust !== "N/A" || maxHailSize !== "N/A") {
           countiesText += ",";
         }
-        countiesText += ` Tornado: ${tornadoDetection}`;
+
+        // Only add tornadoDamageThreat if it's not null or N/A
+        if (tornadoDamageThreat && tornadoDamageThreat !== "N/A") {
+          countiesText += ` Tornado: ${tornadoDetection}, ${tornadoDamageThreat}`;
+        } else {
+          countiesText += ` Tornado: ${tornadoDetection}`;
+        }
       }
     }
 
