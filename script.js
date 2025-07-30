@@ -734,6 +734,107 @@ function notifyWarningExpired(eventName, warningId, areaDesc = "N/A") {
   };
 }
 
+/**
+ * Test a warning upgrade scenario by creating an initial warning and then upgrading it
+ * @param {string} initialType - The initial warning type
+ * @param {string} upgradedType - The upgraded warning type
+ */
+function testUpgradeNotification(type) {
+  const testId = `TEST-${Date.now()}`;
+  const typeUpper = type.toUpperCase();
+
+  const warning = createTestWarning(type, testId);
+  warning.properties.action = "UPDATE";
+  warning.forceUpgrade = true;
+
+  // Damage threats
+  if (typeUpper.includes("TORNADO WARNING")) {
+    if (typeUpper.includes("PDS")) {
+      warning.properties.parameters.tornadoDamageThreat = ["CONSIDERABLE"];
+    } else if (typeUpper.includes("EMERGENCY")) {
+      warning.properties.parameters.tornadoDamageThreat = ["CATASTROPHIC"];
+    }
+  } else if (typeUpper.includes("SEVERE THUNDERSTORM WARNING")) {
+    if (typeUpper.includes("CONSIDERABLE")) {
+      warning.properties.parameters.thunderstormDamageThreat = ["CONSIDERABLE"];
+    } else if (typeUpper.includes("DESTRUCTIVE")) {
+      warning.properties.parameters.thunderstormDamageThreat = ["DESTRUCTIVE"];
+    }
+  }
+
+  console.log(`🚀 Sending single forced upgrade: ${type} with ID ${testId}`);
+
+  showNotification(warning, "UPDATE", Date.now().toString());
+}
+
+function createTestWarning(eventType, id = null) {
+  const eventTypeUpper = eventType.toUpperCase();
+
+  const warning = {
+    id: id || `TEST-${Date.now()}`,
+    type: "Feature",
+    properties: {
+      event: eventType,
+      headline: `Test ${eventType}`,
+      description: `This is a test ${eventType.toLowerCase()} for demonstration purposes.`,
+      instruction: getCallToAction(eventType),
+      severity: "Severe",
+      certainty: "Observed",
+      urgency: "Immediate",
+      effective: new Date().toISOString(),
+      onset: new Date().toISOString(),
+      expires: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      status: "Actual",
+      messageType: "Alert",
+      category: "Met",
+      response: "Shelter",
+      parameters: {
+        VTEC: ["/O.NEW.KXXX.TO.W.0123.230815T1800Z-230815T1845Z/"],
+        EAS_ORG: ["WXR"],
+        SAME: [""],
+        SenderName: ["NATIONAL WEATHER SERVICE"],
+        NWSheadline: [`TEST ${eventType.toUpperCase()}`],
+      },
+      areaDesc: "Test County",
+      geocode: {
+        SAME: ["012345"],
+        UGC: ["MIZ000"],
+      },
+      affectedZones: ["MIZ000"],
+      action: "NEW",
+    },
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-85, 43],
+          [-84, 43],
+          [-84, 44],
+          [-85, 44],
+          [-85, 43],
+        ],
+      ],
+    },
+  };
+
+  // Add proper threat tags
+  if (eventTypeUpper.includes("TORNADO WARNING")) {
+    if (eventTypeUpper.includes("PDS")) {
+      warning.properties.parameters.tornadoDamageThreat = ["CONSIDERABLE"];
+    } else if (eventTypeUpper.includes("EMERGENCY")) {
+      warning.properties.parameters.tornadoDamageThreat = ["CATASTROPHIC"];
+    }
+  } else if (eventTypeUpper.includes("SEVERE THUNDERSTORM WARNING")) {
+    if (eventTypeUpper.includes("CONSIDERABLE")) {
+      warning.properties.parameters.thunderstormDamageThreat = ["CONSIDERABLE"];
+    } else if (eventTypeUpper.includes("DESTRUCTIVE")) {
+      warning.properties.parameters.thunderstormDamageThreat = ["DESTRUCTIVE"];
+    }
+  }
+
+  return warning;
+}
+
 function testNotification(eventName) {
   const expirationDate = new Date();
   expirationDate.setMinutes(expirationDate.getMinutes() + 30);
@@ -1358,6 +1459,17 @@ function showNotification(
   let isNew = false;
   let isUpdated = false;
   let notificationType = "NEW WEATHER ALERT"; // Default for alerts that will be shown
+  if (warning.forceUpgrade === true) {
+    console.log(`⚡ Brute-forcing ALERT UPGRADED for ID ${warningId}`);
+    isUpdated = true;
+    notificationType = "ALERT UPGRADED";
+
+    // 🛑 short-circuit to skip the rest
+    previousWarnings.set(warningId, warning);
+    notifiedWarnings.set(warningId, currentVersion);
+    displayNotification(warning, notificationType, emergencyText);
+    return;
+  }
 
   // 1. INIT alerts are special: always store, never notify explicitly
   if (sseEventType.toUpperCase() === "INIT") {
@@ -1850,6 +1962,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
 
     const hs = document.createElement("div");
     hs.className = "hazard-source-info";
+    hs.style.fontWeight = "400";
     if (isSpecialWeatherStatement) {
       hs.style.color = "black";
     }
@@ -1861,7 +1974,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
         src
       )}${src}${getSourceEmoji(src)}</div>
     `;
-    notification.appendChild(hs);
+    notification.appendChild(hs); 
   }
 
   // Severe thunderstorm wind/hail info

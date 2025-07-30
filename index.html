@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Weather Warning Dashboard</title>
     <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@100;200;300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div class="content">
@@ -68,7 +74,25 @@
 
           <div class="test-buttons" id="testButtons">
             <h3>Test Notifications</h3>
+            <div
+              class="category-divider"
+              data-category="Warning Upgrades"
+            ></div>
+            <div class="button-group">
+              <button
+                class="tornado-special"
+                onclick="testUpgradeNotification('PDS Tornado Warning')"
+              >
+                Test Tornado Warning Upgrade
+              </button>
 
+              <button
+                class="thunderstorm"
+                onclick="testUpgradeNotification('Considerable Severe Thunderstorm Warning')"
+              >
+                Test Severe Thunderstorm Warning Upgrade
+              </button>
+            </div>
             <div
               class="category-divider"
               data-category="Tornado Warnings"
@@ -217,7 +241,26 @@
                 class="snow-squall"
                 onclick="testNotification('Snow Squall Warning')"
               >
-                Snow Squall Warning
+                Test Snow Squall Warning
+              </button>
+            </div>
+
+            <div class="category-divider" data-category="Heat Alerts"></div>
+            <div class="button-group">
+              <button
+                class="heat"
+                onclick="testNotification('Extreme Heat Warning')"
+              >
+                Test Extreme Heat Warning
+              </button>
+              <button
+                class="heat"
+                onclick="testNotification('Extreme Heat Watch')"
+              >
+                Test Extreme Heat Watch
+              </button>
+              <button class="heat" onclick="testNotification('Heat Advisory')">
+                Test Heat Advisory
               </button>
             </div>
 
