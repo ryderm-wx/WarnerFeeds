@@ -1248,14 +1248,14 @@ body {
   position: relative;
   left: 297px;
   text-align: left;
-  font-size: 1.3em;
+  font-size: 1.6em;
   font-weight: normal;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
   color: white;
   padding: 0px;
   align-items: center;
   z-index: -2;
-  bottom: -7px;
+  bottom: -8px;
 }
 
 /* Warning List Styles - Ultra Modern */
