@@ -258,8 +258,8 @@ function createCheckboxes() {
     { value: "Tornado Warning", category: "tornado" },
     { value: "Radar Confirmed Tornado Warning", category: "tornado" },
     { value: "Spotter Confirmed Tornado Warning", category: "tornado" },
-    { value: "Public Confirmed Tornado Warning", category: "tornado" }, // Law Enforcement
-    { value: "Law Enforcement Confirmed Tornado Warning", category: "tornado" }, // Law Enforcement
+    { value: "Public Confirmed Tornado Warning", category: "tornado" },
+    { value: "Law Enforcement Confirmed Tornado Warning", category: "tornado" },
     { value: "Observed Tornado Warning", category: "tornado" },
     { value: "PDS Tornado Warning", category: "tornado" },
     { value: "Tornado Emergency", category: "tornado" },
@@ -293,9 +293,43 @@ function createCheckboxes() {
     { value: "Heat Advisory", category: "other" },
   ];
 
+  // Load saved alerts from localStorage
+  let savedAlerts = [];
+  try {
+    const savedData = localStorage.getItem("selectedAlerts");
+    if (savedData) {
+      savedAlerts = JSON.parse(savedData);
+      console.log("Loaded saved alerts from localStorage:", savedAlerts);
+    }
+  } catch (error) {
+    console.error("Error loading alerts from localStorage:", error);
+  }
+
   const container = document.getElementById("checkboxContainer");
+  if (!container) {
+    console.error("Checkbox container not found!");
+    return;
+  }
+
   container.className = "checkbox-container";
   container.innerHTML = "";
+
+  // Create category headers for better organization
+  const categories = {};
+  alertTypes.forEach((alert) => {
+    if (!categories[alert.category]) {
+      const categoryDiv = document.createElement("div");
+      categoryDiv.className = `alert-category ${alert.category}-category`;
+
+      const heading = document.createElement("h3");
+      heading.textContent =
+        alert.category.charAt(0).toUpperCase() + alert.category.slice(1);
+      categoryDiv.appendChild(heading);
+
+      container.appendChild(categoryDiv);
+      categories[alert.category] = categoryDiv;
+    }
+  });
 
   alertTypes.forEach((alert) => {
     const label = document.createElement("label");
@@ -304,7 +338,13 @@ function createCheckboxes() {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.value = alert.value;
-    input.checked = alert.checked === undefined ? true : alert.checked; // Default to checked unless specified
+
+    // Use saved settings if available, otherwise default to checked
+    if (savedAlerts.length > 0) {
+      input.checked = savedAlerts.includes(alert.value);
+    } else {
+      input.checked = alert.checked === undefined ? true : alert.checked;
+    }
 
     const span = document.createElement("span");
     span.className = "checkmark";
@@ -316,33 +356,90 @@ function createCheckboxes() {
     label.appendChild(input);
     label.appendChild(span);
     label.appendChild(textSpan);
-    container.appendChild(label);
+
+    // Add to appropriate category div
+    categories[alert.category].appendChild(label);
   });
+
+  // Add control buttons at the top
+  const controlsDiv = document.createElement("div");
+  controlsDiv.className = "controls";
+
+  const selectAllBtn = document.createElement("button");
+  selectAllBtn.textContent = "Select All";
+  selectAllBtn.className = "control-btn";
+  selectAllBtn.addEventListener("click", () => {
+    document
+      .querySelectorAll("#checkboxContainer input[type=checkbox]")
+      .forEach((cb) => {
+        cb.checked = true;
+      });
+    updateSelectedAlerts();
+  });
+
+  const clearAllBtn = document.createElement("button");
+  clearAllBtn.textContent = "Clear All";
+  clearAllBtn.className = "control-btn";
+  clearAllBtn.addEventListener("click", () => {
+    document
+      .querySelectorAll("#checkboxContainer input[type=checkbox]")
+      .forEach((cb) => {
+        cb.checked = false;
+      });
+    updateSelectedAlerts();
+  });
+
+  const resetBtn = document.createElement("button");
+  resetBtn.textContent = "Reset to Default";
+  resetBtn.className = "control-btn";
+  resetBtn.addEventListener("click", () => {
+    localStorage.removeItem("selectedAlerts");
+    createCheckboxes(); // Recreate checkboxes with defaults
+  });
+
+  controlsDiv.appendChild(selectAllBtn);
+  controlsDiv.appendChild(clearAllBtn);
+  controlsDiv.appendChild(resetBtn);
+  container.insertBefore(controlsDiv, container.firstChild);
 
   // Set up the selected alerts based on checked boxes
   updateSelectedAlerts();
 
   // Add event listener to update selected alerts when checkboxes change
   container.addEventListener("change", updateSelectedAlerts);
-  console.log("Checkboxes created.");
+  console.log(
+    "Checkboxes created with",
+    savedAlerts.length > 0 ? "saved configuration" : "default settings"
+  );
 }
 
 function updateSelectedAlerts() {
   const checkedBoxes = document.querySelectorAll(
     "#checkboxContainer input:checked"
   );
+
+  if (!checkedBoxes) {
+    console.error("No checkboxes found!");
+    return;
+  }
+
   // Store new selection without immediately applying it
   const newSelectedAlerts = new Set(
     Array.from(checkedBoxes).map((cb) => cb.value)
   );
 
   // Check if selections have changed
-  const currentSelectionString = JSON.stringify(
-    Array.from(selectedAlerts).sort()
-  );
-  const newSelectionString = JSON.stringify(
-    Array.from(newSelectedAlerts).sort()
-  );
+  let currentSelectionArray = [];
+  try {
+    currentSelectionArray = Array.from(selectedAlerts || []).sort();
+  } catch (e) {
+    console.warn("Error getting current selections, may be first run:", e);
+  }
+
+  const newSelectionArray = Array.from(newSelectedAlerts).sort();
+
+  const currentSelectionString = JSON.stringify(currentSelectionArray);
+  const newSelectionString = JSON.stringify(newSelectionArray);
 
   if (currentSelectionString !== newSelectionString) {
     // Show apply button only when there are actual changes
@@ -370,34 +467,200 @@ function showApplyButton(newAlerts) {
 
   // Add click handler
   applyButton.addEventListener("click", () => {
-    // Update the actual selectedAlerts with the new selection
-    selectedAlerts = newAlerts;
+    try {
+      // Update the actual selectedAlerts with the new selection
+      selectedAlerts = newAlerts;
 
-    // Clear activeWarnings and previousWarnings
-    activeWarnings.length = 0;
-    previousWarnings.clear();
+      // Save to localStorage
+      localStorage.setItem(
+        "selectedAlerts",
+        JSON.stringify(Array.from(newAlerts))
+      );
+      console.log(
+        "Saved alert settings to localStorage:",
+        Array.from(newAlerts)
+      );
 
-    // Get the alert bar element
-    const alertBar = document.querySelector(".alert-bar");
+      // Clear activeWarnings and previousWarnings
+      if (Array.isArray(activeWarnings)) {
+        activeWarnings.length = 0;
+      } else {
+        console.warn("activeWarnings is not an array");
+        window.activeWarnings = [];
+      }
 
-    if (alertBar) {
-      alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
-      alertBar.classList.add("thinbg-glow"); // Optional if you have a CSS class for the glow
+      if (previousWarnings && typeof previousWarnings.clear === "function") {
+        previousWarnings.clear();
+      } else {
+        console.warn("previousWarnings is not a Map or Set");
+        window.previousWarnings = new Map();
+      }
+
+      // Get the alert bar element
+      const alertBar = document.querySelector(".alert-bar");
+      if (alertBar) {
+        alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
+        alertBar.classList.add("thinbg-glow");
+      }
+
+      // Show success message
+      const successMsg = document.createElement("div");
+      successMsg.className = "success-message";
+      successMsg.textContent = "Alert settings saved!";
+      document.body.appendChild(successMsg);
+
+      setTimeout(() => {
+        successMsg.classList.add("show");
+        setTimeout(() => {
+          successMsg.classList.remove("show");
+          setTimeout(() => {
+            successMsg.remove();
+          }, 300);
+        }, 2000);
+      }, 10);
+
+      // Call initAlertStream to apply changes
+      if (typeof initAlertStream === "function") {
+        initAlertStream();
+      } else {
+        console.error("initAlertStream function not found");
+      }
+
+      // Remove the button after applying
+      applyButton.remove();
+      console.log("Changes applied! Alert stream reinitialized.");
+    } catch (error) {
+      console.error("Error applying changes:", error);
     }
-
-    // Call initAlertStream to apply changes
-    initAlertStream();
-
-    // Remove the button after applying
-    applyButton.remove();
-
-    console.log("Changes applied! Alert stream reinitialized.");
   });
 
   // Add button to the page (after checkbox container)
   const container = document.getElementById("checkboxContainer");
-  container.parentNode.insertBefore(applyButton, container.nextSibling);
+  if (container && container.parentNode) {
+    container.parentNode.insertBefore(applyButton, container.nextSibling);
+  } else {
+    console.error("Could not find appropriate place to add apply button");
+  }
 }
+
+// Load saved alerts when the page loads
+document.addEventListener("DOMContentLoaded", function () {
+  // Initialize selectedAlerts if not already defined
+  if (typeof selectedAlerts === "undefined") {
+    try {
+      const savedData = localStorage.getItem("selectedAlerts");
+      if (savedData) {
+        window.selectedAlerts = new Set(JSON.parse(savedData));
+      } else {
+        window.selectedAlerts = new Set();
+      }
+    } catch (error) {
+      console.error("Error initializing selectedAlerts:", error);
+      window.selectedAlerts = new Set();
+    }
+  }
+
+  // Create checkboxes if the container exists
+  if (document.getElementById("checkboxContainer")) {
+    createCheckboxes();
+  }
+});
+
+// Add some CSS for the new elements
+const styleElement = document.createElement("style");
+styleElement.textContent = `
+  .alert-category {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+  
+  .alert-category h3 {
+    margin-top: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+  }
+  
+  .tornado-category h3 { color: #ff6666; }
+  .thunderstorm-category h3 { color: #ffaa00; }
+  .flood-category h3 { color: #66cc66; }
+  .winter-category h3 { color: #aaaaff; }
+  .wind-category h3 { color: #66ccff; }
+  .other-category h3 { color: #cccccc; }
+  
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    justify-content: center;
+  }
+  
+  .control-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #444;
+    color: white;
+    transition: all 0.3s;
+  }
+  
+  .control-btn:hover {
+    background-color: #666;
+    transform: translateY(-2px);
+  }
+  
+  .apply-changes-button {
+    display: block;
+    margin: 15px auto;
+    padding: 10px 20px;
+    background: linear-gradient(to right, #4CAF50, #2E7D32);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s;
+  }
+  
+  .apply-changes-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .pulse-animation {
+    animation: pulse 1.5s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  
+  .success-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: rgba(76, 175, 80, 0.9);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateX(200%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+  
+  .success-message.show {
+    transform: translateX(0);
+  }
+`;
+document.head.appendChild(styleElement);
 /**
  * Extract the core identifier from a VTEC string or alert object
  * @param {string|object} input - VTEC string or alert object with VTEC
@@ -1087,49 +1350,72 @@ function normalizeAlert(alert) {
   };
 }
 
-function updateWarningCounters(warning) {
-  if (!warning || !warning.properties || !warning.properties.event) {
+function updateWarningCounters(activeWarnings) {
+  if (!activeWarnings || !Array.isArray(activeWarnings)) {
     console.warn(
-      "⚠️ updateWarningCounters skipped malformed warning:",
-      warning
+      "⚠️ updateWarningCounters skipped invalid activeWarnings:",
+      activeWarnings
     );
     return;
   }
 
-  const eventType = warning.properties.event;
+  activeWarnings.forEach((warning) => {
+    try {
+      if (typeof warning === "string") {
+        warning = JSON.parse(warning);
+      }
 
-  let tornadoCount = parseInt(
-    tornadoCountElement.textContent.split(":")[1]?.trim() || 0
-  );
-  let thunderstormCount = parseInt(
-    thunderstormCountElement.textContent.split(":")[1]?.trim() || 0
-  );
-  let floodCount = parseInt(
-    floodCountElement.textContent.split(":")[1]?.trim() || 0
-  );
-  let winterWeatherCount = parseInt(
-    winterWeatherCountElement.textContent.split(":")[1]?.trim() || 0
-  );
+      if (!warning || !warning.properties || !warning.properties.event) {
+        console.warn(
+          "⚠️ updateWarningCounters skipped malformed warning:",
+          warning
+        );
+        return;
+      }
 
-  if (eventType.includes("Tornado Warning")) {
-    tornadoCount++;
-    tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
-  } else if (eventType.includes("Severe Thunderstorm Warning")) {
-    thunderstormCount++;
-    thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
-  } else if (eventType.includes("Flash Flood Warning")) {
-    floodCount++;
-    floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
-  } else if (
-    eventType.includes("Winter") ||
-    eventType.includes("Ice") ||
-    eventType.includes("Blizzard")
-  ) {
-    winterWeatherCount++;
-    winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`;
-  }
+      const eventType = warning.properties.event;
+
+      let tornadoCount = parseInt(
+        tornadoCountElement.textContent.split(":")[1]?.trim() || 0
+      );
+      let thunderstormCount = parseInt(
+        thunderstormCountElement.textContent.split(":")[1]?.trim() || 0
+      );
+      let floodCount = parseInt(
+        floodCountElement.textContent.split(":")[1]?.trim() || 0
+      );
+      let winterWeatherCount = parseInt(
+        winterWeatherCountElement.textContent.split(":")[1]?.trim() || 0
+      );
+
+      if (eventType.includes("Tornado Warning")) {
+        tornadoCount++;
+        tornadoCountElement.textContent = `${labels.tornado}: ${tornadoCount}`;
+      } else if (eventType.includes("Severe Thunderstorm Warning")) {
+        thunderstormCount++;
+        thunderstormCountElement.textContent = `${labels.thunderstorm}: ${thunderstormCount}`;
+      } else if (eventType.includes("Flash Flood Warning")) {
+        floodCount++;
+        floodCountElement.textContent = `${labels.flood}: ${floodCount}`;
+      } else if (
+        eventType.includes("Winter") ||
+        eventType.includes("Ice") ||
+        eventType.includes("Blizzard")
+      ) {
+        winterWeatherCount++;
+        winterWeatherCountElement.textContent = `${labels.winter}: ${winterWeatherCount}`;
+      }
+    } catch (e) {
+      console.warn(
+        "⚠️ updateWarningCounters failed to update warning counters:",
+        e
+      );
+    }
+  });
 }
 
+// Or if you're directly processing the data property from your example:
+// updateWarningCounters(eventData.data);
 function updateHighestAlert() {
   const sortedWarnings = [...activeWarnings].sort((a, b) => {
     const priorityA = priority[getEventName(a)] || 999;
@@ -1974,7 +2260,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
         src
       )}${src}${getSourceEmoji(src)}</div>
     `;
-    notification.appendChild(hs); 
+    notification.appendChild(hs);
   }
 
   // Severe thunderstorm wind/hail info
@@ -2295,10 +2581,15 @@ function updateAlertBar() {
   lastAlertColor = currentColor;
   lastWarningsCount = currentCount;
 
+  // Check for custom settings
+  const savedAlertText = localStorage.getItem("customAlertText");
+  const savedAlertBarColor = localStorage.getItem("alertBarColor");
+  const savedEventTypeBarColor = localStorage.getItem("eventTypeBarColor");
+
   if (highestAlert.alert === "N/A" && activeWarnings.length === 0) {
-    alertText.textContent = "MICHIGAN STORM CHASERS";
+    alertText.textContent = savedAlertText || "MICHIGAN STORM CHASERS";
     alertText.style.color = ""; // Reset to default color
-    alertBar.style.backgroundColor = "#1F2593";
+    alertBar.style.backgroundColor = savedAlertBarColor || "#1F2593";
     activeAlertsBox.style.display = "none";
     semicircle.style.background =
       "linear-gradient(to right, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%)";
@@ -3677,7 +3968,7 @@ function TacticalMode(alerts, type = "NEW") {
     }))
   );
   updateWarningList(activeWarnings);
-
+  updateWarningCounters(activeWarnings);
   console.log(`✅ [Done] ${activeWarnings.length} active warnings in memory`);
 }
 
@@ -4137,15 +4428,16 @@ function showNoWarningDashboard() {
     noWarningsBar.classList.add("fade-in");
     noWarningsBar.classList.add("show");
   }
-  const eventTypeBar = document.querySelector(".event-type-bar");
-  eventTypeBar.style.backgroundColor = "#1F2593";
 
-  // Explicitly reset the text color to white
+  const eventTypeBar = document.querySelector(".event-type-bar");
+  const savedEventTypeBarColor = localStorage.getItem("eventTypeBarColor");
+  eventTypeBar.style.backgroundColor = savedEventTypeBarColor || "#1F2593";
+
+  // Explicitly reset the text color to white or use custom settings if available
   const eventTypeElement = document.querySelector("#eventType");
   if (eventTypeElement) {
     eventTypeElement.style.color = "white"; // or "" to use default color
   }
-  document.querySelector(".event-type-bar").style.backgroundColor = "#1F2593";
 }
 
 function showWarningDashboard() {
@@ -4567,6 +4859,102 @@ async function rotateCityWithDelay() {
     if (rotateActive) rotateCityWithDelay();
   }
 }
+
+document.getElementById("customizeButton").addEventListener("click", () => {
+  const panel = document.getElementById("customizationPanel");
+  panel.classList.toggle("hidden");
+});
+
+document.getElementById("saveSettingsButton").addEventListener("click", () => {
+  const logoInput = document.getElementById("logoInput").files[0];
+  const alertText = document.getElementById("alertTextInput").value;
+  const alertBarColor = document.getElementById("alertBarColor").value;
+  const eventTypeBarColor = document.getElementById("eventTypeBarColor").value;
+  const fontInput = document.getElementById("fontInput").files[0];
+  const timeoutDuration = document.getElementById("timeoutSlider").value;
+
+  if (logoInput) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      document.getElementById("pulseLogo").src = e.target.result;
+      localStorage.setItem("customLogo", e.target.result);
+    };
+    reader.readAsDataURL(logoInput);
+  }
+
+  if (fontInput) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const fontFace = new FontFace("CustomFont", e.target.result);
+      fontFace.load().then((loadedFont) => {
+        document.fonts.add(loadedFont);
+        document.body.style.fontFamily = "CustomFont, sans-serif";
+        localStorage.setItem("customFont", e.target.result);
+      });
+    };
+    reader.readAsArrayBuffer(fontInput);
+  }
+
+  document.getElementById("highestAlertText").textContent = alertText;
+  document.querySelector(".alert-bar").style.backgroundColor = alertBarColor;
+  document.querySelector(".event-type-bar").style.backgroundColor =
+    eventTypeBarColor;
+
+  localStorage.setItem("customAlertText", alertText);
+  localStorage.setItem("alertBarColor", alertBarColor);
+  localStorage.setItem("eventTypeBarColor", eventTypeBarColor);
+  localStorage.setItem("timeoutDuration", timeoutDuration);
+
+  alert("Settings saved!");
+});
+
+// Apply saved settings on load
+window.addEventListener("load", () => {
+  const savedLogo = localStorage.getItem("customLogo");
+  const savedFont = localStorage.getItem("customFont");
+  const savedAlertText = localStorage.getItem("customAlertText");
+  const savedAlertBarColor = localStorage.getItem("alertBarColor");
+  const savedEventTypeBarColor = localStorage.getItem("eventTypeBarColor");
+  const savedTimeoutDuration = localStorage.getItem("timeoutDuration");
+
+  if (savedLogo) {
+    document.getElementById("pulseLogo").src = savedLogo;
+  }
+
+  if (savedFont) {
+    const fontFace = new FontFace("CustomFont", savedFont);
+    fontFace.load().then((loadedFont) => {
+      document.fonts.add(loadedFont);
+      document.body.style.fontFamily = "CustomFont, sans-serif";
+    });
+  }
+
+  if (savedAlertText) {
+    if (highestAlert.alert === "N/A" && activeWarnings.length === 0) {
+      document.getElementById("highestAlertText").textContent = savedAlertText;
+
+      alertText.style.color = ""; // Reset to default color
+      activeAlertsBox.style.display = "none";
+      semicircle.style.background =
+        "linear-gradient(to right, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%)";
+      updateDashboard();
+    }
+  }
+
+  if (savedAlertBarColor) {
+    document.querySelector(".alert-bar").style.backgroundColor =
+      savedAlertBarColor;
+  }
+
+  if (savedEventTypeBarColor) {
+    document.querySelector(".event-type-bar").style.backgroundColor =
+      savedEventTypeBarColor;
+  }
+
+  if (savedTimeoutDuration) {
+    document.getElementById("timeoutSlider").value = savedTimeoutDuration;
+  }
+});
 
 document.addEventListener("DOMContentLoaded", () => {
   createCheckboxes();

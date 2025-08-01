@@ -7,10 +7,6 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@100;200;300;400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
   </head>
   <body>
     <div class="content">
@@ -302,7 +298,44 @@
               </button>
             </div>
           </div>
+          <div class="button-group">
+            <button class="test-recent" onclick="testMostRecentAlert()">
+              Test Most Recent Alert
+            </button>
+          </div>
+          <!-- Existing content -->
+          <button id="customizeButton">Customize</button>
+          <div id="customizationPanel" class="hidden">
+            <label for="logoInput">Upload Logo:</label>
+            <input type="file" id="logoInput" accept="image/*" /><br />
 
+            <label for="alertTextInput">Custom Alert Text:</label>
+            <input
+              type="text"
+              id="alertTextInput"
+              placeholder="Enter custom text"
+            /><br />
+
+            <label for="alertBarColor">Alert Bar Color:</label>
+            <input type="color" id="alertBarColor" /><br />
+
+            <label for="eventTypeBarColor">Event Type Bar Color:</label>
+            <input type="color" id="eventTypeBarColor" /><br />
+
+            <label for="fontInput">Upload Font (Coming Soon):</label>
+            <!-- <input type="file" id="fontInput" accept=".ttf, .otf" /><br /> -->
+
+            <label for="timeoutSlider">Timeout Duration (seconds):</label>
+            <input
+              type="range"
+              id="timeoutSlider"
+              min="3"
+              max="30"
+              value="10"
+            /><br />
+
+            <button id="saveSettingsButton">Save Settings</button>
+          </div>
           <!-- ===== SPC / CONDITIONS TOGGLE =================================== -->
           <div class="spc-toggle-container">
             <label class="switch" for="spcModeToggle">
@@ -315,7 +348,6 @@
               <span class="visually-hidden">Toggle SPC Mode</span>
             </label>
           </div>
-          <!-- ================================================================= -->
 
           <div class="container">
             <div class="custom-alert-builder">
