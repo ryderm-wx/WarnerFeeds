@@ -1113,7 +1113,7 @@ body {
 .semicircle {
   position: fixed;
   bottom: 80px;
-  right: 0;
+  right: -5px;
   width: 764px;
   height: 90px;
   background: radial-gradient(
@@ -1234,7 +1234,7 @@ body {
 }
 #highestAlertText {
   position: relative;
-  left: 184px;
+  left: 210px;
   text-align: left;
   font-size: 2.2em;
   font-weight: bold;
