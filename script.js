@@ -3167,48 +3167,20 @@ function getAlertColor(eventName) {
 }
 
 const audioElements = {
-  TorIssSound: new Audio(
-    "https://audio.jukehost.co.uk/ClbCqxfWssr6dlRXqx3lXVqKQPPVeRgQ"
-  ),
-  TorPDSSound: new Audio(
-    "https://audio.jukehost.co.uk/MePPuUhuqZzUMt6vBRqvBYDydDVxNhBi"
-  ),
-  PDSSVRSound: new Audio(
-    "https://audio.jukehost.co.uk/xjwbmhiA8SZPbtkRvIV15dryKrUWDnXP"
-  ),
-  SVRCSound: new Audio(
-    "https://audio.jukehost.co.uk/Xkv300KaF6MJghFS9oQ5BMTWfSDle4IW"
-  ),
-  SVRCNEWSound: new Audio(
-    "https://audio.jukehost.co.uk/cAZ0FjIgLrbX8kxErMb6DAKTq0BwKdlz"
-  ),
-  TORUPG: new Audio(
-    "https://audio.jukehost.co.uk/X242ZLUEUAOXvdr05shOqjt5YBpWLIdg"
-  ),
-  TOREISS: new Audio(
-    "https://audio.jukehost.co.uk/DELgBfmWgrg8lakettLP9mD9nomZaVA3"
-  ),
-  TOAWatch: new Audio(
-    "https://audio.jukehost.co.uk/MZxVbo8EmFP4XP6vTKaGPtUfGIU6IFdK"
-  ),
-  SVAWatch: new Audio(
-    "https://audio.jukehost.co.uk/vOROpwVlXRik9TS2wXvJvtYInR8o2qMQ"
-  ),
-  TorUpdateSound: new Audio(
-    "https://audio.jukehost.co.uk/jeoBTHhj1MqYOke3BPe2rsdShWcAKe5K"
-  ),
-  TorPDSUpdateSound: new Audio(
-    "https://audio.jukehost.co.uk/iUTfKHPTtMU1d8foLsxL4bwoJDM7UnZ1"
-  ),
-  TorEmergencyUpdateSound: new Audio(
-    "https://audio.jukehost.co.uk/pMOZALOjzSE6DmppsYP3DV4enDLVg0I2"
-  ),
-  TorUpgradeSound: new Audio(
-    "https://audio.jukehost.co.uk/X242ZLUEUAOXvdr05shOqjt5YBpWLIdg"
-  ),
-  SvrUpgradeSound: new Audio(
-    "https://audio.jukehost.co.uk/2pBX1txWPzqySYtAlzveXcwRHb1jybGW"
-  ),
+  TorIssSound: new Audio("Sounds/TorIssSound.mp3"),
+  TorPDSSound: new Audio("Sounds/PDSTorIss.mp3"),
+  PDSSVRSound: new Audio("Sounds/SvrDNew.mp3"),
+  SVRCSound: new Audio("Sounds/Chime.wav"),
+  SVRCNEWSound: new Audio("Sounds/SvrCIss.mp3"),
+  TORUPG: new Audio("Sounds/TorUpg.mp3"),
+  TOREISS: new Audio("Sounds/TorEIss.mp3"),
+  TOAWatch: new Audio("Sounds/TOAWatch.mp3"),
+  SVAWatch: new Audio("Sounds/SVAWatch.mp3"),
+  TorUpdateSound: new Audio("Sounds/TorUpg.mp3"),
+  TorPDSUpdateSound: new Audio("Sounds/PDSTorIss.mp3"),
+  TorEmergencyUpdateSound: new Audio("Sounds/TorElss.mp3"),
+  TorUpgradeSound: new Audio("Sounds/TorUpg.mp3"),
+  SvrUpgradeSound: new Audio("Sounds/SvrUpgrade.mp3"),
 };
 
 audioElements.TorPDSSound.volume = 0.4;
