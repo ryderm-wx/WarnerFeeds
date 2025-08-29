@@ -21,13 +21,16 @@ const eventTypes = {
   "Ice Storm Warning": "ice-storm-warning",
   "Blizzard Warning": "blizzard-warning",
   "High Wind Warning": "high-wind-warning",
-  "High Wind Watch": "high-wind-watcv=h",
+  "High Wind Watch": "high-wind-watch",
   "Wind Advisory": "wind-advisory",
   "Dense Fog Advisory": "dense-fog-advisory",
   "Snow Squall Warning": "snow-squall-warning",
   "Extreme Heat Warning": "extreme-heat-warning",
   "Extreme Heat Watch": "extreme-heat-watch",
   "Heat Advisory": "heat-advisory",
+  "Frost Advisory": "frost-advisory",
+  "Freeze Watch": "freeze-watch",
+  "Freeze Warning": "freeze-warning",
 };
 
 const priority = {
@@ -58,9 +61,12 @@ const priority = {
   "High Wind Watch": 25,
   "Wind Advisory": 26,
   "Dense Fog Advisory": 27,
-  "Extreme Heat Warning": 28,
-  "Extreme Heat Watch": 29,
-  "Heat Advisory": 30,
+  "Freeze Warning": 28,
+  "Freeze Watch": 29,
+  "Frost Advisory": 30,
+  "Extreme Heat Warning": 31,
+  "Extreme Heat Watch": 32,
+  "Heat Advisory": 33,
 };
 
 const STATE_FIPS_TO_ABBR = {
@@ -291,6 +297,9 @@ function createCheckboxes() {
     { value: "Extreme Heat Warning", category: "other" },
     { value: "Extreme Heat Watch", category: "other" },
     { value: "Heat Advisory", category: "other" },
+    { value: "Frost Advisory", category: "winter" },
+    { value: "Freeze Watch", category: "winter" },
+    { value: "Freeze Warning", category: "winter" },
   ];
 
   // Load saved alerts from localStorage
@@ -716,22 +725,6 @@ function isWarningExpired(warning) {
 
   const expiresDate = new Date(warning.properties.expires);
   return expiresDate < new Date();
-}
-
-function isAlertTypeSelected(alert) {
-  // If selectedAlerts is not defined or not a Set, consider all alerts as selected
-  if (!selectedAlerts || !(selectedAlerts instanceof Set)) {
-    console.warn(
-      "⚠️ selectedAlerts is not defined or not a Set - defaulting to true"
-    );
-    return true;
-  }
-
-  // Handle both string event names and alert objects
-  const eventName = typeof alert === "string" ? alert : getEventName(alert);
-
-  // Check if the event name is in the selectedAlerts Set
-  return selectedAlerts.has(eventName);
 }
 
 function HandleAlertPayload(payload, eventType) {
@@ -1192,7 +1185,7 @@ function testNotification(eventName) {
   const countyCount = Math.floor(Math.random() * 20) + 1;
   const shuffledCounties = [...allCounties].sort(() => 0.5 - Math.random());
   const selectedCounties = shuffledCounties.slice(0, countyCount);
-  const areaDesc = "TEST - " + selectedCounties.join("; ");
+  const areaDesc = "TEST - " + selectedCounties;
 
   function generateRandomString(length) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -1426,20 +1419,6 @@ function updateHighestAlert() {
   if (sortedWarnings.length > 0) {
     const highestAlert = sortedWarnings[0];
     const eventName = getEventName(highestAlert);
-  }
-}
-
-function addAlert(feature) {
-  allAlerts.push(feature);
-  if (allAlerts.length > MAX_ALERTS) allAlerts.shift();
-}
-
-function testMostRecentAlert() {
-  if (activeWarnings.length > 0) {
-    const mostRecentWarning = activeWarnings[0];
-    showNotification(mostRecentWarning);
-  } else {
-    alert("No active warnings to test.");
   }
 }
 
@@ -1705,20 +1684,6 @@ document
   });
 
 // globals—ensure these live outside any function
-
-function checkIfRecentAlert(warning) {
-  // Get the alert's issuance time, defaulting to properties.sent or properties.effective
-  const alertTime = new Date(
-    warning.properties.sent ||
-      warning.properties.effective ||
-      warning.properties.onset ||
-      Date.now()
-  );
-
-  // Consider alerts within the last 15 minutes as "recent" and worth notifying about
-  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-  return alertTime > fifteenMinutesAgo;
-}
 
 const notifiedWarnings = new Map();
 let emergencyText = "";
@@ -3019,6 +2984,9 @@ function getWarningEmoji(eventName) {
     "Extreme Heat Warning": "🌡️",
     "Extreme Heat Watch": "🫠",
     "Heat Advisory": "🔥",
+    "Frost Advisory": "❄️",
+    "Freeze Watch": "❄️",
+    "Freeze Warning": "❄️",
   };
 
   return emojiMap[eventName] || "⚠️";
@@ -3149,6 +3117,9 @@ function getAlertColor(eventName) {
     "Winter Storm Warning": "#FF69B4",
     "Winter Storm Watch": "#6699CC",
     "Ice Storm Warning": "#8B008B",
+    "Frost Advisory": "#6495ED",
+    "Freeze Watch": "#00d4d4ff",
+    "Freeze Warning": "#483D8B",
     "Blizzard Warning": "#FF4500",
     "Special Weather Statement": "#FFE4B5",
     "High Wind Warning": "#DAA520",
@@ -3226,77 +3197,6 @@ function playSoundById(soundId) {
   });
 }
 
-function getWindEmoji(windSpeed) {
-  const speed = parseInt(windSpeed, 10);
-  if (isNaN(speed)) return "<span class='emoji-animated tight-kerning'></span>";
-
-  if (speed >= 90) {
-    return "<span class='emoji-animated tight-kerning'></span>";
-  }
-  if (speed >= 80) {
-    return "<span class='emoji-animated tight-kerning'></span>";
-  }
-  if (speed >= 70) {
-    return "<span class='emoji-animated tight-kerning'></span>";
-  }
-  if (speed >= 60) {
-    return "<span class='emoji-animated tight-kerning'></span>";
-  }
-  return "<span class='emoji-animated'></span>";
-}
-
-function getHailEmoji(hailSize) {
-  const size = parseFloat(hailSize);
-  if (isNaN(size)) return "<span class='emoji-animated'></span>";
-
-  if (size >= 5.0) {
-    // Softball
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 4.0) {
-    // Softball
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 3.0) {
-    // Softball
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 2.75) {
-    // Baseball
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 2.5) {
-    // Tennis ball
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 2.0) {
-    // Hen egg
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 1.75) {
-    // Golf ball
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 1.5) {
-    // Walnut/large grape
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 1.25) {
-    // Half-dollar
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 1.0) {
-    // Quarter (NWS severe hail)
-    return "<span class='emoji-animated'></span>";
-  }
-  if (size >= 0.75) {
-    // Penny
-    return "<span class='emoji-animated'></span>";
-  }
-  // Smaller than pea-sized
-  return "<span class='emoji-animated'></span>";
-}
-
 document
   .getElementById("testCustomWarningButton")
   .addEventListener("click", () => {
@@ -3308,48 +3208,6 @@ document
       alert("Please enter a warning to test.");
     }
   });
-
-function isWarningActive(warning) {
-  const expirationDate = new Date(warning.properties.expires);
-  return expirationDate > new Date();
-}
-
-function getEventNameFromText(warningText) {
-  if (warningText.includes("Tornado Warning")) {
-    if (
-      warningText.includes(
-        "This is a PARTICULARLY DANGEROUS SITUATION. TAKE COVER NOW!"
-      )
-    ) {
-      return "PDS Tornado Warning";
-    } else if (warningText.includes("TORNADO EMERGENCY")) {
-      return "Tornado Emergency";
-    } else {
-      return "Observed Tornado Warning";
-    }
-  } else if (warningText.includes("Severe Thunderstorm Warning")) {
-    if (warningText.includes("THUNDERSTORM DAMAGE THREAT...CONSIDERABLE")) {
-      return "Considerable Severe Thunderstorm Warning";
-    } else if (
-      warningText.includes("THUNDERSTORM DAMAGE THREAT...DESTRUCTIVE")
-    ) {
-      return "Destructive Severe Thunderstorm Warning";
-    } else {
-      return "Severe Thunderstorm Warning";
-    }
-  } else if (warningText.includes("Flash Flood Warning")) {
-    return "Flash Flood Warning";
-  } else {
-    return "Unknown Event";
-  }
-}
-
-function extractCounties(warningText) {
-  const countyRegex =
-    /(?:\* Locations impacted include\.\.\.\s*)([\s\S]*?)(?=\n\n)/;
-  const match = warningText.match(countyRegex);
-  return match ? match[1].trim() : "N/A";
-}
 
 function formatCountiesTopBar(areaDesc) {
   if (!areaDesc) return "Unknown Area";
@@ -3424,6 +3282,9 @@ function updateWarningList(warnings) {
     "Wind Advisory",
     "Dense Fog Advisory",
     "Special Weather Statement",
+    "Frost Advisory",
+    "Freeze Watch",
+    "Freeze Warning",
     "Extreme Heat Warning",
     "Extreme Heat Watch",
     "Heat Advisory",
@@ -3637,33 +3498,6 @@ function getWarningClass(eventName) {
 function playSound(soundFile) {
   const audio = new Audio(`Sounds/${soundFile}`);
   audio.play().catch((error) => console.error("Error playing sound:", error));
-}
-
-function getCallToAction(eventName) {
-  switch (eventName) {
-    case "Tornado Warning":
-    case "Observed Tornado Warning":
-      return "Seek shelter now!";
-    case "PDS Tornado Warning":
-    case "Tornado Emergency":
-      return "Seek shelter now! You are in a life-threatening situation!";
-    case "Severe Thunderstorm Warning":
-    case "Considerable Severe Thunderstorm Warning":
-    case "Destructive Severe Thunderstorm Warning":
-      return "Seek shelter indoors away from windows!";
-    case "Flash Flood Warning":
-      return "Seek higher ground now!";
-    case "Tornado Watch":
-    case "Severe Thunderstorm Watch":
-    case "Winter Weather Advisory":
-    case "Winter Storm Watch":
-    case "Blizzard Warning":
-    case "Winter Storm Warning":
-    case "Ice Storm Warning":
-      return "Stay tuned for further info!";
-    default:
-      return "Take Appropriate Action!";
-  }
 }
 
 document.getElementById("saveStateButton").addEventListener("click", () => {
@@ -4450,107 +4284,117 @@ function extractTornadoEmergencyLocation(rawText) {
  */
 // Global: keep track of last scrolled text
 let lastScrollingHTML = "";
+
 function updateCountiesText(newHTML, warning) {
   const countiesEl = document.querySelector("#counties");
-  if (!countiesEl) {
-    console.warn("[updateCountiesText] Missing #counties, aborting.");
-    return;
-  }
+  if (!countiesEl)
+    return console.warn("[updateCountiesText] Missing #counties");
 
   const eventTypeBar = document.querySelector(".event-type-bar");
-  const leftGap = 40; // Base padding from left/event bar
-  const additionalSafetyMargin = 20; // Extra margin so no touching right edge
-  const safeMargin = 50; // Right side safe margin
+  const leftGap = 40,
+    additionalSafetyMargin = 20,
+    safeMargin = 50;
 
-  // Clear any existing observer so we don't stack multiple
+  // Disconnect old observer
   if (countiesEl._resizeObserver) {
     countiesEl._resizeObserver.disconnect();
     countiesEl._resizeObserver = null;
+  }
+
+  // Capture current scroll progress
+  const oldScroll = countiesEl.querySelector("span");
+  let currentScrollProgress = 0;
+  if (oldScroll) {
+    const t = window.getComputedStyle(oldScroll).transform;
+    if (t && t !== "none") {
+      const matrix = t.match(/matrix.*\((.+)\)/);
+      if (matrix) {
+        const x = parseFloat(matrix[1].split(", ")[4]);
+        const totalDistance =
+          oldScroll.getBoundingClientRect().width -
+          countiesEl.getBoundingClientRect().width;
+        if (totalDistance > 0)
+          currentScrollProgress = Math.min(1, Math.abs(x) / totalDistance);
+      }
+    }
   }
 
   countiesEl.classList.add("fade-out");
 
   setTimeout(() => {
     countiesEl.innerHTML = "";
+
     const scrollWrapper = document.createElement("span");
     scrollWrapper.innerHTML = newHTML;
     scrollWrapper.style.display = "inline-block";
-    scrollWrapper.style.paddingRight = "5em"; // default right padding
+    scrollWrapper.style.whiteSpace = "nowrap";
+    scrollWrapper.style.opacity = "0";
+    scrollWrapper.style.paddingRight = "5em";
 
     function updatePadding() {
-      if (!eventTypeBar) {
-        scrollWrapper.style.paddingLeft = `${leftGap}px`;
-        return;
+      const containerRect = countiesEl.getBoundingClientRect();
+      let startX = leftGap;
+
+      if (eventTypeBar) {
+        const barRect = eventTypeBar.getBoundingClientRect();
+        startX = Math.max(
+          leftGap,
+          barRect.right - containerRect.left + additionalSafetyMargin
+        );
       }
 
-      const barRect = eventTypeBar.getBoundingClientRect();
-      const containerRect = countiesEl.getBoundingClientRect();
-      const neededPadding = Math.max(
-        leftGap,
-        barRect.right - containerRect.left + leftGap + additionalSafetyMargin
-      );
-      scrollWrapper.style.paddingLeft = `${neededPadding}px`;
-
-      // Right side checks for scrolling / padding
       const contentW = scrollWrapper.offsetWidth;
       const containerW = countiesEl.offsetWidth;
 
-      const shouldScroll = contentW > containerW;
-      const isTooClose =
-        contentW > containerW - safeMargin && contentW <= containerW;
-
       scrollWrapper.style.animation = "none";
+      countiesEl.style.webkitMaskImage = "";
+      countiesEl.style.maskImage = "";
 
-      if (shouldScroll) {
-        const mask =
-          "linear-gradient(to right, transparent 300px, black 320px, black calc(100% - 20px), transparent 100%)";
-        countiesEl.style.webkitMaskImage = mask;
-        countiesEl.style.maskImage = mask;
+      const overflow = contentW - containerW;
 
-        scrollWrapper.style.paddingLeft = "300px";
-        const scrollDistance = contentW + 50 - containerW;
-        const animName = `scrollLeftPause${Date.now()}`;
-        const totalDuration = 10;
-
-        const oldStyle = document.getElementById("scrolling-animation-style");
-        if (oldStyle) oldStyle.remove();
-
+      if (overflow >= 150) {
+        // Scroll animation
+        const scrollDistance = overflow;
+        const animName = `scroll${Date.now()}`;
         const style = document.createElement("style");
-        style.id = "scrolling-animation-style";
         style.textContent = `
           @keyframes ${animName} {
-            0%   { transform: translateX(0); }
-            10%  { transform: translateX(0); }
-            80%  { transform: translateX(-${scrollDistance}px); }
-            100% { transform: translateX(-${scrollDistance}px); }
+            0%   { transform: translateX(${startX}px); }
+            10%  { transform: translateX(${startX}px); }          /* 1s pause start */
+            90%  { transform: translateX(-${scrollDistance}px); } /* 8s scroll */
+            100% { transform: translateX(-${scrollDistance}px); } /* 1s pause end */
           }
         `;
         document.head.appendChild(style);
-        scrollWrapper.style.animation = `${animName} ${totalDuration}s linear infinite`;
-      } else if (isTooClose) {
-        scrollWrapper.style.paddingRight = `${safeMargin + leftGap}px`;
-        countiesEl.style.webkitMaskImage = "";
-        countiesEl.style.maskImage = "";
+
+        // Start from previous scroll position
+        scrollWrapper.style.transform = `translateX(${
+          startX - scrollDistance * currentScrollProgress
+        }px)`;
+        scrollWrapper.style.animation = `${animName} 10s linear forwards`;
+
+        // Mask edges
+        const mask =
+          "linear-gradient(to right, transparent 300px, black 320px, black calc(100% - 30px), transparent 100%)";
+        countiesEl.style.webkitMaskImage = mask;
+        countiesEl.style.maskImage = mask;
       } else {
-        countiesEl.style.webkitMaskImage = "";
-        countiesEl.style.maskImage = "";
-        scrollWrapper.style.paddingRight = "5em";
+        // Small content, no scroll
+        scrollWrapper.style.transform = `translateX(${startX}px)`;
+        scrollWrapper.style.paddingRight = `${safeMargin + leftGap + 10}px`;
       }
     }
 
     countiesEl.appendChild(scrollWrapper);
     countiesEl.style.overflow = "hidden";
-    countiesEl.style.whiteSpace = "nowrap";
 
     requestAnimationFrame(() => {
       setTimeout(() => {
         updatePadding();
+        scrollWrapper.style.transition = "opacity 0.4s ease-in-out";
+        scrollWrapper.style.opacity = "1";
 
-        // Observe resizing of counties element and event type bar for dynamic padding updates
-        countiesEl._resizeObserver = new ResizeObserver(() => {
-          updatePadding();
-        });
-
+        countiesEl._resizeObserver = new ResizeObserver(updatePadding);
         countiesEl._resizeObserver.observe(countiesEl);
         if (eventTypeBar) countiesEl._resizeObserver.observe(eventTypeBar);
 
@@ -4558,6 +4402,16 @@ function updateCountiesText(newHTML, warning) {
       }, 50);
     });
   }, 400);
+}
+
+// Helper you already have
+function isCountiesScrolling() {
+  const wrapper = document.querySelector("#counties span");
+  return Boolean(
+    wrapper &&
+      wrapper.style.animationName &&
+      wrapper.style.animationName !== "none"
+  );
 }
 
 function stopScrolling(countiesElement) {
@@ -4752,7 +4606,15 @@ function updateDashboard() {
     // Extract tornado emergency location, if any
     const tornadoEmergencyLocation = extractTornadoEmergencyLocation(rawText);
 
-    const counties = formatCountiesTopBar(areaDesc);
+    const rawCounties = formatCountiesTopBar(areaDesc);
+    // e.g., "Montmorency, MI, Grand Traverse, MI, Leelanau, MI"
+
+    const countyPattern = /([^,]+, [A-Z]{2})/g; // Match "County, ST"
+    const matchedCounties = rawCounties.match(countyPattern) || [];
+
+    const counties = matchedCounties.join("; ");
+    console.log(counties);
+    // Output: "Montmorency, MI; Grand Traverse, MI; Leelanau, MI"
 
     // Extract hazard information
     const threats = warning.threats || warning.properties?.threats || {};
@@ -4842,7 +4704,7 @@ document.getElementById("saveSettingsButton").addEventListener("click", () => {
   const alertText = document.getElementById("alertTextInput").value;
   const alertBarColor = document.getElementById("alertBarColor").value;
   const eventTypeBarColor = document.getElementById("eventTypeBarColor").value;
-  const fontInput = document.getElementById("fontInput").files[0];
+  const fontInput = null;
   const timeoutDuration = document.getElementById("timeoutSlider").value;
 
   if (logoInput) {
