@@ -1033,7 +1033,6 @@ function createTestWarning(eventType, id = null) {
       event: eventType,
       headline: `Test ${eventType}`,
       description: `This is a test ${eventType.toLowerCase()} for demonstration purposes.`,
-      instruction: getCallToAction(eventType),
       severity: "Severe",
       certainty: "Observed",
       urgency: "Immediate",
