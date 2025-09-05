@@ -2079,9 +2079,17 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       countyDiv.style.maskImage = mask;
 
       const totalDuration =
-        eventName.toLowerCase().includes("tornado") || eventName.includes("PDS")
-          ? 10
-          : 7;
+        getEventName(warning)
+          .toLowerCase()
+          .includes("considerable severe thunderstorm warning") ||
+        getEventName(warning)
+          .toLowerCase()
+          .includes("destructive severe thunderstorm warning") ||
+        getEventName(warning).toLowerCase().includes("observed tornado warning") ||
+        getEventName(warning).includes("PDS Tornado Warning") ||
+        getEventName(warning).toLowerCase().includes("tornado emergency")
+          ? 20
+          : 10;
 
       const animName = `scrollNotif${Date.now()}`;
       const oldStyle = document.getElementById("notif-scroll-style");
@@ -3153,10 +3161,7 @@ const audioElements = {
   SvrUpgradeSound: new Audio("Sounds/SvrUpgrade.mp3"),
 };
 
-audioElements.TorPDSSound.volume = 0.4;
-audioElements.TOREISS.volume = 0.4;
-audioElements.TorPDSUpdateSound.volume = 0.4;
-audioElements.TorEmergencyUpdateSound.volume = 0.4;
+
 function playSoundById(soundId) {
   const sound = audioElements[soundId];
   if (!sound) {
