@@ -853,7 +853,6 @@ body {
   position: relative;
   left: 350px;
   margin-left: 0;
-  transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   z-index: 2;
   bottom: -6px;
   display: inline-block;
@@ -864,8 +863,56 @@ body {
   transform-style: preserve-3d;
   overflow: hidden;
   text-transform: uppercase;
+
+  /* Smooth transitions for all properties */
+  transition: color 0.4s ease-out, background-color 0.4s ease-out,
+    text-shadow 0.4s ease-out, box-shadow 0.4s ease-out,
+    width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Make width adjust automatically to content */
+  width: auto;
+  white-space: nowrap;
 }
 
+/* Animation for color change with slight movement */
+.event-type-bar.color-change {
+  animation-name: smoothSlide;
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-fill-mode: both;
+}
+
+/* Smooth slide animation */
+@keyframes smoothSlide {
+  0% {
+    transform: translateX(-10px);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* For width changes - add a subtle scale effect */
+.event-type-bar.width-change {
+  animation-name: smoothWidth;
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes smoothWidth {
+  0% {
+    transform: scaleX(0.97);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
 .event-type-bar:hover {
   transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   color: rgba(255, 255, 255, 1);
@@ -1003,20 +1050,24 @@ body {
 #counties-left-mask {
   z-index: 1;
 }
+/* in style.css */
+
 .counties-bar {
   position: relative;
   font-size: 1.8em;
   font-weight: 500;
   text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
-  text-align: center;
   padding: 5px 10px;
   transition: opacity 0.4s ease-in-out;
   opacity: 1;
-  z-index: -2;
   bottom: -11px;
   white-space: nowrap;
-  display: inline-block;
-  left: 150px;
+  overflow: hidden; /* This is crucial */
+
+  /* --- KEY FLEXBOX FIXES --- */
+  flex: 1 1 auto; /* Allow the bar to grow and shrink to fill space */
+  min-width: 0; /* Required for text overflow to work correctly in flexbox */
+  text-align: left; /* Align text to the left for a natural ticker start */
 }
 
 /* Base styles for counties bar */

@@ -34,6 +34,7 @@ const eventTypes = {
 };
 
 const priority = {
+  // 🔴 Tornado tier
   "Tornado Emergency": 1,
   "PDS Tornado Warning": 2,
   "Observed Tornado Warning": 3,
@@ -42,31 +43,45 @@ const priority = {
   "Public Confirmed Tornado Warning": 6,
   "Radar Confirmed Tornado Warning": 7,
   "Tornado Warning": 8,
+
+  // ⚡ Severe thunderstorm
   "Destructive Severe Thunderstorm Warning": 9,
   "Considerable Severe Thunderstorm Warning": 10,
   "Severe Thunderstorm Warning": 11,
   "Special Weather Statement": 12,
-  "Tornado Watch": 13,
-  "Severe Thunderstorm Watch": 14,
-  "Flash Flood Emergency": 15,
-  "Considerable Flash Flood Warning": 16,
-  "Flash Flood Warning": 17,
-  "Snow Squall Warning": 18,
-  "Blizzard Warning": 19,
-  "Ice Storm Warning": 20,
+
+  // 🌊 Flooding
+  "Flash Flood Emergency": 13,
+  "Considerable Flash Flood Warning": 14,
+  "Flash Flood Warning": 15,
+
+  // 🟡 Watches (convective) — moved up
+  "Tornado Watch": 16,
+  "Severe Thunderstorm Watch": 17,
+
+  // ❄️ Winter weather
+  "Blizzard Warning": 18,
+  "Ice Storm Warning": 19,
+  "Snow Squall Warning": 20,
   "Winter Storm Warning": 21,
-  "Winter Storm Watch": 22,
-  "Winter Weather Advisory": 23,
+  "Winter Weather Advisory": 22,
+  "Winter Storm Watch": 23,
+
+  // 🌬️ Wind
   "High Wind Warning": 24,
   "High Wind Watch": 25,
   "Wind Advisory": 26,
-  "Dense Fog Advisory": 27,
-  "Freeze Warning": 28,
-  "Freeze Watch": 29,
-  "Frost Advisory": 30,
-  "Extreme Heat Warning": 31,
-  "Extreme Heat Watch": 32,
-  "Heat Advisory": 33,
+
+  // 🌡️ Temperature extremes
+  "Extreme Heat Warning": 27,
+  "Extreme Heat Watch": 28,
+  "Heat Advisory": 29,
+  "Freeze Warning": 30,
+  "Freeze Watch": 31,
+  "Frost Advisory": 32,
+
+  // 🌫️ Other
+  "Dense Fog Advisory": 33,
 };
 
 const STATE_FIPS_TO_ABBR = {
@@ -1999,7 +2014,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   const eventName = getEventName(warning);
   const description = warning.rawText || warning.properties?.rawText || "";
   const rawAreaDesc = Array.isArray(warning.counties)
-    ? warning.counties.join("; ")
+    ? warning.counties.join(" • ")
     : warning.properties?.areaDesc || "";
   const cleanAreaDesc = rawAreaDesc.replace(/^TEST\s*-\s*/i, "").trim();
 
@@ -2085,7 +2100,9 @@ function showNotificationElement(warning, notificationType, emergencyText) {
         getEventName(warning)
           .toLowerCase()
           .includes("destructive severe thunderstorm warning") ||
-        getEventName(warning).toLowerCase().includes("observed tornado warning") ||
+        getEventName(warning)
+          .toLowerCase()
+          .includes("observed tornado warning") ||
         getEventName(warning).includes("PDS Tornado Warning") ||
         getEventName(warning).toLowerCase().includes("tornado emergency")
           ? 20
@@ -3161,7 +3178,6 @@ const audioElements = {
   SvrUpgradeSound: new Audio("Sounds/SvrUpgrade.mp3"),
 };
 
-
 function playSoundById(soundId) {
   const sound = audioElements[soundId];
   if (!sound) {
@@ -4129,6 +4145,7 @@ clearWarningsButton.addEventListener("click", () => {
     console.error("Error clearing warnings:", err);
   }
 });
+
 async function rotateCity() {
   const isSpcModeEnabled = document.getElementById("spcModeToggle").checked;
 
@@ -4209,11 +4226,24 @@ async function rotateCity() {
     if (updatedWeatherData.humidity !== "N/A") {
       parts.push(`Humidity: ${updatedWeatherData.humidity}`);
     }
+
+    // Only display Feels Like if it's at least 5 degrees different from actual temp
+    const tempF = parseFloat(updatedWeatherData.tempF);
+
+    // Heat index check - only show if 5+ degrees above actual temp
     if (updatedWeatherData.heatIndexF !== "N/A") {
-      parts.push(`Heat Index: ${updatedWeatherData.heatIndexF}°F`);
+      const heatIndex = parseFloat(updatedWeatherData.heatIndexF);
+      if (!isNaN(heatIndex) && !isNaN(tempF) && heatIndex - tempF >= 5) {
+        parts.push(`Feels Like: ${updatedWeatherData.heatIndexF}°F`);
+      }
     }
+
+    // Wind chill check - only show if 5+ degrees below actual temp
     if (updatedWeatherData.windChillF !== "N/A") {
-      parts.push(`Wind Chill: ${updatedWeatherData.windChillF}°F`);
+      const windChill = parseFloat(updatedWeatherData.windChillF);
+      if (!isNaN(windChill) && !isNaN(tempF) && tempF - windChill >= 5) {
+        parts.push(`Feels Like: ${updatedWeatherData.windChillF}°F`);
+      }
     }
 
     const fullText =
@@ -4289,40 +4319,27 @@ function extractTornadoEmergencyLocation(rawText) {
 // Global: keep track of last scrolled text
 let lastScrollingHTML = "";
 
+// in script.js
+
+// in script.js
+
 function updateCountiesText(newHTML, warning) {
   const countiesEl = document.querySelector("#counties");
   if (!countiesEl)
     return console.warn("[updateCountiesText] Missing #counties");
 
   const eventTypeBar = document.querySelector(".event-type-bar");
-  const leftGap = 40,
-    additionalSafetyMargin = 20,
-    safeMargin = 50;
+  const leftGap = 40;
+  const additionalSafetyMargin = 20;
+  const safeMargin = 50;
 
-  // Disconnect old observer
+  // Disconnect old observer to prevent memory leaks
   if (countiesEl._resizeObserver) {
     countiesEl._resizeObserver.disconnect();
     countiesEl._resizeObserver = null;
   }
 
-  // Capture current scroll progress
-  const oldScroll = countiesEl.querySelector("span");
-  let currentScrollProgress = 0;
-  if (oldScroll) {
-    const t = window.getComputedStyle(oldScroll).transform;
-    if (t && t !== "none") {
-      const matrix = t.match(/matrix.*\((.+)\)/);
-      if (matrix) {
-        const x = parseFloat(matrix[1].split(", ")[4]);
-        const totalDistance =
-          oldScroll.getBoundingClientRect().width -
-          countiesEl.getBoundingClientRect().width;
-        if (totalDistance > 0)
-          currentScrollProgress = Math.min(1, Math.abs(x) / totalDistance);
-      }
-    }
-  }
-
+  // Fade out old text
   countiesEl.classList.add("fade-out");
 
   setTimeout(() => {
@@ -4332,10 +4349,11 @@ function updateCountiesText(newHTML, warning) {
     scrollWrapper.innerHTML = newHTML;
     scrollWrapper.style.display = "inline-block";
     scrollWrapper.style.whiteSpace = "nowrap";
-    scrollWrapper.style.opacity = "0";
-    scrollWrapper.style.paddingRight = "5em";
+    scrollWrapper.style.opacity = "0"; // Start invisible
 
-    function updatePadding() {
+    // This function calculates positions and applies animations
+    function setupPositioningAndScroll() {
+      // 1. Calculate the starting boundary for the text
       const containerRect = countiesEl.getBoundingClientRect();
       let startX = leftGap;
 
@@ -4347,45 +4365,57 @@ function updateCountiesText(newHTML, warning) {
         );
       }
 
-      const contentW = scrollWrapper.offsetWidth;
-      const containerW = countiesEl.offsetWidth;
+      const contentWidth = scrollWrapper.offsetWidth;
+      const containerWidth = countiesEl.offsetWidth;
 
+      // Reset styles before recalculating
       scrollWrapper.style.animation = "none";
       countiesEl.style.webkitMaskImage = "";
       countiesEl.style.maskImage = "";
 
-      const overflow = contentW - containerW;
+      const availableWidth = containerWidth - startX;
+      const overflowAmount = contentWidth - availableWidth;
 
-      if (overflow >= 150) {
-        // Scroll animation
-        const scrollDistance = overflow;
-        const animName = `scroll${Date.now()}`;
-        const style = document.createElement("style");
-        style.textContent = `
+      if (overflowAmount > 10) {
+        // --- SCROLLING LOGIC ---
+        const endX = containerWidth - contentWidth - safeMargin;
+
+        const animName = `scroll-${Date.now()}`;
+        const animationStyle = document.createElement("style");
+        animationStyle.textContent = `
           @keyframes ${animName} {
             0%   { transform: translateX(${startX}px); }
-            10%  { transform: translateX(${startX}px); }          /* 1s pause start */
-            90%  { transform: translateX(-${scrollDistance}px); } /* 8s scroll */
-            100% { transform: translateX(-${scrollDistance}px); } /* 1s pause end */
+            10%  { transform: translateX(${startX}px); }      /* Pause at start */
+            90%  { transform: translateX(${endX}px); }        /* Scroll */
+            100% { transform: translateX(${endX}px); }      /* Pause at end */
           }
         `;
-        document.head.appendChild(style);
+        document.head.appendChild(animationStyle);
 
-        // Start from previous scroll position
-        scrollWrapper.style.transform = `translateX(${
-          startX - scrollDistance * currentScrollProgress
-        }px)`;
-        scrollWrapper.style.animation = `${animName} 10s linear forwards`;
+        scrollWrapper.style.animation = `${animName} 10s linear infinite`;
 
-        // Mask edges
-        const mask =
-          "linear-gradient(to right, transparent 300px, black 320px, black calc(100% - 30px), transparent 100%)";
+        // --- 2. MASK ADJUSTMENT FOR SCROLLING TEXT ---
+        // Add a small gap before the mask starts to create visual separation.
+        const maskGap = 10; // This creates the "hair or two" gap you wanted
+        const maskFadeWidth = 20; // The width of the fade effect
+        const maskFadeStart = startX - maskFadeWidth + maskGap;
+        const maskFadeEnd = startX + maskGap;
+
+        const mask = `linear-gradient(to right, 
+          transparent ${maskFadeStart}px, 
+          black ${maskFadeEnd}px, 
+          black calc(100% - ${safeMargin}px), 
+          transparent 100%)`;
+
         countiesEl.style.webkitMaskImage = mask;
         countiesEl.style.maskImage = mask;
       } else {
-        // Small content, no scroll
-        scrollWrapper.style.transform = `translateX(${startX}px)`;
-        scrollWrapper.style.paddingRight = `${safeMargin + leftGap + 10}px`;
+        // --- 1. CENTERING LOGIC FOR STATIC TEXT ---
+        // Calculate the position to center the text in the remaining space.
+        const deadSpace = availableWidth - contentWidth;
+        const centeredStartX = startX + deadSpace / 2;
+
+        scrollWrapper.style.transform = `translateX(${centeredStartX}px)`;
       }
     }
 
@@ -4394,11 +4424,14 @@ function updateCountiesText(newHTML, warning) {
 
     requestAnimationFrame(() => {
       setTimeout(() => {
-        updatePadding();
+        setupPositioningAndScroll();
         scrollWrapper.style.transition = "opacity 0.4s ease-in-out";
-        scrollWrapper.style.opacity = "1";
+        scrollWrapper.style.opacity = "1"; // Fade in new text
 
-        countiesEl._resizeObserver = new ResizeObserver(updatePadding);
+        // Add ResizeObserver to handle window resizing
+        countiesEl._resizeObserver = new ResizeObserver(
+          setupPositioningAndScroll
+        );
         countiesEl._resizeObserver.observe(countiesEl);
         if (eventTypeBar) countiesEl._resizeObserver.observe(eventTypeBar);
 
@@ -4616,7 +4649,7 @@ function updateDashboard() {
     const countyPattern = /([^,]+, [A-Z]{2})/g; // Match "County, ST"
     const matchedCounties = rawCounties.match(countyPattern) || [];
 
-    const counties = matchedCounties.join("; ");
+    const counties = matchedCounties.join(" • ");
     console.log(counties);
     // Output: "Montmorency, MI; Grand Traverse, MI; Leelanau, MI"
 
