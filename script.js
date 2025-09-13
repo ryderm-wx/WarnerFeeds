@@ -4535,6 +4535,7 @@ let lastActiveIds = [];
 const lastAlertsMap = new Map();
 
 function updateDashboard() {
+  console.log("Starting updateDashboard function");
   const expirationElement = document.querySelector("#expiration");
   const eventTypeElement = document.querySelector("#eventType");
   const countiesElement = document.querySelector("#counties");
@@ -4542,7 +4543,10 @@ function updateDashboard() {
   const activeAlertText = document.getElementById("ActiveAlertText");
   const spcToggle = document.getElementById("spcModeToggle");
 
+  console.log("Checking activeWarnings array:", activeWarnings);
+
   if (!Array.isArray(activeWarnings) || activeWarnings.length === 0) {
+    console.log("No active warnings or invalid activeWarnings array");
     expirationElement.textContent = "LOADING...";
     eventTypeElement.textContent = "LOADING...";
     countiesElement.textContent = "LOADING...";
@@ -4557,28 +4561,34 @@ function updateDashboard() {
 
   // Build set of current alert IDs to clean up old ones later
   const currentIds = new Set();
+  console.log("Building current IDs set");
 
   for (const alert of activeWarnings) {
     const id = alert.id;
+    console.log("Processing alert ID:", id);
     currentIds.add(id);
     const alertStr = JSON.stringify(alert);
 
     if (!lastAlertsMap.has(id) || lastAlertsMap.get(id) !== alertStr) {
       // New alert or updated alert found!
+      console.log("New or updated alert found with ID:", id);
       hasChanges = true;
       lastAlertsMap.set(id, alertStr);
     }
   }
 
   // Clean up any old alerts that disappeared
+  console.log("Checking for removed alerts");
   for (const oldId of lastAlertsMap.keys()) {
     if (!currentIds.has(oldId)) {
+      console.log("Alert removed:", oldId);
       hasChanges = true;
       lastAlertsMap.delete(oldId);
     }
   }
 
   if (hasChanges) {
+    console.log("Changes detected, sorting warnings");
     // Sort by priority & expiration (your original logic)
     sortedWarnings = activeWarnings
       .slice()
@@ -4589,9 +4599,11 @@ function updateDashboard() {
       );
 
     currentWarningIndex = 0; // Reset index when alerts update
+    console.log("Sorted warnings:", sortedWarnings);
   }
 
   if (!sortedWarnings || sortedWarnings.length === 0) {
+    console.log("No sorted warnings available");
     expirationElement.textContent = "LOADING...";
     eventTypeElement.textContent = "LOADING...";
     countiesElement.textContent = "LOADING...";
@@ -4603,11 +4615,23 @@ function updateDashboard() {
 
   // Wrap current index if out of bounds
   currentWarningIndex = currentWarningIndex % sortedWarnings.length;
+  console.log("Current warning index:", currentWarningIndex);
 
   const warning = sortedWarnings[currentWarningIndex];
+  console.log("Current warning object:", warning);
+
   const { event, areaDesc, expires, rawText } = warning.properties || warning;
+  console.log("Warning properties extracted:", { event, expires });
+  console.log("Area description:", areaDesc);
+
+  // Log the complete counties data
+  console.log("Counties data from warning:", warning.counties);
+
   const eventName = getEventName(warning);
+  console.log("Event name:", eventName);
+
   const alertColor = getAlertColor(eventName);
+  console.log("Alert color:", alertColor);
 
   const eventTypeBar = document.querySelector(".event-type-bar");
   if (eventTypeBar) {
@@ -4636,31 +4660,122 @@ function updateDashboard() {
     "en-US",
     fullOptions
   );
+  console.log("Formatted expiration times:", {
+    formattedExpirationTime,
+    fullFormattedExpirationTime,
+  });
 
   expirationElement.textContent = `Expires: ${fullFormattedExpirationTime}`;
 
   try {
+    console.log("Extracting tornado emergency location (if any)");
     // Extract tornado emergency location, if any
     const tornadoEmergencyLocation = extractTornadoEmergencyLocation(rawText);
+    if (tornadoEmergencyLocation) {
+      console.log(
+        "Tornado emergency location found:",
+        tornadoEmergencyLocation
+      );
+    }
 
-    const rawCounties = formatCountiesTopBar(areaDesc);
-    // e.g., "Montmorency, MI, Grand Traverse, MI, Leelanau, MI"
+    // Log raw areaDesc before formatting
+    console.log("Raw areaDesc before formatting:", areaDesc);
 
-    const countyPattern = /([^,]+, [A-Z]{2})/g; // Match "County, ST"
-    const matchedCounties = rawCounties.match(countyPattern) || [];
+    // Check if we're dealing with a special counties format from the examples
+    if (Array.isArray(warning.counties)) {
+      console.log("Found counties array in warning:", warning.counties);
+    }
 
-    const counties = matchedCounties.join(" • ");
-    console.log(counties);
-    // Output: "Montmorency, MI; Grand Traverse, MI; Leelanau, MI"
+    let rawCounties;
+    // Handle the different formats for counties data
+    if (Array.isArray(warning.counties) && warning.counties.length > 0) {
+      console.log("Using counties array from warning");
+
+      // Filter out empty strings and values like "and" or "."
+      const filteredCounties = warning.counties.filter(
+        (county) =>
+          county && county.trim() && !["and", "."].includes(county.trim())
+      );
+
+      console.log("Filtered counties array:", filteredCounties);
+
+      // Check if counties have state info
+      const hasStateInfo = filteredCounties.some((county) =>
+        county.includes(",")
+      );
+      console.log("Counties contain state information:", hasStateInfo);
+
+      if (hasStateInfo) {
+        // Already in County, ST format
+        rawCounties = filteredCounties.join(" • ");
+      } else {
+        // Format like those in the example (city names, etc.)
+        // Remove any trailing periods or "and" prefixes
+        rawCounties = filteredCounties
+          .map((county) =>
+            county.replace(/\.$/, "").replace(/^and /, "").trim()
+          )
+          .join(" • ");
+      }
+    } else if (areaDesc) {
+      console.log("Using areaDesc to format counties");
+      rawCounties = formatCountiesTopBar(areaDesc);
+    } else {
+      console.log("No valid counties data found, using empty string");
+      rawCounties = "";
+    }
+
+    console.log("Raw counties after initial formatting:", rawCounties);
+
+    // If we have city names like in the example, we'll just use them directly
+    let counties;
+    if (
+      Array.isArray(warning.counties) &&
+      warning.counties.length > 0 &&
+      !warning.counties[0].includes(",")
+    ) {
+      console.log("Using city/location names directly");
+      counties = rawCounties;
+    } else {
+      // Try to extract county pattern
+      const countyPattern = /([^,]+, [A-Z]{2})/g; // Match "County, ST"
+      const matchedCounties = rawCounties.match(countyPattern) || [];
+      console.log("Matched counties using pattern:", matchedCounties);
+
+      if (matchedCounties.length > 0) {
+        // Fix the double bullet issue by joining with a single bullet
+        counties = matchedCounties.join(" • ");
+      } else {
+        counties = rawCounties;
+      }
+    }
+
+    // Fix any instances of double bullets that might still exist
+    counties = counties.replace(/\s*•\s*•\s*/g, " • ");
+
+    console.log("Final formatted counties:", counties);
 
     // Extract hazard information
     const threats = warning.threats || warning.properties?.threats || {};
+    console.log("Threats data:", threats);
+
     const maxWindGust = threats.maxWindGust || "N/A";
     const maxHailSize = threats.maxHailSize || "N/A";
     const tornadoDetection = threats.tornadoDetection || "N/A";
     const tornadoDamageThreat = threats.tornadoDamageThreat || "N/A";
+
+    console.log("Extracted threat details:", {
+      maxWindGust,
+      maxHailSize,
+      tornadoDetection,
+      tornadoDamageThreat,
+    });
+
     // Create enhanced counties text with hazard information
-    let countiesText = `Counties: ${counties}`;
+    let countiesText = counties
+      ? `Counties: ${counties}`
+      : "Counties: Not specified";
+    console.log("Initial counties text:", countiesText);
 
     // Add hazard information if available
     if (
@@ -4669,6 +4784,7 @@ function updateDashboard() {
       tornadoDetection !== "N/A"
     ) {
       countiesText += " |";
+      console.log("Adding hazard information to counties text");
 
       if (maxWindGust !== "N/A") {
         countiesText += ` Wind: ${maxWindGust}`;
@@ -4696,6 +4812,7 @@ function updateDashboard() {
     }
 
     countiesText += ` | Until ${formattedExpirationTime}`;
+    console.log("Final counties text with hazards:", countiesText);
 
     updateCountiesText(countiesText, warning);
 
@@ -4706,10 +4823,14 @@ function updateDashboard() {
     showWarningDashboard();
   } catch (err) {
     console.error("Error updating dashboard:", err);
+    console.log("Error details:", err.message);
+    console.log("Error stack:", err.stack);
   }
 
   // Rotate index for next call
   currentWarningIndex = (currentWarningIndex + 1) % sortedWarnings.length;
+  console.log("Next warning index set to:", currentWarningIndex);
+  console.log("updateDashboard function completed");
 }
 
 let rotateActive = false;
