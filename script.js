@@ -12,6 +12,9 @@ const eventTypes = {
   "Flash Flood Warning": "flash-flood-warning",
   "Considerable Flash Flood Warning": "considerable-flash-flood-warning",
   "Flash Flood Emergency": "flash-flood-emergency",
+  "Flood Warning": "flood-warning",
+  "Flood Advisory": "flood-advisory",
+  "Flood Watch": "flood-watch",
   "Tornado Watch": "tornado-watch",
   "Severe Thunderstorm Watch": "severe-thunderstorm-watch",
   "Winter Weather Advisory": "winter-weather-advisory",
@@ -54,34 +57,37 @@ const priority = {
   "Flash Flood Emergency": 13,
   "Considerable Flash Flood Warning": 14,
   "Flash Flood Warning": 15,
+  "Flood Warning": 16,
+  "Flood Advisory": 17,
 
   // 🟡 Watches (convective) — moved up
-  "Tornado Watch": 16,
-  "Severe Thunderstorm Watch": 17,
+  "Tornado Watch": 18,
+  "Severe Thunderstorm Watch": 19,
+  "Flood Watch": 20,
 
   // ❄️ Winter weather
-  "Blizzard Warning": 18,
-  "Ice Storm Warning": 19,
-  "Snow Squall Warning": 20,
-  "Winter Storm Warning": 21,
-  "Winter Weather Advisory": 22,
-  "Winter Storm Watch": 23,
+  "Blizzard Warning": 21,
+  "Ice Storm Warning": 22,
+  "Snow Squall Warning": 23,
+  "Winter Storm Warning": 24,
+  "Winter Weather Advisory": 25,
+  "Winter Storm Watch": 26,
 
   // 🌬️ Wind
-  "High Wind Warning": 24,
-  "High Wind Watch": 25,
-  "Wind Advisory": 26,
+  "High Wind Warning": 27,
+  "High Wind Watch": 28,
+  "Wind Advisory": 29,
 
   // 🌡️ Temperature extremes
-  "Extreme Heat Warning": 27,
-  "Extreme Heat Watch": 28,
-  "Heat Advisory": 29,
-  "Freeze Warning": 30,
-  "Freeze Watch": 31,
-  "Frost Advisory": 32,
+  "Extreme Heat Warning": 30,
+  "Extreme Heat Watch": 31,
+  "Heat Advisory": 32,
+  "Freeze Warning": 33,
+  "Freeze Watch": 34,
+  "Frost Advisory": 35,
 
   // 🌫️ Other
-  "Dense Fog Advisory": 33,
+  "Dense Fog Advisory": 36,
 };
 
 const STATE_FIPS_TO_ABBR = {
@@ -294,6 +300,9 @@ function createCheckboxes() {
       category: "thunderstorm",
     },
     { value: "Flash Flood Warning", category: "flood" },
+    { value: "Flood Warning", category: "flood" },
+    { value: "Flood Advisory", category: "flood" },
+    { value: "Flood Watch", category: "flood" },
     { value: "Tornado Watch", category: "tornado" },
     { value: "Severe Thunderstorm Watch", category: "thunderstorm" },
     { value: "Winter Weather Advisory", category: "winter" },
@@ -1725,9 +1734,9 @@ function showNotification(
   let isUpdated = false;
   let notificationType = "NEW WEATHER ALERT"; // Default for alerts that will be shown
   if (warning.forceUpgrade === true) {
-    console.log(`⚡ Brute-forcing ALERT UPGRADED for ID ${warningId}`);
+    console.log(`⚡ Brute-forcing WEATHER ALERT UPGRADE for ID ${warningId}`);
     isUpdated = true;
-    notificationType = "ALERT UPGRADED";
+    notificationType = "WEATHER ALERT UPGRADE";
 
     // 🛑 short-circuit to skip the rest
     previousWarnings.set(warningId, warning);
@@ -1812,7 +1821,7 @@ function showNotification(
             currentPriority < prevPriority
           ) {
             isUpdated = true;
-            notificationType = "ALERT UPGRADED";
+            notificationType = "WEATHER ALERT UPGRADE";
             console.log(
               `⬆️ Action is ${alertAction}, severity UPGRADED from ${previousEventName} to ${eventName}.`
             );
@@ -1939,7 +1948,7 @@ function showNotification(
 }
 
 function getSoundForEvent(eventName, notificationType) {
-  if (notificationType === "ALERT UPGRADED") {
+  if (notificationType === "WEATHER ALERT UPGRADE") {
     if (eventName.includes("Tornado Emergency")) return "TorUpgradeSound"; // Re-using update sound for upgrade to Tornado Warning
     if (eventName.includes("Tornado Warning")) return "TorUpgradeSound"; // Re-using update sound for upgrade to Tornado Warning
     if (eventName.includes("Severe Thunderstorm Warning"))
@@ -2998,6 +3007,7 @@ function getWarningEmoji(eventName) {
     "Flash Flood Emergency": "🚨🌊",
     "Flood Warning": "💧",
     "Flood Advisory": "💦",
+    "Flood Watch": "👀💦",
     "Winter Storm Warning": "❄️",
     "Winter Weather Advisory": "🌨️",
     "Ice Storm Warning": "🧊",
@@ -3134,6 +3144,9 @@ function getAlertColor(eventName) {
     "Destructive Severe Thunderstorm Warning": "#FF8000",
     "Flash Flood Warning": "#228B22",
     "Considerable Flash Flood Warning": "#228B22", // Same color as flash flood warning
+    "Flood Warning": "#00c900ff",
+    "Flood Advisory": "#66ca66ff",
+    "Flood Watch": "#1d5736ff",
     "Flash Flood Emergency": "#8B0000",
     "Tornado Watch": "#8B0000",
     "Severe Thunderstorm Watch": "#DB7093",
@@ -3290,9 +3303,11 @@ function updateWarningList(warnings) {
     "Flash Flood Warning",
     "Considerable Flash Flood Warning",
     "Flash Flood Emergency",
+    "Flood Warning",
     "Snow Squall Warning",
     "Tornado Watch",
     "Severe Thunderstorm Watch",
+    "Flood Watch",
     "Winter Storm Warning",
     "Ice Storm Warning",
     "Blizzard Warning",
@@ -3300,6 +3315,7 @@ function updateWarningList(warnings) {
     "Winter Weather Advisory",
     "High Wind Warning",
     "Wind Advisory",
+    "Flood Advisory",
     "Dense Fog Advisory",
     "Special Weather Statement",
     "Frost Advisory",
