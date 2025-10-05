@@ -1208,7 +1208,8 @@ function testNotification(eventName) {
   const countyCount = Math.floor(Math.random() * 20) + 1;
   const shuffledCounties = [...allCounties].sort(() => 0.5 - Math.random());
   const selectedCounties = shuffledCounties.slice(0, countyCount);
-  const areaDesc = "TEST - " + selectedCounties;
+  // Ensure counties are separated with " • "
+  const areaDesc = "TEST - " + selectedCounties.join(" • ");
 
   function generateRandomString(length) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -2320,7 +2321,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   const duration =
     eventName.toLowerCase().includes("tornado") || eventName.includes("PDS")
       ? 10000
-      : 7000;
+      : 10000;
 
   // Set timeout for the notification to disappear
   setTimeout(() => {
