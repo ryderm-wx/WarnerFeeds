@@ -1205,7 +1205,19 @@ function testNotification(eventName) {
     "Wexford, MI",
   ];
 
-  const countyCount = Math.floor(Math.random() * 20) + 1;
+  // Determine max counties based on alert type
+  let maxCounties = 20; // Default for other alert types
+  const alertTypeLower = eventName.toLowerCase();
+
+  if (
+    alertTypeLower.includes("tornado warning") ||
+    alertTypeLower.includes("severe thunderstorm warning") ||
+    alertTypeLower.includes("flash flood warning")
+  ) {
+    maxCounties = 4;
+  }
+
+  const countyCount = Math.floor(Math.random() * maxCounties) + 1;
   const shuffledCounties = [...allCounties].sort(() => 0.5 - Math.random());
   const selectedCounties = shuffledCounties.slice(0, countyCount);
   // Ensure counties are separated with " • "
@@ -1278,7 +1290,6 @@ function testNotification(eventName) {
     eventName = "Flash Flood Warning";
   }
 
-  // Generate a description string that includes the SOURCE and HAZARD
   let description = "";
   if (parameters.source) {
     description += `SOURCE... ${parameters.source[0]}\n`;
@@ -1286,23 +1297,30 @@ function testNotification(eventName) {
 
   // Add hazard information based on event type
   if (eventName === "Tornado Warning") {
-    const hazardText =
-      eventName === "Tornado Emergency"
-        ? "DEADLY TORNADO."
-        : eventName === "PDS Tornado Warning"
-        ? "DAMAGING TORNADO."
-        : "TORNADO.";
-    description += `HAZARD... ${hazardText}\n`;
+    // Only add hazard if not already included in the source or description
+    // If the source or description already contains "TORNADO", don't add another hazard line
+    const sourceText = parameters.source
+      ? parameters.source[0].toUpperCase()
+      : "";
+    if (
+      !description.toUpperCase().includes("HAZARD...") &&
+      !description.toUpperCase().includes("TORNADO") &&
+      !sourceText.includes("TORNADO")
+    ) {
+      const hazardText =
+        parameters.threats?.tornadoDamageThreat === "CATASTROPHIC"
+          ? "DEADLY TORNADO."
+          : parameters.threats?.tornadoDamageThreat === "CONSIDERABLE"
+          ? "DAMAGING TORNADO."
+          : "TORNADO.";
+    }
   } else if (eventName === "Severe Thunderstorm Warning") {
     const hazardText =
-      parameters.threats.thunderstormDamageThreat === "DESTRUCTIVE"
+      parameters.threats?.thunderstormDamageThreat === "DESTRUCTIVE"
         ? "DESTRUCTIVE THUNDERSTORM WINDS AND LARGE HAIL."
         : "DAMAGING WINDS AND LARGE HAIL.";
-    description += `HAZARD... ${hazardText}\n`;
-  } else if (eventName === "Flash Flood Warning") {
-    description += `HAZARD... FLASH FLOODING\n`;
   }
-
+  // ...existing code...
   // Create the warning object using the normalizeAlert format
   const warning = {
     id: randomID,
@@ -2032,53 +2050,55 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   const notification = document.createElement("div");
   notification.className = "notification-popup";
 
+  // Create inner container for gradient background
+  const innerContainer = document.createElement("div");
+  innerContainer.className = "notification-inner";
+  notification.appendChild(innerContainer);
+
   // Determine if it's a special weather statement early
   const isSpecialWeatherStatement =
     eventName.toLowerCase() === "special weather statement";
-
-  // If eventName is 'special weather statement', set the primary text color to black for general inheritance
   if (isSpecialWeatherStatement) {
-    notification.style.color = "black";
+    notification.classList.add("special-weather-statement");
   }
 
-  notification.style.bottom = "70px";
-
-  // Type label
-  const typeLabel = document.createElement("div");
-  typeLabel.className = "notification-type-label";
-  typeLabel.textContent = notificationType;
-  if (isSpecialWeatherStatement) {
-    typeLabel.style.color = "black"; // Explicitly set color for type label
-  }
-  notification.appendChild(typeLabel);
+  // Type badge (protruding element)
+  const typeBadge = document.createElement("div");
+  typeBadge.className = "notification-type-badge";
+  typeBadge.textContent = notificationType;
+  typeBadge.style.backgroundColor = getAlertColor(eventName);
+  notification.appendChild(typeBadge);
 
   // Title
   const title = document.createElement("div");
   title.className = "notification-title";
   title.textContent = eventName;
-  if (isSpecialWeatherStatement) {
-    title.style.color = "black"; // Explicitly set color for title
-  }
-  notification.appendChild(title);
+  innerContainer.appendChild(title);
 
-  // Area/counties
+  // Area/counties + expiration
+  const expires = new Date(
+    warning.expires || warning.properties?.expires || Date.now()
+  );
+  const expiresText = expires.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
   const countyDiv = document.createElement("div");
   countyDiv.className = "notification-message";
-  countyDiv.textContent = `COUNTIES: ${cleanAreaDesc}`;
-  if (isSpecialWeatherStatement) {
-    countyDiv.style.color = "black"; // Explicitly set color for county div
-  }
-  notification.appendChild(countyDiv);
+  countyDiv.textContent = `COUNTIES: ${cleanAreaDesc} | EFFECTIVE UNTIL ${expiresText}`;
+  innerContainer.appendChild(countyDiv);
 
+  // Play appropriate sound
   const soundId = getSoundForEvent(eventName, notificationType);
   console.log(`🔊 Playing sound ID: ${soundId}`);
   playSoundById(soundId);
 
-  // Scroll logic based on comma/semicolon count:
+  // Scroll logic for long county lists
+  // Scroll logic for long county lists
   requestAnimationFrame(() => {
     const commaCount = (countyDiv.textContent.match(/,/g) || []).length;
     const semiCount = (countyDiv.textContent.match(/;/g) || []).length;
-
     const shouldScroll = commaCount > 9 || semiCount > 9;
 
     if (shouldScroll) {
@@ -2094,29 +2114,45 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       countyDiv.innerHTML = "";
       countyDiv.appendChild(scrollWrapper);
 
+      // Check if hazard/source info exists to adjust mask position
+      const hasHazardInfo =
+        allowedTornadoAlerts.includes(nameLC) ||
+        eventName.toLowerCase().includes("severe thunderstorm warning");
+
+      // Adjust mask based on presence of hazard/source info
+      let maskGradient;
+      if (hasHazardInfo) {
+        // Position mask to end 30px left of hazard box (which is at right: 10px)
+        // Hazard box width is approximately 250px (from CSS min-width), so we need to account for:
+        // 10px (right position) + 250px (box width) + 30px (buffer) = 290px from right edge
+        maskGradient =
+          "linear-gradient(to right, transparent 0px, black 20px, black calc(100% - 290px), transparent calc(100% - 270px))";
+      } else {
+        // Original mask for notifications without hazard info
+        maskGradient =
+          "linear-gradient(to right, transparent 0px, black 20px, black calc(100% - 20px), transparent 100%)";
+      }
+
+      countyDiv.style.webkitMaskImage = maskGradient;
+      countyDiv.style.maskImage = maskGradient;
+
       const extraPadding = 10;
+      // Adjust scroll distance calculation for hazard info presence
+      const rightBuffer = hasHazardInfo ? 290 : 20; // Account for hazard box space
       const scrollDistance =
-        scrollWrapper.scrollWidth - countyDiv.offsetWidth + extraPadding;
+        scrollWrapper.scrollWidth -
+        (countyDiv.offsetWidth - rightBuffer) +
+        extraPadding;
 
-      const mask =
-        "linear-gradient(to right, transparent 0px, black 20px, black calc(100% - 20px), transparent 100%)";
-      countyDiv.style.webkitMaskImage = mask;
-      countyDiv.style.maskImage = mask;
+      // Determine scroll duration based on warning type
+      const isCritical =
+        getEventName(warning).toLowerCase().includes("considerable") ||
+        getEventName(warning).toLowerCase().includes("destructive") ||
+        getEventName(warning).toLowerCase().includes("observed tornado") ||
+        getEventName(warning).includes("PDS") ||
+        getEventName(warning).toLowerCase().includes("emergency");
 
-      const totalDuration =
-        getEventName(warning)
-          .toLowerCase()
-          .includes("considerable severe thunderstorm warning") ||
-        getEventName(warning)
-          .toLowerCase()
-          .includes("destructive severe thunderstorm warning") ||
-        getEventName(warning)
-          .toLowerCase()
-          .includes("observed tornado warning") ||
-        getEventName(warning).includes("PDS Tornado Warning") ||
-        getEventName(warning).toLowerCase().includes("tornado emergency")
-          ? 20
-          : 10;
+      const totalDuration = isCritical ? 20 : 10;
 
       const animName = `scrollNotif${Date.now()}`;
       const oldStyle = document.getElementById("notif-scroll-style");
@@ -2125,49 +2161,23 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       const style = document.createElement("style");
       style.id = "notif-scroll-style";
       style.textContent = `
-        @keyframes ${animName} {
-          0%   { transform: translateX(0); }
-          20%  { transform: translateX(0); }
-          80%  { transform: translateX(-${scrollDistance}px); }
-          100% { transform: translateX(-${scrollDistance}px); }
-        }
-      `;
+      @keyframes ${animName} {
+        0%   { transform: translateX(0); }
+        20%  { transform: translateX(0); }
+        80%  { transform: translateX(-${scrollDistance}px); }
+        100% { transform: translateX(-${scrollDistance}px); }
+      }
+    `;
       document.head.appendChild(style);
 
       scrollWrapper.style.animation = `${animName} ${totalDuration}s linear forwards`;
     }
   });
 
-  // Expiration
-  const expirationEl = document.createElement("div");
-  expirationEl.className = "notification-expiration";
-  const expires = new Date(
-    warning.expires || warning.properties?.expires || Date.now()
-  );
-  expirationEl.textContent = `EXPIRES ${expires.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  })}`;
-  if (isSpecialWeatherStatement) {
-    expirationEl.style.color = "black"; // Explicitly set color for expiration text
-  }
-  notification.appendChild(expirationEl);
-
   // Emergency block (if any)
   if (emergencyText) {
     const emergencyWrapper = document.createElement("div");
     emergencyWrapper.className = "emergency-alert";
-    emergencyWrapper.style.display = "flex";
-    emergencyWrapper.style.alignItems = "center";
-    emergencyWrapper.style.justifyContent = "flex-end";
-    emergencyWrapper.style.gap = "10px";
-    emergencyWrapper.style.fontSize = "36px";
-    emergencyWrapper.style.color = "#FFFFFF";
-    emergencyWrapper.style.right = "35px";
-    if (isSpecialWeatherStatement) {
-      emergencyWrapper.style.color = "black";
-    }
 
     const iconDiv = document.createElement("div");
     iconDiv.className = "emergency-icon";
@@ -2200,12 +2210,11 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     emergencyWrapper.appendChild(iconDiv);
     emergencyWrapper.appendChild(emergencyTextElement);
 
-    notification.appendChild(emergencyWrapper);
+    innerContainer.appendChild(emergencyWrapper);
   }
 
   // Tornado hazard/source info
   const nameLC = eventName.toLowerCase().trim();
-
   const allowedTornadoAlerts = [
     "tornado warning",
     "radar confirmed tornado warning",
@@ -2223,7 +2232,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       warning.tornadoDamageThreat ||
       "N/A"
     ).trim();
-
     const src = (
       description.match(/SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is)?.[1] || "N/A"
     ).trim();
@@ -2247,10 +2255,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
 
     const hs = document.createElement("div");
     hs.className = "hazard-source-info";
-    hs.style.fontWeight = "400";
-    if (isSpecialWeatherStatement) {
-      hs.style.color = "black";
-    }
     hs.innerHTML = `
       <div><strong>HAZARD:</strong> ${getHazardEmoji(
         haz
@@ -2259,7 +2263,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
         src
       )}${src}${getSourceEmoji(src)}</div>
     `;
-    notification.appendChild(hs);
+    innerContainer.appendChild(hs);
   }
 
   // Severe thunderstorm wind/hail info
@@ -2267,7 +2271,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     const haz = (
       description.match(/HAZARD\.{3}\s*(.*?)(?=SOURCE\.{3}|$)/is)?.[1] || "N/A"
     ).trim();
-
     const src = (
       description.match(/SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is)?.[1] || "N/A"
     ).trim();
@@ -2275,11 +2278,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
 
     const wh = document.createElement("div");
     wh.className = "wind-hail-info";
-    wh.style.lineHeight = "1.2";
-    wh.style.fontSize = "1.6em";
-    if (isSpecialWeatherStatement) {
-      wh.style.color = "black";
-    }
+
     if (tornadoDetection.toUpperCase() === "POSSIBLE") {
       wh.innerHTML = `
         <div><strong>HAZARD:</strong> ${haz}</div>
@@ -2292,55 +2291,29 @@ function showNotificationElement(warning, notificationType, emergencyText) {
         <div><strong>SOURCE:</strong> ${src}</div>
       `;
     }
-    notification.appendChild(wh);
+    innerContainer.appendChild(wh);
   }
 
-  // Pulse logo animation
-  const logo = document.getElementById("pulseLogo");
-  if (logo) {
-    logo.classList.remove("notification-pulse");
-    void logo.offsetWidth; // trigger reflow for restart animation
-    logo.classList.add("notification-pulse");
-    setTimeout(() => logo.classList.remove("notification-pulse"), 2000);
-  }
-
-  // Append & animate popup
+  // Append notification to document body
   document.body.appendChild(notification);
-  notification.style.transform = "translateY(100%)";
-  notification.style.backgroundColor = getAlertColor(eventName);
-  notification.style.opacity = 1;
 
-  // Snappy slide-in
-  notification.style.transition =
-    "transform 1.1s cubic-bezier(0.22, 1, 0.36, 1)";
+  // Apply background color to notification
 
-  setTimeout(() => {
-    notification.style.transform = "translateY(50%)";
-  }, 50);
-
+  // Set timeout for disappearing
   const duration =
     eventName.toLowerCase().includes("tornado") || eventName.includes("PDS")
-      ? 10000
-      : 10000;
+      ? 10_000
+      : 10_000;
 
-  // Set timeout for the notification to disappear
   setTimeout(() => {
-    // Change to a slower, softer slide-down
-    notification.style.transition = "transform 0.5s cubic-bezier(0.7, 0, 1, 1)";
+    // Apply exit animation
+    notification.classList.add("disappear");
 
-    // Force reflow to make sure browser registers the new transition
-    void notification.offsetHeight;
-
-    // Now apply transform to start slide-down
-    notification.style.transform = "translateY(100%)";
-
-    // Remove after slide-down finishes and process next notification
+    // Remove after animation completes
     setTimeout(() => {
       notification.remove();
-
-      // Process next notification in queue
       processNotificationQueue();
-    }, 600);
+    }, 600); // Match this to the disappear animation duration
   }, duration);
 
   // Update warning list if needed
@@ -2350,8 +2323,15 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   ) {
     updateWarningList(activeWarnings);
   }
-}
 
+  const alertColor = getAlertColor(eventName);
+  notification.style.setProperty("--alert-color", alertColor);
+
+  // Trigger entrance animation
+  setTimeout(() => {
+    notification.classList.add("appear");
+  }, 10);
+}
 /**
  * Clear all pending notifications
  */
@@ -2595,7 +2575,6 @@ function updateAlertBar() {
     updateDashboard();
   } else if (highestAlert.alert) {
     alertText.textContent = currentText;
-    // Set text color to black if it's a Special Weather Statement
     alertText.style.color =
       currentText === "Special Weather Statement" ? "black" : "";
     alertBar.style.backgroundColor = highestAlert.color;
@@ -2606,8 +2585,12 @@ function updateAlertBar() {
 
     activeAlertsBox.textContent = "HIGHEST ACTIVE ALERT";
     activeAlertsBox.style.display = "block";
+    // Set text color to black if it's a Special Weather Statement
+    activeAlertsBox.style.color =
+      currentText === "Special Weather Statement" ? "black" : "";
     semicircle.style.background =
       "linear-gradient(to right, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%)";
+
     updateDashboard();
   } else {
     alertText.textContent = "No valid alert found.";
@@ -4347,13 +4330,16 @@ function updateCountiesText(newHTML, warning) {
 
   const eventTypeBar = document.querySelector(".event-type-bar");
   const leftGap = 40;
-  const additionalSafetyMargin = 20;
-  const safeMargin = 50;
+  const additionalSafetyMargin = 20; // 20px to the right of event-type bar
+  const rightEdgeOffset = 720; // distance from right edge of screen where fade/scroll stops
 
-  // Disconnect old observer to prevent memory leaks
+  console.log("[updateCountiesText] Starting update with new HTML:", newHTML);
+
+  // Disconnect old observer
   if (countiesEl._resizeObserver) {
     countiesEl._resizeObserver.disconnect();
     countiesEl._resizeObserver = null;
+    console.log("[updateCountiesText] Disconnected old resize observer");
   }
 
   // Fade out old text
@@ -4368,34 +4354,60 @@ function updateCountiesText(newHTML, warning) {
     scrollWrapper.style.whiteSpace = "nowrap";
     scrollWrapper.style.opacity = "0"; // Start invisible
 
-    // This function calculates positions and applies animations
     function setupPositioningAndScroll() {
-      // 1. Calculate the starting boundary for the text
+      console.log(
+        "[setupPositioningAndScroll] Starting positioning calculation"
+      );
+
       const containerRect = countiesEl.getBoundingClientRect();
       let startX = leftGap;
 
       if (eventTypeBar) {
         const barRect = eventTypeBar.getBoundingClientRect();
-        startX = Math.max(
-          leftGap,
-          barRect.right - containerRect.left + additionalSafetyMargin
+        const eventBarRightEdge = barRect.right - containerRect.left;
+        startX = eventBarRightEdge + additionalSafetyMargin;
+        console.log(
+          "[setupPositioningAndScroll] Event bar right edge relative to container:",
+          eventBarRightEdge
         );
+        console.log("[setupPositioningAndScroll] Final startX:", startX);
       }
 
       const contentWidth = scrollWrapper.offsetWidth;
-      const containerWidth = countiesEl.offsetWidth;
+      const containerLeft = containerRect.left;
+
+      // 🧠 Define the 720px-from-right-edge boundary
+      const screenRightLimit = window.innerWidth - rightEdgeOffset;
+      const availableWidth = screenRightLimit - (containerLeft + startX);
+      const overflowAmount = contentWidth - availableWidth;
+
+      console.log("[setupPositioningAndScroll] Content width:", contentWidth);
+      console.log(
+        "[setupPositioningAndScroll] Available width (up to 720px from screen edge):",
+        availableWidth
+      );
+      console.log(
+        "[setupPositioningAndScroll] Overflow amount:",
+        overflowAmount
+      );
+
+      // Fade position relative to container
+      const fadePosition = screenRightLimit - containerLeft;
+      console.log("[setupPositioningAndScroll] Fade position:", fadePosition);
 
       // Reset styles before recalculating
       scrollWrapper.style.animation = "none";
       countiesEl.style.webkitMaskImage = "";
       countiesEl.style.maskImage = "";
 
-      const availableWidth = containerWidth - startX;
-      const overflowAmount = contentWidth - availableWidth;
-
       if (overflowAmount > 10) {
-        // --- SCROLLING LOGIC ---
-        const endX = containerWidth - contentWidth - safeMargin;
+        console.log(
+          "[setupPositioningAndScroll] Content overflows - setting up scrolling"
+        );
+
+        const safeMargin = 50;
+        const endX =
+          screenRightLimit - containerLeft - contentWidth - safeMargin;
 
         const animName = `scroll-${Date.now()}`;
         const animationStyle = document.createElement("style");
@@ -4404,36 +4416,57 @@ function updateCountiesText(newHTML, warning) {
             0%   { transform: translateX(${startX}px); }
             10%  { transform: translateX(${startX}px); }      /* Pause at start */
             90%  { transform: translateX(${endX}px); }        /* Scroll */
-            100% { transform: translateX(${endX}px); }      /* Pause at end */
+            100% { transform: translateX(${endX}px); }        /* Pause at end */
           }
         `;
         document.head.appendChild(animationStyle);
 
         scrollWrapper.style.animation = `${animName} 10s linear infinite`;
 
-        // --- 2. MASK ADJUSTMENT FOR SCROLLING TEXT ---
-        // Add a small gap before the mask starts to create visual separation.
-        const maskGap = 10; // This creates the "hair or two" gap you wanted
-        const maskFadeWidth = 20; // The width of the fade effect
+        // --- MASK ADJUSTMENT FOR SCROLLING TEXT ---
+        const maskGap = 10;
+        const maskFadeWidth = 20;
         const maskFadeStart = startX - maskFadeWidth + maskGap;
         const maskFadeEnd = startX + maskGap;
 
         const mask = `linear-gradient(to right, 
           transparent ${maskFadeStart}px, 
           black ${maskFadeEnd}px, 
-          black calc(100% - ${safeMargin}px), 
-          transparent 100%)`;
+          black ${fadePosition}px, 
+          transparent ${fadePosition + 60}px)`;
 
         countiesEl.style.webkitMaskImage = mask;
         countiesEl.style.maskImage = mask;
-      } else {
-        // --- 1. CENTERING LOGIC FOR STATIC TEXT ---
-        // Calculate the position to center the text in the remaining space.
-        const deadSpace = availableWidth - contentWidth;
-        const centeredStartX = startX + deadSpace / 2;
 
-        scrollWrapper.style.transform = `translateX(${centeredStartX}px)`;
+        console.log(
+          "[setupPositioningAndScroll] Applied scrolling mask:",
+          mask
+        );
+      } else {
+        console.log(
+          "[setupPositioningAndScroll] Content fits - positioning statically"
+        );
+        scrollWrapper.style.transform = `translateX(${startX}px)`;
+
+        // --- STATIC MASK ---
+        const maskGap = 10;
+        const maskFadeWidth = 20;
+        const maskFadeStart = startX - maskFadeWidth + maskGap;
+        const maskFadeEnd = startX + maskGap;
+
+        const mask = `linear-gradient(to right, 
+          transparent ${maskFadeStart}px, 
+          black ${maskFadeEnd}px, 
+          black ${fadePosition}px, 
+          transparent ${fadePosition + 60}px)`;
+
+        countiesEl.style.webkitMaskImage = mask;
+        countiesEl.style.maskImage = mask;
+
+        console.log("[setupPositioningAndScroll] Applied static mask:", mask);
       }
+
+      console.log("[setupPositioningAndScroll] Positioning setup complete");
     }
 
     countiesEl.appendChild(scrollWrapper);
@@ -4443,16 +4476,20 @@ function updateCountiesText(newHTML, warning) {
       setTimeout(() => {
         setupPositioningAndScroll();
         scrollWrapper.style.transition = "opacity 0.4s ease-in-out";
-        scrollWrapper.style.opacity = "1"; // Fade in new text
+        scrollWrapper.style.opacity = "1";
 
-        // Add ResizeObserver to handle window resizing
-        countiesEl._resizeObserver = new ResizeObserver(
-          setupPositioningAndScroll
-        );
+        countiesEl._resizeObserver = new ResizeObserver(() => {
+          console.log(
+            "[ResizeObserver] Detected resize/change, recalculating position"
+          );
+          setupPositioningAndScroll();
+        });
+
         countiesEl._resizeObserver.observe(countiesEl);
         if (eventTypeBar) countiesEl._resizeObserver.observe(eventTypeBar);
 
         countiesEl.classList.remove("fade-out");
+        console.log("[updateCountiesText] Fade in complete, observers set up");
       }, 50);
     });
   }, 400);
@@ -4530,7 +4567,7 @@ function updateActiveAlertText() {
     activeAlertText.textContent = "SPC OUTLOOK";
   } else {
     activeAlertText.textContent = activeWarnings.length
-      ? "ACTIVE ALERTS"
+      ? "ALL ACTIVE ALERTS"
       : "CURRENT CONDITIONS";
   }
 }
@@ -4835,7 +4872,7 @@ function updateDashboard() {
 
     eventTypeElement.textContent = eventName;
     activeAlertsBox.style.display = "block";
-    activeAlertText.textContent = "ACTIVE ALERTS";
+    activeAlertText.textContent = "ALL ACTIVE ALERTS";
 
     showWarningDashboard();
   } catch (err) {
