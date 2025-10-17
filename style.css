@@ -492,7 +492,7 @@ body.overlay {
 
 /* Improved title styling with enhanced text shadow */
 .notification-title {
-  font-size: 2.8em; /* Larger font size */
+  font-size: 70px; /* Larger font size */
   font-weight: 800;
   margin-bottom: 18px;
   top: 10px;
@@ -509,7 +509,7 @@ body.overlay {
 
 /* Enhanced message styling with text shadow */
 .notification-message {
-  font-size: 1.6em;
+  font-size: 1.7em;
   margin-bottom: 5px;
   line-height: 1.5;
   max-height: 220px;
@@ -1653,7 +1653,7 @@ body {
   position: relative;
   left: 310px;
   text-align: left;
-  font-size: 2.2em; /* Increased font size */
+  font-size: 70px; /* Increased font size */
   font-weight: bold;
   text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.6); /* More blurry and defined shadow */
   color: white;
