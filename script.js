@@ -1984,6 +1984,9 @@ function getSoundForEvent(eventName, notificationType) {
     if (eventName.includes("Severe Thunderstorm Warning")) return "SVRCSound";
     if (eventName.includes("Tornado Watch")) return "TOAWatch";
     if (eventName.includes("Severe Thunderstorm Watch")) return "SVAWatch";
+    if (eventName.includes("Flash Flood Emergency")) return "FFENewIss";
+    if (eventName.includes("Considerable Flash Flood Warning"))
+      return "FFWCNewIss";
     // Default sound if no specific match for new alerts
     return "SVRCSound";
   }
@@ -3158,6 +3161,7 @@ function getAlertColor(eventName) {
   return colorMap[eventName] || "rgba(85, 84, 165, 0.9)";
 }
 
+
 const audioElements = {
   TorIssSound: new Audio("Sounds/TorIssSound.mp3"),
   TorPDSSound: new Audio("Sounds/PDSTorIss.mp3"),
@@ -3173,6 +3177,8 @@ const audioElements = {
   TorEmergencyUpdateSound: new Audio("Sounds/TorElss.mp3"),
   TorUpgradeSound: new Audio("Sounds/TorUpg.mp3"),
   SvrUpgradeSound: new Audio("Sounds/SvrUpgrade.mp3"),
+  FFWCNewIss: new Audio("Sounds/FFWCIss.mp3"),
+  FFENewIss: new Audio("Sounds/FFWEIss.mp3"),
 };
 
 function playSoundById(soundId) {
