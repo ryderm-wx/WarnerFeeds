@@ -3886,7 +3886,7 @@ button:hover {
 
 .wind-hail-info {
   position: absolute;
-  top: 25px; /* Adjust if needed */
+  top: 55px; /* Adjust if needed */
   right: 0px;
   text-align: right;
   font-size: 1.6em;
@@ -3899,7 +3899,6 @@ button:hover {
 }
 
 .wind-hail-info div {
-  padding: 2px 2px;
   white-space: nowrap;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
   font-weight: 700;
@@ -3925,7 +3924,7 @@ button:hover {
 
 .hazard-source-info {
   position: absolute;
-  top: 70px;
+  top: 90px;
   right: 5px;
   font-family: "Saira Condensed", sans-serif;
   font-weight: 700; /* slightly lighter */
