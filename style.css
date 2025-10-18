@@ -20,7 +20,7 @@ body {
   bottom: 81px;
   right: 460px;
   width: 217px;
-  height: 95px;
+  height: 96px;
   background-color: black;
   border-radius: 25px 0px 0 0;
   z-index: 1001;
@@ -1522,7 +1522,7 @@ body {
   bottom: 90px;
   right: -5px;
   width: 470px; /* Fixed width instead of min/max width */
-  height: 86px;
+  height: 87px;
   background: radial-gradient(
     circle at left center,
     rgba(0, 0, 0, 1) 0%,
