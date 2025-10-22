@@ -4351,6 +4351,10 @@ function updateCountiesText(newHTML, warning) {
 
   console.log("[updateCountiesText] Starting update with new HTML:", newHTML);
 
+  // Reset scroll state immediately - will be updated if scrolling is needed
+  countiesScrollEndTime = -1;
+  isCountiesCurrentlyScrolling = false;
+
   // Disconnect old observer
   if (countiesEl._resizeObserver) {
     countiesEl._resizeObserver.disconnect();
@@ -4513,9 +4517,9 @@ function updateCountiesText(newHTML, warning) {
         );
         scrollWrapper.style.transform = `translateX(${startX}px)`;
 
-        // No scrolling needed - reset to indicate static content
-        countiesScrollEndTime = -1;
-        isCountiesCurrentlyScrolling = false;
+        // Static content - flags already set to default at start of updateCountiesText
+        // countiesScrollEndTime remains -1
+        // isCountiesCurrentlyScrolling remains false
 
         // --- STATIC MASK ---
         const maskGap = 10;
