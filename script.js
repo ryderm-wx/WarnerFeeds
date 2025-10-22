@@ -3161,7 +3161,6 @@ function getAlertColor(eventName) {
   return colorMap[eventName] || "rgba(85, 84, 165, 0.9)";
 }
 
-
 const audioElements = {
   TorIssSound: new Audio("Sounds/TorIssSound.mp3"),
   TorPDSSound: new Audio("Sounds/PDSTorIss.mp3"),
@@ -4161,6 +4160,14 @@ async function rotateCity() {
     return;
   }
 
+  // Prevent rotation while scrolling is in progress
+  if (isCountiesCurrentlyScrolling) {
+    console.log(
+      "Counties currently scrolling. Skipping rotation to avoid interruption."
+    );
+    return;
+  }
+
   const eventTypeBar = document.querySelector(".event-type-bar");
   const countiesElement = document.querySelector("#counties");
 
@@ -4322,8 +4329,11 @@ function extractTornadoEmergencyLocation(rawText) {
  * @param {string} newHTML The new HTML content for the counties bar.
  * @param {object} [warning] Optional warning object for special formatting.
  */
-// Global: keep track of last scrolled text
+// Global: keep track of last scrolled text and animation state
 let lastScrollingHTML = "";
+let countiesScrollEndTime = 0; // Timestamp when scroll animation will end
+let isCountiesCurrentlyScrolling = false; // Flag to prevent updates while scrolling
+const SCROLL_SPEED_PX_PER_SEC = 150; // Fixed scroll speed in pixels per second
 
 // in script.js
 
@@ -4415,19 +4425,68 @@ function updateCountiesText(newHTML, warning) {
         const endX =
           screenRightLimit - containerLeft - contentWidth - safeMargin;
 
+        // Calculate total scroll distance
+        const scrollDistance = Math.abs(endX - startX);
+
+        // Calculate duration based on fixed speed (150px/sec)
+        const scrollDuration = scrollDistance / SCROLL_SPEED_PX_PER_SEC;
+
+        // Add 1 second pause at start and 1 second pause at end
+        const pauseAtStart = 1; // 1 second
+        const pauseAtEnd = 0; // 1 second
+        const totalDuration = pauseAtStart + scrollDuration + pauseAtEnd;
+
+        // Calculate keyframe percentages
+        const startPausePercent = (pauseAtStart / totalDuration) * 100;
+        const scrollEndPercent =
+          ((pauseAtStart + scrollDuration) / totalDuration) * 100;
+
+        // Store when the scroll will end (for rotateCity timing)
+        countiesScrollEndTime = Date.now() + totalDuration * 1000;
+
+        // Set flag to indicate scrolling is in progress
+        isCountiesCurrentlyScrolling = true;
+
+        // Clear the flag when animation completes
+        setTimeout(() => {
+          isCountiesCurrentlyScrolling = false;
+          console.log(
+            "[setupPositioningAndScroll] Scrolling complete, updates now allowed"
+          );
+        }, totalDuration * 1000);
+
+        console.log(
+          `[setupPositioningAndScroll] Scroll distance: ${scrollDistance}px`
+        );
+        console.log(
+          `[setupPositioningAndScroll] Scroll duration: ${scrollDuration.toFixed(
+            2
+          )}s`
+        );
+        console.log(
+          `[setupPositioningAndScroll] Total duration (with pauses): ${totalDuration.toFixed(
+            2
+          )}s`
+        );
+
         const animName = `scroll-${Date.now()}`;
         const animationStyle = document.createElement("style");
         animationStyle.textContent = `
           @keyframes ${animName} {
             0%   { transform: translateX(${startX}px); }
-            10%  { transform: translateX(${startX}px); }      /* Pause at start */
-            90%  { transform: translateX(${endX}px); }        /* Scroll */
-            100% { transform: translateX(${endX}px); }        /* Pause at end */
+            ${startPausePercent.toFixed(
+              2
+            )}%  { transform: translateX(${startX}px); }      /* Pause 1s at start */
+            ${scrollEndPercent.toFixed(
+              2
+            )}%  { transform: translateX(${endX}px); }        /* Scroll */
+            100% { transform: translateX(${endX}px); }        /* Pause 1s at end */
           }
         `;
         document.head.appendChild(animationStyle);
 
-        scrollWrapper.style.animation = `${animName} 10s linear infinite`;
+        // Use 'forwards' to keep the end state, and don't loop
+        scrollWrapper.style.animation = `${animName} ${totalDuration}s linear forwards`;
 
         // --- MASK ADJUSTMENT FOR SCROLLING TEXT ---
         const maskGap = 10;
@@ -4454,12 +4513,15 @@ function updateCountiesText(newHTML, warning) {
         );
         scrollWrapper.style.transform = `translateX(${startX}px)`;
 
+        // No scrolling needed - reset to indicate static content
+        countiesScrollEndTime = -1;
+        isCountiesCurrentlyScrolling = false;
+
         // --- STATIC MASK ---
         const maskGap = 10;
         const maskFadeWidth = 20;
         const maskFadeStart = startX - maskFadeWidth + maskGap;
         const maskFadeEnd = startX + maskGap;
-
         const mask = `linear-gradient(to right, 
           transparent ${maskFadeStart}px, 
           black ${maskFadeEnd}px, 
@@ -4596,6 +4658,13 @@ const lastAlertsMap = new Map();
 
 function updateDashboard() {
   console.log("Starting updateDashboard function");
+
+  // Prevent updates while scrolling is in progress
+  if (isCountiesCurrentlyScrolling) {
+    console.log("Counties currently scrolling. Deferring dashboard update.");
+    return;
+  }
+
   const expirationElement = document.querySelector("#expiration");
   const eventTypeElement = document.querySelector("#eventType");
   const countiesElement = document.querySelector("#counties");
@@ -4906,9 +4975,35 @@ function stopRotatingCities() {
 
 async function rotateCityWithDelay() {
   if (rotateActive) {
-    await rotateCity();
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    if (rotateActive) rotateCityWithDelay();
+    let totalDelay;
+
+    // Check if content is scrolling or static
+    if (countiesScrollEndTime === -1) {
+      // Static content (no scrolling) - use base 10 second delay
+      totalDelay = 10000;
+      console.log(
+        `[rotateCityWithDelay] Static content - using base 10s delay`
+      );
+    } else {
+      // Scrolling content - wait for scroll to end + 1 second
+      const now = Date.now();
+      const timeUntilScrollEnd = Math.max(0, countiesScrollEndTime - now);
+      const additionalDelay = 1000; // 1 second after scroll ends
+      totalDelay = timeUntilScrollEnd + additionalDelay;
+
+      console.log(
+        `[rotateCityWithDelay] Scrolling content - waiting ${(
+          totalDelay / 1000
+        ).toFixed(2)}s before next rotation`
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, totalDelay));
+
+    if (rotateActive) {
+      await rotateCity();
+      rotateCityWithDelay(); // Continue rotation
+    }
   }
 }
 
