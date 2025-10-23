@@ -4335,7 +4335,6 @@ let countiesScrollEndTime = 0; // Timestamp when scroll animation will end
 let isCountiesCurrentlyScrolling = false; // Flag to prevent updates while scrolling
 const SCROLL_SPEED_PX_PER_SEC = 150; // Fixed scroll speed in pixels per second
 
-// in script.js
 
 // in script.js
 
