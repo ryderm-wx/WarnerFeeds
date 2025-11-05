@@ -1981,7 +1981,7 @@ function getSoundForEvent(eventName, notificationType) {
     if (eventName.includes("Destructive")) return "PDSSVRSound";
     if (eventName.includes("Considerable Severe Thunderstorm Warning"))
       return "SVRCNEWSound";
-    if (eventName.includes("Severe Thunderstorm Warning")) return "SVRCSound";
+    if (eventName === "Severe Thunderstorm Warning") return "Bloop";
     if (eventName.includes("Tornado Watch")) return "TOAWatch";
     if (eventName.includes("Severe Thunderstorm Watch")) return "SVAWatch";
     if (eventName.includes("Flash Flood Emergency")) return "FFENewIss";
@@ -2082,11 +2082,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   const expires = new Date(
     warning.expires || warning.properties?.expires || Date.now()
   );
-  const expiresText = expires.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+  const expiresText = formatExpirationTime(expires);
   const countyDiv = document.createElement("div");
   countyDiv.className = "notification-message";
   countyDiv.textContent = `COUNTIES: ${cleanAreaDesc} | EFFECTIVE UNTIL ${expiresText}`;
@@ -3178,6 +3174,7 @@ const audioElements = {
   SvrUpgradeSound: new Audio("Sounds/SvrUpgrade.mp3"),
   FFWCNewIss: new Audio("Sounds/FFWCIss.mp3"),
   FFENewIss: new Audio("Sounds/FFWEIss.mp3"),
+  Bloop: new Audio("Sounds/Bloop.mp3"),
 };
 
 function playSoundById(soundId) {
@@ -3247,7 +3244,50 @@ function formatCountiesNotification(areaDesc) {
   return parts.join(", ");
 }
 
-function updateWarningList(warnings) {
+/**
+ * Formats expiration time, including date if not today
+ * @param {Date} expiresDate - The expiration date
+ * @returns {string} Formatted expiration text (e.g., "11:00 PM" or "NOVEMBER 4 AT 11:00 PM")
+ */
+function formatExpirationTime(expiresDate) {
+  if (!expiresDate || !(expiresDate instanceof Date) || isNaN(expiresDate)) {
+    return "UNKNOWN";
+  }
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const expiresDay = new Date(
+    expiresDate.getFullYear(),
+    expiresDate.getMonth(),
+    expiresDate.getDate()
+  );
+
+  const timeStr = expiresDate
+    .toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    })
+    .toUpperCase();
+
+  // If expires today, just show time
+  if (expiresDay.getTime() === today.getTime()) {
+    return timeStr;
+  }
+
+  // If expires on a different day, show "MONTH DAY AT TIME"
+  const month = expiresDate
+    .toLocaleString("en-US", { month: "long" })
+    .toUpperCase();
+  const day = expiresDate.getDate();
+
+  return `${month} ${day} AT ${timeStr}`;
+}
+
+function updateWarningList(warnings = null) {
+  // Allow callers to omit the warnings array; default to global activeWarnings
+  if (!Array.isArray(warnings))
+    warnings = Array.isArray(activeWarnings) ? activeWarnings : [];
   const warningList = document.getElementById("warningList");
   if (!warningList) return;
 
@@ -4335,7 +4375,6 @@ let countiesScrollEndTime = 0; // Timestamp when scroll animation will end
 let isCountiesCurrentlyScrolling = false; // Flag to prevent updates while scrolling
 const SCROLL_SPEED_PX_PER_SEC = 150; // Fixed scroll speed in pixels per second
 
-
 // in script.js
 
 function updateCountiesText(newHTML, warning) {
@@ -4784,20 +4823,23 @@ function updateDashboard() {
     hour12: true,
   };
 
-  const formattedExpirationTime = expirationDate.toLocaleString(
-    "en-US",
-    timeOptions
-  );
+  // Use our helper function to format expiration with date if not today
+  const formattedExpirationTime = formatExpirationTime(expirationDate);
   const fullFormattedExpirationTime = expirationDate.toLocaleString(
     "en-US",
     fullOptions
   );
+
+  // Use our helper function to format expiration with date if not today
+  const expiresText = formatExpirationTime(expirationDate);
+
   console.log("Formatted expiration times:", {
     formattedExpirationTime,
     fullFormattedExpirationTime,
+    expiresText,
   });
 
-  expirationElement.textContent = `Expires: ${fullFormattedExpirationTime}`;
+  expirationElement.textContent = `EXPIRES: ${expiresText}`;
 
   try {
     console.log("Extracting tornado emergency location (if any)");

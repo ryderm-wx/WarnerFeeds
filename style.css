@@ -1547,10 +1547,14 @@ body {
   white-space: nowrap;
   z-index: 1035;
   justify-content: flex-end;
+  align-items: center;
   text-align: right;
   padding-right: 30px;
-  /* Remove any flex properties that would make it grow/shrink */
   flex: 0 0 auto;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .time-date .time {
