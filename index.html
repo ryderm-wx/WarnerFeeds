@@ -171,16 +171,10 @@
               >
                 Test Flash Flood Warning
               </button>
-              <button
-                class="flood"
-                onclick="testNotification('Flood Warning')"
-              >
+              <button class="flood" onclick="testNotification('Flood Warning')">
                 Test Flood Warning
               </button>
-              <button
-                class="flood"
-                onclick="testNotification('Flood Watch')"
-              >
+              <button class="flood" onclick="testNotification('Flood Watch')">
                 Test Flood Watch
               </button>
               <button
@@ -480,6 +474,18 @@
               <button id="clearWarningsButton">
                 Clear All Warnings (Use for Test Notifications Only!)
               </button>
+              <div class="raw-text-toggle-wrapper">
+                <label
+                  class="switch"
+                  title="Toggle showing full raw alert text in counties bar"
+                >
+                  <input type="checkbox" id="rawTextToggle" />
+                  <span class="slider round"></span>
+                </label>
+                <span class="raw-text-toggle-label"
+                  >Show Raw Alert Text Inline</span
+                >
+              </div>
             </div>
           </div>
 

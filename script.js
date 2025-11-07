@@ -1,3 +1,15 @@
+// Initialize the Raw Text toggle (persisted in localStorage)
+document.addEventListener("DOMContentLoaded", () => {
+  const rawToggle = document.getElementById("rawTextToggle");
+  if (rawToggle) {
+    try {
+      rawToggle.checked = isRawTextInBarEnabled();
+    } catch (_) {}
+    rawToggle.addEventListener("change", () => {
+      setRawTextInBarEnabled(rawToggle.checked);
+    });
+  }
+});
 const eventTypes = {
   "Tornado Warning": "tornado-warning",
   "Radar Confirmed Tornado Warning": "radar-confirmed-tornado",
@@ -4377,6 +4389,93 @@ const SCROLL_SPEED_PX_PER_SEC = 150; // Fixed scroll speed in pixels per second
 
 // in script.js
 
+// Setting toggle: whether to append formatted rawText into the counties bar
+function isRawTextInBarEnabled() {
+  try {
+    return localStorage.getItem("showRawTextInCounties") === "true";
+  } catch (_) {
+    return false;
+  }
+}
+
+function setRawTextInBarEnabled(val) {
+  try {
+    localStorage.setItem("showRawTextInCounties", val ? "true" : "false");
+  } catch (_) {}
+}
+
+// Escape HTML to ensure raw text is safe for insertion into innerHTML
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Format rawText for inline display within the single-line counties bar
+// - Replace section headers like "WHAT..." -> "WHAT:"
+// - Remove leading list bullets "* "
+// - Normalize whitespace and newlines to single separators
+// - Strip non-printable characters
+function formatRawTextForBar(rawText) {
+  if (!rawText || typeof rawText !== "string") return "";
+
+  // Replace non-printable/unicode oddities with spaces
+  let txt = rawText.replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ");
+
+  // Normalize Windows/Mac line endings
+  txt = txt.replace(/\r\n?|\n/g, "\n");
+
+  // Remove leading bullets like "* " at start of lines
+  txt = txt.replace(/^\s*\*\s+/gm, "");
+
+  // Parse only WHAT, WHERE, WHEN, IMPACTS sections
+  const wanted = new Set(["WHAT", "WHERE", "WHEN", "IMPACTS"]);
+  const sections = { WHAT: "", WHERE: "", WHEN: "", IMPACTS: "" };
+  let current = null;
+
+  const headerRe = /^\s*(?:\*\s*)?([A-Za-z][A-Za-z /-]{1,40})\.\.\.\s*(.*)$/i;
+
+  const lines = txt.split("\n");
+  for (let rawLine of lines) {
+    let line = rawLine.trim();
+    if (!line) {
+      // blank line ends current section accumulation
+      current = null;
+      continue;
+    }
+
+    const m = line.match(headerRe);
+    if (m) {
+      const header = m[1].toUpperCase();
+      const rest = m[2] ? m[2].trim() : "";
+      if (wanted.has(header)) {
+        current = header;
+        sections[current] = rest; // start with the content on the same line
+      } else {
+        current = null; // unknown header; ignore following lines until next header
+      }
+      continue;
+    }
+
+    if (current && wanted.has(current)) {
+      // append continuation lines to current section
+      sections[current] += (sections[current] ? " " : "") + line;
+    }
+  }
+
+  // Build output in the specified order, only including present sections
+  const parts = [];
+  ["WHAT", "WHERE", "WHEN", "IMPACTS"].forEach((key) => {
+    const val = sections[key].replace(/\s{2,}/g, " ").trim();
+    if (val) parts.push(`${key}: ${escapeHtml(val)}`);
+  });
+
+  return parts.join(" | ");
+}
+
 function updateCountiesText(newHTML, warning) {
   const countiesEl = document.querySelector("#counties");
   if (!countiesEl)
@@ -4406,8 +4505,21 @@ function updateCountiesText(newHTML, warning) {
   setTimeout(() => {
     countiesEl.innerHTML = "";
 
+    // Optionally augment with formatted rawText when enabled and a warning object is provided
+    let contentHTML = newHTML;
+    try {
+      if (warning && warning.rawText && isRawTextInBarEnabled()) {
+        const formatted = formatRawTextForBar(warning.rawText);
+        if (formatted) {
+          contentHTML = `${newHTML} | ${formatted}`;
+        }
+      }
+    } catch (e) {
+      console.warn("[updateCountiesText] Failed to format rawText:", e);
+    }
+
     const scrollWrapper = document.createElement("span");
-    scrollWrapper.innerHTML = newHTML;
+    scrollWrapper.innerHTML = contentHTML;
     scrollWrapper.style.display = "inline-block";
     scrollWrapper.style.whiteSpace = "nowrap";
     scrollWrapper.style.opacity = "0"; // Start invisible
