@@ -71,27 +71,28 @@ const priority = {
   "Destructive Severe Thunderstorm Warning": 9,
   "Considerable Severe Thunderstorm Warning": 10,
   "Severe Thunderstorm Warning": 11,
-  "Special Weather Statement": 12,
-
   // 🌊 Flooding
-  "Flash Flood Emergency": 13,
-  "Considerable Flash Flood Warning": 14,
-  "Flash Flood Warning": 15,
-  "Flood Warning": 16,
-  "Flood Advisory": 17,
+  "Flash Flood Emergency": 12,
+  "Considerable Flash Flood Warning": 13,
+  "Flash Flood Warning": 14,
+  "Flood Warning": 15,
+  "Flood Advisory": 16,
 
-  // 🟡 Watches (convective) — moved up
-  "Tornado Watch": 18,
-  "Severe Thunderstorm Watch": 19,
-  "Flood Watch": 20,
+  // 🟡 Watches (convective)
+  "Tornado Watch": 17,
+  "Severe Thunderstorm Watch": 18,
+  "Flood Watch": 19,
 
   // ❄️ Winter weather
-  "Blizzard Warning": 21,
-  "Ice Storm Warning": 22,
-  "Snow Squall Warning": 23,
-  "Winter Storm Warning": 24,
-  "Winter Weather Advisory": 25,
-  "Winter Storm Watch": 26,
+  "Blizzard Warning": 20,
+  "Ice Storm Warning": 21,
+  "Snow Squall Warning": 22,
+  "Winter Storm Warning": 23,
+  "Winter Weather Advisory": 24,
+  "Winter Storm Watch": 25,
+
+  // ❗ Special statements (moved below winter alerts)
+  "Special Weather Statement": 26,
 
   // 🌬️ Wind
   "High Wind Warning": 27,
