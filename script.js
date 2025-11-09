@@ -3702,6 +3702,50 @@ let alertCycleInterval; // To hold the interval ID
 
 let alertListeningActive = false; // Flag to track if alert listening is active
 
+// VTEC Action Codes - Maps action codes to their types and descriptions
+const VTEC_ACTION_CODES = {
+  NEW: {
+    type: "NEW",
+    description: "New event issued",
+  },
+  CON: {
+    type: "UPDATE",
+    description: "Event continued",
+  },
+  EXT: {
+    type: "UPDATE",
+    description: "Event extended (time)",
+  },
+  EXA: {
+    type: "UPDATE",
+    description: "Event extended (area)",
+  },
+  EXB: {
+    type: "UPDATE",
+    description: "Event extended (both time and area)",
+  },
+  UPG: {
+    type: "UPGRADE",
+    description: "Event upgraded",
+  },
+  CAN: {
+    type: "CANCEL",
+    description: "Event cancelled",
+  },
+  EXP: {
+    type: "EXPIRE",
+    description: "Event expired",
+  },
+  ROU: {
+    type: "UPDATE",
+    description: "Routine update",
+  },
+  COR: {
+    type: "UPDATE",
+    description: "Correction to event",
+  },
+};
+
 // Helper: parse VTEC into key components
 function parseVTEC(vtec) {
   // format: /O.ACTION.WFO.PHEN.SIG.ETN.YYYYMMDDThhmmZ-.../
@@ -3714,7 +3758,22 @@ function parseVTEC(vtec) {
     parts[3] + "." + parts[4],
     parts[5],
   ];
-  return { action, wfo, phenSig, etn, core: `${wfo}_${etn}` };
+
+  // Get action code details
+  const actionInfo = VTEC_ACTION_CODES[action] || {
+    type: "UNKNOWN",
+    description: "Unknown action code",
+  };
+
+  return {
+    action,
+    actionType: actionInfo.type,
+    actionDescription: actionInfo.description,
+    wfo,
+    phenSig,
+    etn,
+    core: `${wfo}_${etn}`,
+  };
 }
 
 function normalizeAlert(alert) {
