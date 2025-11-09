@@ -7,6 +7,14 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (_) {}
     rawToggle.addEventListener("change", () => {
       setRawTextInBarEnabled(rawToggle.checked);
+      // Immediately refresh the dashboard when toggled
+      try {
+        console.log("rawTextToggle changed:", rawToggle.checked);
+        // Bypass scrolling guard: force immediate dashboard refresh
+        updateDashboard(true);
+      } catch (e) {
+        console.warn("updateDashboard not available yet:", e);
+      }
     });
   }
 });
@@ -4810,11 +4818,11 @@ let lastActiveIds = [];
 // Keep this map outside the function to track previous alert states
 const lastAlertsMap = new Map();
 
-function updateDashboard() {
+function updateDashboard(forceUpdate = false) {
   console.log("Starting updateDashboard function");
 
   // Prevent updates while scrolling is in progress
-  if (isCountiesCurrentlyScrolling) {
+  if (isCountiesCurrentlyScrolling && !forceUpdate) {
     console.log("Counties currently scrolling. Deferring dashboard update.");
     return;
   }
