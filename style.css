@@ -34,15 +34,128 @@ body {
 .slider-container {
   position: fixed;
   top: 0;
-  left: 0;
-  width: 100%;
-  height: 600px;
-  background-color: #333;
-  color: white;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  width: 95%;
+  height: 45%;
+  background: rgba(5, 8, 15, 0.92);
+  backdrop-filter: blur(30px);
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
+  color: #f7f7f7;
   overflow-y: auto;
+  padding: 42px 48px 54px;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+
+.slider-container.open {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.slider-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.slider-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.slider-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#sliderContainer > * + * {
+  margin-top: 28px;
+}
+
+.slider-content-grid {
+  display: grid;
+  gap: 32px;
+}
+
+.soft-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 22px;
+  padding: 28px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  transition: border-color 0.3s ease, transform 0.3s ease, background 0.3s ease;
+}
+
+.soft-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.warning-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.warning-count {
   padding: 20px;
-  transform: translateY(-100%);
-  transition: transform 0.3s ease;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.02)
+  );
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.warning-count::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.05),
+    transparent 45%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.warning-count:hover::after {
+  opacity: 1;
+}
+
+.warning-count strong {
+  font-size: 2rem;
+  letter-spacing: 0.05em;
+}
+
+.warning-count.tornado-count strong {
+  color: #ff6b6b;
+}
+
+.warning-count.thunderstorm-count strong {
+  color: #ffb347;
+}
+
+.warning-count.flood-count strong {
+  color: #6bf5c0;
+}
+
+.warning-count.winter-weather-count strong {
+  color: #8ccaff;
 }
 
 .emergency-icon {
@@ -651,6 +764,20 @@ body.overlay {
   }
 }
 
+/* Reverse text exit animation */
+@keyframes text-hide {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-15px);
+    filter: blur(5px);
+  }
+}
+
 /* Apply enhanced entrance animation */
 .notification-popup.appear {
   animation: notification-pop-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
@@ -697,6 +824,38 @@ body.overlay {
 /* Apply enhanced exit animation */
 .notification-popup.disappear {
   animation: notification-fade-out 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* When disappearing, animate the children out with reverse cascading effect */
+.notification-popup.disappear .notification-type-badge {
+  animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0s;
+}
+
+.notification-popup.disappear .notification-title {
+  animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.05s;
+}
+
+.notification-popup.disappear .notification-message {
+  animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.1s;
+}
+
+.notification-popup.disappear .notification-expiration {
+  animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.15s;
+}
+
+.notification-popup.disappear .hazard-source-info,
+.notification-popup.disappear .wind-hail-info {
+  animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0.2s;
+}
+
+.notification-popup.disappear .emergency-alert {
+  animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: 0s;
 }
 
 /* Special Weather Statement overrides with enhanced styling */
@@ -2563,167 +2722,333 @@ body {
   transform: translateY(-5px);
 }
 
-/* Test Buttons Container Styling */
 .test-buttons {
-  background: #1a1a1a;
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
-  max-width: 900px;
-  margin: 20px auto;
-  border: 2px solid #333;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 26px;
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
 }
 
 .test-buttons h3 {
-  color: #fff;
-  text-align: center;
-  font-size: 24px;
-  margin-bottom: 15px;
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  letter-spacing: 2px;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-  padding-bottom: 10px;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: left;
 }
 
-/* Button Base Styling */
-.test-buttons button {
-  margin: 8px;
-  padding: 12px 16px;
+.test-buttons .category-divider {
+  position: relative;
+  font-size: 0.8rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  padding-top: 16px;
+  margin-top: 6px;
+}
+
+.test-buttons .category-divider::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.15), transparent);
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.button-group button,
+.test-buttons button,
+#customizeButton,
+#saveSettingsButton,
+#saveStateButton,
+#saveButton,
+#tacticalModeButton,
+#clearWarningsButton,
+#toggleTimeZone,
+#singleNotificationToggleButton,
+#testCustomWarningButton {
   border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  color: white;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 14px;
+  border-radius: 18px;
+  padding: 12px 18px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  display: inline-block;
-  min-width: 220px;
 }
 
-/* Button Hover Effect */
-.test-buttons button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.4);
-}
-
-.test-buttons button:active {
-  transform: translateY(1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-}
-
-/* Button Categories */
-.test-buttons button.tornado {
-  background: linear-gradient(145deg, #ff0000, #cc0000);
-}
-
-.test-buttons button.tornado-special {
-  background: linear-gradient(145deg, #ff00ff, #cc00cc);
-}
-
-.test-buttons button.tornado-emergency {
-  background: linear-gradient(145deg, #ff0080, #cc0060);
-}
-
-.test-buttons button.thunderstorm {
-  background: linear-gradient(145deg, #ffa500, #cc8400);
-}
-
-.test-buttons button.flood {
-  background: linear-gradient(145deg, #228b22, #1a6b1a);
-}
-
-.test-buttons button.flood-emergency {
-  background: linear-gradient(145deg, #8b0000, #6b0000);
-}
-
-.test-buttons button.watch {
-  background: linear-gradient(145deg, #be428b, #9e3272);
-}
-
-.test-buttons button.tornado-watch {
-  background: linear-gradient(145deg, #e9cd2f, #cbb12a);
-}
-
-.test-buttons button.winter {
-  background: linear-gradient(145deg, #7b68ee, #5b48cc);
-}
-
-.test-buttons button.ice {
-  background: linear-gradient(145deg, #8b008b, #6b006b);
-}
-
-.test-buttons button.winter-warning {
-  background: linear-gradient(145deg, #ff69b4, #d649a0);
-}
-
-.test-buttons button.winter-blizzard {
-  background: linear-gradient(145deg, #ff4500, #cc3700);
-}
-
-.test-buttons button.special {
-  background: linear-gradient(145deg, #ffe4b5, #d6c095);
-  color: #333;
-  text-shadow: none;
-}
-
-.test-buttons button.wind {
-  background: linear-gradient(145deg, #daa520, #b08418);
-}
-
-.test-buttons button.fog {
-  background: linear-gradient(145deg, #708090, #505868);
-}
-
-.test-buttons button.snow-squall {
-  background: linear-gradient(145deg, #64b5f6, #4495d6);
-}
-
-.test-buttons button.test-recent {
-  background: linear-gradient(145deg, #333, #222);
-  border: 2px solid #555;
-}
-
-/* Button Glow Effects */
-.test-buttons button.tornado:hover,
-.test-buttons button.tornado-special:hover,
-.test-buttons button.tornado-emergency:hover {
-  box-shadow: 0 7px 14px rgba(255, 0, 0, 0.5);
-}
-
-.test-buttons button.thunderstorm:hover {
-  box-shadow: 0 7px 14px rgba(255, 165, 0, 0.5);
-}
-
-/* Category Dividers */
-.test-buttons .category-divider {
-  margin: 15px 0;
-  border-top: 1px dashed rgba(255, 255, 255, 0.3);
-  position: relative;
-}
-
-.test-buttons .category-divider::after {
-  content: attr(data-category);
+.button-group button::after,
+.test-buttons button::after,
+#customizeButton::after,
+#saveSettingsButton::after,
+#saveStateButton::after,
+#saveButton::after,
+#tacticalModeButton::after,
+#clearWarningsButton::after,
+#toggleTimeZone::after,
+#singleNotificationToggleButton::after,
+#testCustomWarningButton::after {
+  content: "";
   position: absolute;
-  top: -10px;
-  left: 20px;
-  background: #1a1a1a;
-  padding: 0 10px;
-  color: #aaa;
-  font-size: 12px;
-  text-transform: uppercase;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
-/* Category Layout - Flexbox */
-.test-buttons .button-group {
+.button-group button:hover,
+.test-buttons button:hover,
+#customizeButton:hover,
+#saveSettingsButton:hover,
+#saveStateButton:hover,
+#saveButton:hover,
+#tacticalModeButton:hover,
+#clearWarningsButton:hover,
+#toggleTimeZone:hover,
+#singleNotificationToggleButton:hover,
+#testCustomWarningButton:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.button-group button:hover::after,
+.test-buttons button:hover::after,
+#customizeButton:hover::after,
+#saveSettingsButton:hover::after,
+#saveStateButton:hover::after,
+#saveButton:hover::after,
+#tacticalModeButton:hover::after,
+#clearWarningsButton:hover::after,
+#toggleTimeZone:hover::after,
+#singleNotificationToggleButton:hover::after,
+#testCustomWarningButton:hover::after {
+  opacity: 1;
+}
+
+.button-group button:active,
+.test-buttons button:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.button-group button.tornado,
+.test-buttons button.tornado,
+.button-group button.tornado-special,
+.button-group button.tornado-emergency {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 99, 99, 0.9),
+    rgba(255, 0, 80, 0.75)
+  );
+}
+
+.button-group button.thunderstorm,
+.test-buttons button.thunderstorm {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 182, 72, 0.9),
+    rgba(217, 133, 9, 0.75)
+  );
+}
+
+.button-group button.flood,
+.test-buttons button.flood {
+  background: linear-gradient(
+    135deg,
+    rgba(102, 255, 204, 0.9),
+    rgba(47, 157, 125, 0.75)
+  );
+}
+
+.button-group button.flood-emergency {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 120, 120, 0.95),
+    rgba(220, 50, 50, 0.8)
+  );
+}
+
+.button-group button.watch,
+.test-buttons button.watch,
+.button-group button.tornado-watch {
+  background: linear-gradient(
+    135deg,
+    rgba(233, 210, 80, 0.9),
+    rgba(184, 150, 20, 0.75)
+  );
+  color: #121212;
+}
+
+.button-group button.winter,
+.button-group button.winter-warning,
+.button-group button.winter-blizzard,
+.button-group button.ice,
+.button-group button.freeze-watch,
+.button-group button.freeze-warning,
+.button-group button.frost {
+  background: linear-gradient(
+    135deg,
+    rgba(140, 202, 255, 0.9),
+    rgba(78, 130, 199, 0.75)
+  );
+}
+
+.button-group button.snow-squall {
+  background: linear-gradient(
+    135deg,
+    rgba(105, 180, 255, 0.95),
+    rgba(60, 120, 190, 0.8)
+  );
+}
+
+.button-group button.special {
+  background: linear-gradient(
+    135deg,
+    rgba(247, 233, 186, 0.9),
+    rgba(201, 177, 130, 0.75)
+  );
+  color: #1b1b1b;
+}
+
+.button-group button.wind {
+  background: linear-gradient(
+    135deg,
+    rgba(240, 205, 108, 0.9),
+    rgba(183, 137, 37, 0.75)
+  );
+}
+
+.button-group button.fog {
+  background: linear-gradient(
+    135deg,
+    rgba(160, 170, 186, 0.9),
+    rgba(107, 117, 133, 0.75)
+  );
+}
+
+.button-group button.heat {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 134, 77, 0.95),
+    rgba(218, 69, 32, 0.8)
+  );
+}
+
+.button-group button.test-recent {
+  background: linear-gradient(
+    135deg,
+    rgba(120, 120, 132, 0.85),
+    rgba(66, 66, 74, 0.8)
+  );
+}
+
+#customizationPanel,
+.checkbox-section,
+.state-controls,
+.custom-alert-builder,
+#customWarningContainer {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 26px;
+  margin-top: 24px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+}
+
+.checkbox-section h3,
+.custom-alert-builder h3,
+#customWarningContainer h3 {
+  margin-top: 0;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.1rem;
+}
+
+.custom-alert-builder label,
+.state-controls label,
+#customizationPanel label,
+#customWarningContainer label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.custom-alert-builder select,
+.custom-alert-builder input,
+.state-controls input,
+#customizationPanel input,
+#customWarningContainer input,
+.checkbox-section input[type="text"],
+.checkbox-section input[type="number"] {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.custom-alert-builder select:focus,
+.custom-alert-builder input:focus,
+.state-controls input:focus,
+#customizationPanel input:focus,
+#customWarningContainer input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#timeoutSlider {
+  width: 100%;
+  accent-color: #7ac6ff;
+}
+
+#alertBarColor,
+#eventTypeBarColor {
+  height: 48px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.raw-text-toggle-wrapper {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-bottom: 15px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.raw-text-toggle-label {
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  opacity: 0.75;
 }
 
 /* Raw text inline toggle visuals */

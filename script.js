@@ -901,16 +901,11 @@ selectedAlerts = new Set([
 ]);
 
 function toggleslider() {
-  var slider = document.getElementById("sliderContainer");
-  var body = document.body;
+  const slider = document.getElementById("sliderContainer");
+  const body = document.body;
+  const isOpen = slider.classList.toggle("open");
 
-  if (slider.style.transform === "translateY(0%)") {
-    slider.style.transform = "translateY(-100%)";
-    body.classList.remove("overlay");
-  } else {
-    slider.style.transform = "translateY(0%)";
-    body.classList.add("overlay");
-  }
+  body.classList.toggle("overlay", isOpen);
 }
 
 function adjustMessageFontSize(messageElement) {
@@ -2333,7 +2328,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     setTimeout(() => {
       notification.remove();
       processNotificationQueue();
-    }, 600); // Match this to the disappear animation duration
+    }, 800); // Match this to the disappear animation duration (0.7s parent + 0.2s max child delay + 0.3s child animation = ~1s, using 800ms for safety)
   }, duration);
 
   // Update warning list if needed
