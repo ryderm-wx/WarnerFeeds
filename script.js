@@ -20,8 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 const eventTypes = {
   "Tornado Warning": "tornado-warning",
-  "Radar Confirmed Tornado Warning": "radar-confirmed-tornado",
-  "Spotter Confirmed Tornado Warning": "spotter-confirmed-tornado",
+  "Radar Confirmed Tornado Warning": "observed-tornado-warning",
+  "Spotter Confirmed Tornado Warning": "observed-tornado-warning",
+  "Emergency Mgmt Confirmed Tornado Warning": "observed-tornado-warning",
+  "Law Enforcement Confirmed Tornado Warning": "observed-tornado-warning",
+  "Public Confirmed Tornado Warning": "observed-tornado-warning",
   "Observed Tornado Warning": "observed-tornado-warning",
   "PDS Tornado Warning": "pds-tornado-warning",
   "Tornado Emergency": "tornado-emergency",
@@ -54,6 +57,11 @@ const eventTypes = {
   "Frost Advisory": "frost-advisory",
   "Freeze Watch": "freeze-watch",
   "Freeze Warning": "freeze-warning",
+  "Cold Weather Advisory": "cold-weather-advisory",
+  "Wind Chill Warning": "wind-chill-warning",
+  "Extreme Cold Warning": "extreme-cold-warning",
+  "Extreme Cold Watch": "extreme-cold-watch",
+  "Lake Effect Snow Warning": "lake-effect-snow-warning",
 };
 
 const priority = {
@@ -61,54 +69,51 @@ const priority = {
   "Tornado Emergency": 1,
   "PDS Tornado Warning": 2,
   "Observed Tornado Warning": 3,
-  "Spotter Confirmed Tornado Warning": 4,
-  "Law Enforcement Confirmed Tornado Warning": 5,
-  "Public Confirmed Tornado Warning": 6,
-  "Radar Confirmed Tornado Warning": 7,
-  "Tornado Warning": 8,
+  "Emergency Mgmt Confirmed Tornado Warning": 4,
+  "Spotter Confirmed Tornado Warning": 5,
+  "Law Enforcement Confirmed Tornado Warning": 6,
+  "Public Confirmed Tornado Warning": 7,
+  "Radar Confirmed Tornado Warning": 8,
+  "Tornado Warning": 9,
 
   // ⚡ Severe thunderstorm
-  "Destructive Severe Thunderstorm Warning": 9,
-  "Considerable Severe Thunderstorm Warning": 10,
-  "Severe Thunderstorm Warning": 11,
+  "Destructive Severe Thunderstorm Warning": 10,
+  "Considerable Severe Thunderstorm Warning": 11,
+  "Severe Thunderstorm Warning": 12,
   // 🌊 Flooding
-  "Flash Flood Emergency": 12,
-  "Considerable Flash Flood Warning": 13,
-  "Flash Flood Warning": 14,
-  "Flood Warning": 15,
-  "Flood Advisory": 16,
+  "Flash Flood Emergency": 13,
+  "Considerable Flash Flood Warning": 14,
+  "Flash Flood Warning": 15,
+  "Flood Warning": 16,
+  "Flood Advisory": 17,
 
   // 🟡 Watches (convective)
-  "Tornado Watch": 17,
-  "Severe Thunderstorm Watch": 18,
-  "Flood Watch": 19,
+  "Tornado Watch": 18,
+  "Severe Thunderstorm Watch": 19,
+  "Flood Watch": 20,
 
   // ❄️ Winter weather
-  "Blizzard Warning": 20,
-  "Ice Storm Warning": 21,
-  "Snow Squall Warning": 22,
-  "Winter Storm Warning": 23,
-  "Winter Weather Advisory": 24,
-  "Winter Storm Watch": 25,
+  "Blizzard Warning": 21,
+  "Ice Storm Warning": 22,
+  "Snow Squall Warning": 23,
+  "Winter Storm Warning": 24,
+  "Winter Weather Advisory": 25,
+  "Winter Storm Watch": 26,
 
   // ❗ Special statements (moved below winter alerts)
-  "Special Weather Statement": 26,
+  "Special Weather Statement": 27,
+
+  // Cold weather related
+  "Cold Weather Advisory": 28,
+  "Wind Chill Warning": 29,
+  "Extreme Cold Warning": 30,
+  "Extreme Cold Watch": 31,
+  "Lake Effect Snow Warning": 32,
 
   // 🌬️ Wind
-  "High Wind Warning": 27,
-  "High Wind Watch": 28,
-  "Wind Advisory": 29,
-
-  // 🌡️ Temperature extremes
-  "Extreme Heat Warning": 30,
-  "Extreme Heat Watch": 31,
-  "Heat Advisory": 32,
-  "Freeze Warning": 33,
-  "Freeze Watch": 34,
-  "Frost Advisory": 35,
-
-  // 🌫️ Other
-  "Dense Fog Advisory": 36,
+  "High Wind Warning": 28,
+  "High Wind Watch": 29,
+  "Wind Advisory": 30,
 };
 
 const STATE_FIPS_TO_ABBR = {
@@ -306,6 +311,10 @@ function createCheckboxes() {
     { value: "Tornado Warning", category: "tornado" },
     { value: "Radar Confirmed Tornado Warning", category: "tornado" },
     { value: "Spotter Confirmed Tornado Warning", category: "tornado" },
+    {
+      value: "Emergency Mgmt Confirmed Tornado Warning",
+      category: "tornado",
+    },
     { value: "Public Confirmed Tornado Warning", category: "tornado" },
     { value: "Law Enforcement Confirmed Tornado Warning", category: "tornado" },
     { value: "Observed Tornado Warning", category: "tornado" },
@@ -345,6 +354,9 @@ function createCheckboxes() {
     { value: "Frost Advisory", category: "winter" },
     { value: "Freeze Watch", category: "winter" },
     { value: "Freeze Warning", category: "winter" },
+    { value: "Cold Weather Advisory", category: "winter" },
+    { value: "Wind Chill Warning", category: "winter" },
+    { value: "Extreme Cold Warning", category: "winter" },
   ];
 
   // Load saved alerts from localStorage
@@ -1267,6 +1279,10 @@ function testNotification(eventName) {
       parameters.threats.tornadoDetection = ["OBSERVED"];
       parameters.source = ["WEATHER SPOTTERS CONFIRMED TORNADO"];
       eventName = "Tornado Warning";
+    } else if (eventName === "Emergency Mgmt Confirmed Tornado Warning") {
+      parameters.threats.tornadoDetection = ["OBSERVED"];
+      parameters.source = ["EMERGENCY MANAGEMENT CONFIRMED TORNADO"];
+      eventName = "Tornado Warning";
     } else if (eventName === "Law Enforcement Confirmed Tornado Warning") {
       parameters.threats.tornadoDetection = ["OBSERVED"];
       parameters.source = ["LAW ENFORCEMENT CONFIRMED TORNADO"];
@@ -1657,6 +1673,104 @@ let activeRisks = [];
   }
 })();
 
+function firstNonEmptyString(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === "string" && entry.trim()) {
+        return entry.trim();
+      }
+    }
+  }
+  return "";
+}
+
+function extractSourceFromDescription(description = "") {
+  if (!description) return "";
+  const match = description.match(/SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is);
+  return match ? match[1].trim() : "";
+}
+
+const tornadoSourceMappings = [
+  {
+    name: "Emergency Mgmt Confirmed Tornado Warning",
+    tests: [/emergency\s*management/, /\bema\b/, /emergency\s*mgr/],
+  },
+  {
+    name: "Law Enforcement Confirmed Tornado Warning",
+    tests: [
+      /law\s*enforcement/,
+      /\bpolice\b/,
+      /\bsheriff\b/,
+      /state\s*(trooper|police)/,
+      /highway\s*patrol/,
+    ],
+  },
+  {
+    name: "Spotter Confirmed Tornado Warning",
+    tests: [
+      /spotter/,
+      /storm\s*chaser/,
+      /weather\s*spotter/,
+      /trained\s*spotter/,
+    ],
+  },
+  {
+    name: "Public Confirmed Tornado Warning",
+    tests: [
+      /\bpublic\b/,
+      /general\s*public/,
+      /citizen/,
+      /911/,
+      /social\s*media/,
+      /photo/,
+      /video/,
+    ],
+  },
+  {
+    name: "Radar Confirmed Tornado Warning",
+    tests: [
+      /radar\s*confirmed/,
+      /radar\s*indicated/,
+      /tornado\s*debris\s*signature/,
+      /\btds\b/,
+      /dual-?pol/,
+      /correlation\s*coefficient/,
+      /cc\s*drop/,
+    ],
+  },
+];
+
+function detectConfirmedTornadoSource(sourceText) {
+  if (!sourceText) return null;
+  const normalized = sourceText.toLowerCase();
+  for (const mapping of tornadoSourceMappings) {
+    if (mapping.tests.some((regex) => regex.test(normalized))) {
+      return mapping.name;
+    }
+  }
+  return null;
+}
+
+function resolveTornadoSourceText(props, description) {
+  const candidates = [
+    firstNonEmptyString(props.source),
+    firstNonEmptyString(props.parameters?.source),
+    firstNonEmptyString(props.parameters?.Source),
+    firstNonEmptyString(props.parameters?.SOURCE),
+    firstNonEmptyString(props.threats?.source),
+    firstNonEmptyString(props.parameters?.threats?.source),
+  ];
+
+  const descriptionSource = extractSourceFromDescription(description);
+  if (descriptionSource) {
+    candidates.push(descriptionSource);
+  }
+
+  return candidates.find((text) => text && text.length > 2) || "";
+}
+
 function getEventName(alert) {
   if (!alert) return "Unknown Event";
 
@@ -1666,6 +1780,7 @@ function getEventName(alert) {
 
   const event = props.eventName || props.event || "Unknown Event";
   const description = props.description || props.rawText || alert.rawText || "";
+  const normalizedSourceText = resolveTornadoSourceText(props, description);
 
   // 💥 Threat levels
   const tornadoDamageThreat = (
@@ -1700,7 +1815,11 @@ function getEventName(alert) {
   if (event.includes("Tornado Warning")) {
     if (tornadoDamageThreat === "CATASTROPHIC") return "Tornado Emergency";
     if (tornadoDamageThreat === "CONSIDERABLE") return "PDS Tornado Warning";
-    if (tornadoDetection === "OBSERVED") return "Observed Tornado Warning";
+    if (tornadoDetection === "OBSERVED") {
+      const sourceBasedName =
+        detectConfirmedTornadoSource(normalizedSourceText);
+      return sourceBasedName || "Observed Tornado Warning";
+    }
     return "Tornado Warning";
   }
 
@@ -1966,6 +2085,15 @@ function showNotification(
       break;
     case "Spotter Confirmed Tornado Warning":
       emergencyText = "A SPOTTER HAS CONFIRMED A TORNADO";
+      break;
+    case "Emergency Mgmt Confirmed Tornado Warning":
+      emergencyText = "EMERGENCY MANAGEMENT CONFIRMED A TORNADO";
+      break;
+    case "Law Enforcement Confirmed Tornado Warning":
+      emergencyText = "LAW ENFORCEMENT CONFIRMED A TORNADO";
+      break;
+    case "Public Confirmed Tornado Warning":
+      emergencyText = "THE PUBLIC HAS CONFIRMED A TORNADO";
       break;
     case "PDS Tornado Warning":
       emergencyText =
@@ -2234,6 +2362,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     "tornado warning",
     "radar confirmed tornado warning",
     "spotter confirmed tornado warning",
+    "emergency mgmt confirmed tornado warning",
     "public confirmed tornado warning",
     "law enforcement confirmed tornado warning",
     "observed tornado warning",
@@ -3020,6 +3149,9 @@ function getWarningEmoji(eventName) {
     "Frost Advisory": "❄️",
     "Freeze Watch": "❄️",
     "Freeze Warning": "❄️",
+    "Wind Chill Warning": "🥶",
+    "Cold Weather Advisory": "🧥",
+    "Extreme Cold Warning": "❄️🥶",
   };
 
   return emojiMap[eventName] || "⚠️";
@@ -3121,6 +3253,11 @@ function getPolygonColor(eventClass) {
     "severe-thunderstorm-warning": "rgba(255, 165, 0, 0.6)",
     "flash-flood-warning": "rgba(0, 100, 0, 0.6)",
     "ice-storm-warning": "rgba(160, 28, 127, 0.6)",
+    "cold-weather-advisory": "rgba(139, 188, 188, 0.6)",
+    "wind-chill-warning": "rgba(0, 168, 168, 0.6)",
+    "extreme-cold-warning": "rgba(0, 0, 255, 0.6)",
+    "extreme-cold-watch": "rgba(95, 158, 160, 0.6)",
+    "lake-effect-snow-warning": "rgba(0, 139, 139, 0.6)",
   };
 
   return colorMap[eventClass] || "rgba(255, 255, 255, 0.3)";
@@ -3132,8 +3269,19 @@ function getAlertColor(eventName) {
   const colorMap = {
     "Tornado Warning": "#FF0000",
     "Observed Tornado Warning": "#FF00FF",
+    "Emergency Mgmt Confirmed Tornado Warning": "#FF2F4A",
+    "Law Enforcement Confirmed Tornado Warning": "#FF2F4A",
+    "Spotter Confirmed Tornado Warning": "#FF2F4A",
+    "Public Confirmed Tornado Warning": "#FF2F4A",
+    "Radar Confirmed Tornado Warning": "#FF2F4A",
+    "Cold Weather Advisory": "#8BBCBC",
+    "Wind Chill Warning": "#00A8A8",
+    "Extreme Cold Warning": "#0000FF",
+    "Extreme Cold Watch": "#5F9EA0",
+    "Lake Effect Snow Warning": "#008B8B",
     "Radar Confirmed Tornado Warning": "#FF00FF",
     "Spotter Confirmed Tornado Warning": "#FF00FF",
+    "Emergency Mgmt Confirmed Tornado Warning": "#FF00FF",
     "Law Enforcement Confirmed Tornado Warning": "#FF00FF",
     "Public Confirmed Tornado Warning": "#FF00FF",
     "PDS Tornado Warning": "#FF00FF",
@@ -3156,12 +3304,15 @@ function getAlertColor(eventName) {
     "Frost Advisory": "#6495ED",
     "Freeze Watch": "#00d4d4ff",
     "Freeze Warning": "#483D8B",
+    "Cold Weather Advisory": "#8BBCBC",
+    "Wind Chill Warning": "#00A8A8",
+    "Extreme Cold Warning": "#0000FF",
     "Blizzard Warning": "#FF4500",
     "Special Weather Statement": "#FFE4B5",
     "High Wind Warning": "#DAA520",
     "High Wind Watch": "#B8860B",
     "Wind Advisory": "#D2B48C",
-    "Snow Squall Warning": "#64B5F6",
+    "Snow Squall Warning": "#C71585",
     "Freezing Fog Advisory": "#008080",
     "Dense Fog Advisory": "#708090",
     "Dust Advisory": "#BDB76B",
