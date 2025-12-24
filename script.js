@@ -1,4 +1,9 @@
 // Initialize the Raw Text toggle (persisted in localStorage)
+const SEMICIRCLE_COUNT_TOGGLE_KEY = "semicircleCountCyclerEnabled";
+let semicircleCountCycleInterval = null;
+let semicircleCountCycleMessages = [];
+let semicircleCountCycleIndex = 0;
+
 document.addEventListener("DOMContentLoaded", () => {
   const rawToggle = document.getElementById("rawTextToggle");
   if (rawToggle) {
@@ -15,6 +20,18 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (e) {
         console.warn("updateDashboard not available yet:", e);
       }
+    });
+  }
+
+  const semicircleToggle = document.getElementById("semicircleCountToggle");
+  if (semicircleToggle) {
+    try {
+      semicircleToggle.checked = isSemicircleCountCyclerEnabled();
+    } catch (_) {}
+
+    semicircleToggle.addEventListener("change", () => {
+      setSemicircleCountCyclerEnabled(semicircleToggle.checked);
+      updateSemicircleCountCycler(true);
     });
   }
 });
@@ -80,6 +97,7 @@ const priority = {
   "Destructive Severe Thunderstorm Warning": 10,
   "Considerable Severe Thunderstorm Warning": 11,
   "Severe Thunderstorm Warning": 12,
+
   // 🌊 Flooding
   "Flash Flood Emergency": 13,
   "Considerable Flash Flood Warning": 14,
@@ -100,7 +118,7 @@ const priority = {
   "Winter Weather Advisory": 25,
   "Winter Storm Watch": 26,
 
-  // ❗ Special statements (moved below winter alerts)
+  // ❗ Special statements
   "Special Weather Statement": 27,
 
   // Cold weather related
@@ -111,9 +129,22 @@ const priority = {
   "Lake Effect Snow Warning": 32,
 
   // 🌬️ Wind
-  "High Wind Warning": 28,
-  "High Wind Watch": 29,
-  "Wind Advisory": 30,
+  "High Wind Warning": 33,
+  "High Wind Watch": 34,
+  "Wind Advisory": 35,
+
+  // 🌡️ Heat
+  "Extreme Heat Warning": 36,
+  "Extreme Heat Watch": 37,
+  "Heat Advisory": 38,
+
+  // ❄️ Frost/Freeze
+  "Frost Advisory": 39,
+  "Freeze Watch": 40,
+  "Freeze Warning": 41,
+
+  // 🌫️ Other
+  "Dense Fog Advisory": 42,
 };
 
 const STATE_FIPS_TO_ABBR = {
@@ -2450,6 +2481,8 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       : 10_000;
 
   setTimeout(() => {
+    // Remove appear class to prevent conflicts with disappear animation
+    notification.classList.remove("appear");
     // Apply exit animation
     notification.classList.add("disappear");
 
@@ -5008,6 +5041,101 @@ function updateActiveAlertText() {
   }
 }
 
+function isSemicircleCountCyclerEnabled() {
+  try {
+    return localStorage.getItem(SEMICIRCLE_COUNT_TOGGLE_KEY) === "true";
+  } catch (err) {
+    console.warn("Could not read semicircle count toggle state", err);
+    return false;
+  }
+}
+
+function setSemicircleCountCyclerEnabled(enabled) {
+  try {
+    localStorage.setItem(
+      SEMICIRCLE_COUNT_TOGGLE_KEY,
+      enabled ? "true" : "false"
+    );
+  } catch (err) {
+    console.warn("Could not persist semicircle count toggle state", err);
+  }
+}
+
+function buildSemicircleCountMessages() {
+  if (!Array.isArray(activeWarnings) || activeWarnings.length === 0) {
+    return [];
+  }
+
+  const counts = {};
+  for (const warning of activeWarnings) {
+    const eventName = getEventName(warning);
+    if (!eventName) continue;
+    counts[eventName] = (counts[eventName] || 0) + 1;
+  }
+
+  return Object.entries(counts)
+    .sort(
+      ([eventA], [eventB]) =>
+        (priority[eventA] || 9999) - (priority[eventB] || 9999) ||
+        eventA.localeCompare(eventB)
+    )
+    .map(([eventName, count]) => `${eventName}: ${count}`);
+}
+
+function stopSemicircleCountCycle() {
+  if (semicircleCountCycleInterval) {
+    clearInterval(semicircleCountCycleInterval);
+    semicircleCountCycleInterval = null;
+  }
+}
+
+function updateSemicircleCountCycler(forceRestart = false) {
+  const labelEl = document.querySelector(".semicircle-label");
+  const toggleEl = document.getElementById("semicircleCountToggle");
+
+  if (!labelEl) {
+    return;
+  }
+
+  const enabled = isSemicircleCountCyclerEnabled();
+  if (toggleEl) {
+    toggleEl.checked = enabled;
+  }
+
+  if (!enabled) {
+    stopSemicircleCountCycle();
+    labelEl.textContent = "ACTIVE ALERT COUNT";
+    labelEl.classList.add("semicircle-disabled");
+    return;
+  }
+
+  labelEl.classList.remove("semicircle-disabled");
+
+  semicircleCountCycleMessages = buildSemicircleCountMessages();
+  if (semicircleCountCycleMessages.length === 0) {
+    semicircleCountCycleMessages = ["No Active Alerts"];
+  }
+
+  if (
+    forceRestart ||
+    semicircleCountCycleIndex >= semicircleCountCycleMessages.length
+  ) {
+    semicircleCountCycleIndex = 0;
+  }
+
+  labelEl.textContent = semicircleCountCycleMessages[semicircleCountCycleIndex];
+
+  stopSemicircleCountCycle();
+  if (semicircleCountCycleMessages.length > 0) {
+    semicircleCountCycleInterval = setInterval(() => {
+      semicircleCountCycleIndex =
+        (semicircleCountCycleIndex + 1) % semicircleCountCycleMessages.length;
+      labelEl.textContent =
+        semicircleCountCycleMessages[semicircleCountCycleIndex];
+    }, 10000);
+  }
+}
+
 // Helper you already have
 function isCountiesScrolling() {
   const wrapper = document.querySelector("#counties span");
@@ -5049,6 +5177,7 @@ function updateDashboard(forceUpdate = false) {
     countiesElement.textContent = "LOADING...";
     document.querySelector(".event-type-bar").style.backgroundColor = "#333";
     updateActiveAlertText();
+    updateSemicircleCountCycler(true);
     showNoWarningDashboard();
     return;
   }
@@ -5331,6 +5460,8 @@ function updateDashboard(forceUpdate = false) {
   currentWarningIndex = (currentWarningIndex + 1) % sortedWarnings.length;
   console.log("Next warning index set to:", currentWarningIndex);
   console.log("updateDashboard function completed");
+
+  updateSemicircleCountCycler(hasChanges || forceUpdate);
 }
 
 let rotateActive = false;

@@ -1,3 +1,24 @@
+.semicircle-label {
+  position: fixed;
+  bottom: 17px;
+  right: 340px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  font-size: 32px;
+  font-weight: 700;
+  color: #f7f7f7;
+  letter-spacing: 0.04em;
+  padding: 0 30px 0 0;
+  margin-top: 0px;
+  margin-bottom: 12px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  font-family: "Saira Condensed", sans-serif;
+  z-index: 1025;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
 @font-face {
   font-family: "Saira Condensed";
   src: url("SairaCondensed-Bold.ttf") format("truetype");
@@ -785,39 +806,33 @@ body.overlay {
 
 /* When appearing, animate the children with cascading effect */
 .notification-popup.appear .notification-type-badge {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  transition-delay: 0.1s;
+  transition: none; /* Disable transition to prevent conflict with animation */
+  animation: text-reveal 0.5s 0.1s forwards cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .notification-popup.appear .notification-title {
-  opacity: 1;
-  transform: translateY(0);
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-reveal 0.7s 0.1s forwards cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .notification-popup.appear .notification-message {
-  opacity: 1;
-  transform: translateY(0);
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-reveal 0.7s 0.2s forwards cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .notification-popup.appear .notification-expiration {
-  opacity: 1;
-  transform: translateY(0);
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-reveal 0.7s 0.3s forwards cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .notification-popup.appear .hazard-source-info,
 .notification-popup.appear .wind-hail-info {
-  opacity: 1;
-  transform: translateY(0);
-  animation: text-reveal 0.7s forwards cubic-bezier(0.22, 1, 0.36, 1);
+  transition: none; /* Disable transition to prevent conflict with animation */
+  animation: text-reveal 0.7s 0.4s forwards cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .notification-popup.appear .emergency-alert {
-  opacity: 1;
-  transform: translateY(0);
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-reveal 0.7s 0.5s forwards cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -828,32 +843,38 @@ body.overlay {
 
 /* When disappearing, animate the children out with reverse cascading effect */
 .notification-popup.disappear .notification-type-badge {
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: 0s;
 }
 
 .notification-popup.disappear .notification-title {
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: 0.05s;
 }
 
 .notification-popup.disappear .notification-message {
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: 0.1s;
 }
 
 .notification-popup.disappear .notification-expiration {
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: 0.15s;
 }
 
 .notification-popup.disappear .hazard-source-info,
 .notification-popup.disappear .wind-hail-info {
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: 0.2s;
 }
 
 .notification-popup.disappear .emergency-alert {
+  transition: none; /* Disable transition to prevent conflict with animation */
   animation: text-hide 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: 0s;
 }
@@ -3067,6 +3088,28 @@ body {
   font-size: 36px;
   letter-spacing: 0.5px;
   opacity: 0.85;
+}
+
+.semicircle-cycle-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+}
+
+.semicircle-cycle-toggle-label {
+  font-size: 36px;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+}
+
+.semicircle-disabled {
+  opacity: 0.6;
 }
 
 /* When raw text is appended inside counties bar */

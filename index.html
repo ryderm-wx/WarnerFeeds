@@ -228,76 +228,76 @@
             <div class="category-divider" data-category="Winter Weather"></div>
             <div class="button-group">
               <button
-              class="winter"
-              onclick="testNotification('Winter Weather Advisory')"
+                class="winter"
+                onclick="testNotification('Winter Weather Advisory')"
               >
-              Test Winter Weather Advisory
+                Test Winter Weather Advisory
               </button>
               <button
-              class="winter"
-              onclick="testNotification('Winter Storm Watch')"
+                class="winter"
+                onclick="testNotification('Winter Storm Watch')"
               >
-              Test Winter Storm Watch
+                Test Winter Storm Watch
               </button>
               <button
-              class="winter-warning"
-              onclick="testNotification('Winter Storm Warning')"
+                class="winter-warning"
+                onclick="testNotification('Winter Storm Warning')"
               >
-              Test Winter Storm Warning
+                Test Winter Storm Warning
               </button>
               <button
-              class="ice"
-              onclick="testNotification('Ice Storm Warning')"
+                class="ice"
+                onclick="testNotification('Ice Storm Warning')"
               >
-              Test Ice Storm Warning
+                Test Ice Storm Warning
               </button>
               <button
-              class="winter-blizzard"
-              onclick="testNotification('Blizzard Warning')"
+                class="winter-blizzard"
+                onclick="testNotification('Blizzard Warning')"
               >
-              Test Blizzard Warning
+                Test Blizzard Warning
               </button>
               <button
-              class="snow-squall"
-              onclick="testNotification('Snow Squall Warning')"
+                class="snow-squall"
+                onclick="testNotification('Snow Squall Warning')"
               >
-              Test Snow Squall Warning
+                Test Snow Squall Warning
               </button>
               <button
-              class="frost"
-              onclick="testNotification('Frost Advisory')"
+                class="frost"
+                onclick="testNotification('Frost Advisory')"
               >
-              Test Frost Advisory
+                Test Frost Advisory
               </button>
               <button
-              class="freeze-watch"
-              onclick="testNotification('Freeze Watch')"
+                class="freeze-watch"
+                onclick="testNotification('Freeze Watch')"
               >
-              Test Freeze Watch
+                Test Freeze Watch
               </button>
               <button
-              class="winter"
-              onclick="testNotification('Freeze Warning')"
+                class="winter"
+                onclick="testNotification('Freeze Warning')"
               >
-              Test Freeze Warning
+                Test Freeze Warning
               </button>
               <button
-              class="winter"
-              onclick="testNotification('Cold Weather Advisory')"
+                class="winter"
+                onclick="testNotification('Cold Weather Advisory')"
               >
-              Test Cold Weather Advisory
+                Test Cold Weather Advisory
               </button>
               <button
-              class="winter"
-              onclick="testNotification('Wind Chill Warning')"
+                class="winter"
+                onclick="testNotification('Wind Chill Warning')"
               >
-              Test Wind Chill Warning
+                Test Wind Chill Warning
               </button>
               <button
-              class="winter"
-              onclick="testNotification('Extreme Cold Warning')"
+                class="winter"
+                onclick="testNotification('Extreme Cold Warning')"
               >
-              Test Extreme Cold Warning
+                Test Extreme Cold Warning
               </button>
             </div>
 
@@ -516,6 +516,18 @@
                   >Show Full Alert Text In Ticker</span
                 >
               </div>
+              <div class="semicircle-cycle-toggle-wrapper">
+                <label
+                  class="switch"
+                  title="Toggle cycling alert counts below the clock"
+                >
+                  <input type="checkbox" id="semicircleCountToggle" />
+                  <span class="slider round"></span>
+                </label>
+                <span class="semicircle-cycle-toggle-label"
+                  >Cycle Alert Counts Below Clock</span
+                >
+              </div>
             </div>
           </div>
 
@@ -551,6 +563,7 @@
           <div class="time-date" id="clockDisplay"></div>
         </div>
         <div class="rounded-info-box"></div>
+        <div class="semicircle-label">ACTIVE ALERT COUNT</div>
 
         <div class="bottom-bar">
           <div class="left-section">
