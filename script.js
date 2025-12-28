@@ -82,7 +82,6 @@ const eventTypes = {
 };
 
 const priority = {
-  // 🔴 Tornado tier
   "Tornado Emergency": 1,
   "PDS Tornado Warning": 2,
   "Observed Tornado Warning": 3,
@@ -93,59 +92,53 @@ const priority = {
   "Radar Confirmed Tornado Warning": 8,
   "Tornado Warning": 9,
 
-  // ⚡ Severe thunderstorm
   "Destructive Severe Thunderstorm Warning": 10,
   "Considerable Severe Thunderstorm Warning": 11,
   "Severe Thunderstorm Warning": 12,
 
-  // 🌊 Flooding
   "Flash Flood Emergency": 13,
   "Considerable Flash Flood Warning": 14,
   "Flash Flood Warning": 15,
-  "Flood Warning": 16,
-  "Flood Advisory": 17,
 
-  // 🟡 Watches (convective)
-  "Tornado Watch": 18,
-  "Severe Thunderstorm Watch": 19,
-  "Flood Watch": 20,
+  "Tornado Watch": 16,
+  "Severe Thunderstorm Watch": 17,
 
-  // ❄️ Winter weather
-  "Blizzard Warning": 21,
-  "Ice Storm Warning": 22,
-  "Snow Squall Warning": 23,
-  "Winter Storm Warning": 24,
-  "Winter Weather Advisory": 25,
-  "Winter Storm Watch": 26,
+  "Blizzard Warning": 18,
+  "Ice Storm Warning": 19,
+  "Snow Squall Warning": 20,
+  "Winter Storm Warning": 21,
+  "Winter Weather Advisory": 22,
+  "Winter Storm Watch": 23,
+  "Lake Effect Snow Warning": 24,
 
-  // ❗ Special statements
-  "Special Weather Statement": 27,
+  "Flood Warning": 25,
+  "Flood Watch": 26,
+  "Flood Advisory": 27,
 
-  // Cold weather related
-  "Cold Weather Advisory": 28,
+  "Special Weather Statement": 28,
+
   "Wind Chill Warning": 29,
   "Extreme Cold Warning": 30,
   "Extreme Cold Watch": 31,
-  "Lake Effect Snow Warning": 32,
+  "Cold Weather Advisory": 32,
 
-  // 🌬️ Wind
   "High Wind Warning": 33,
   "High Wind Watch": 34,
   "Wind Advisory": 35,
 
-  // 🌡️ Heat
   "Extreme Heat Warning": 36,
   "Extreme Heat Watch": 37,
   "Heat Advisory": 38,
 
-  // ❄️ Frost/Freeze
-  "Frost Advisory": 39,
+  "Freeze Warning": 39,
   "Freeze Watch": 40,
-  "Freeze Warning": 41,
+  "Frost Advisory": 41,
 
-  // 🌫️ Other
   "Dense Fog Advisory": 42,
 };
+
+
+
 
 const STATE_FIPS_TO_ABBR = {
   Any: "US",
