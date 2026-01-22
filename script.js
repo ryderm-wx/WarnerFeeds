@@ -1,10 +1,222 @@
+// ============================================================================
+// OBS AUDIO FIX: Force AudioContext initialization without user interaction
+// ============================================================================
+// This fixes audio not playing in OBS Browser Source even when audio monitoring is enabled
+if (
+  typeof AudioContext !== "undefined" ||
+  typeof webkitAudioContext !== "undefined"
+) {
+  window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Immediately try to resume (this works in OBS unlike regular browsers)
+  window.audioCtx
+    .resume()
+    .then(() => {
+      console.log("✅ AudioContext resumed successfully for OBS");
+    })
+    .catch((err) => {
+      console.warn("⚠️ AudioContext resume failed:", err);
+    });
+
+  // Force resume every second in case it gets suspended (OBS-specific behavior)
+  setInterval(() => {
+    if (window.audioCtx && window.audioCtx.state === "suspended") {
+      console.log("🔄 AudioContext suspended, attempting resume...");
+      window.audioCtx.resume();
+    }
+  }, 1000);
+}
+
+// Play a silent audio file immediately to "unlock" audio in OBS Browser Source
+// This is required because OBS CEF may block audio until something plays
+try {
+  const silentAudio = new Audio(
+    "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjMyLjEwNAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhAC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAAAAAA4QAAAAAAAAAAAAAAAAAAA//sQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  );
+  silentAudio.volume = 0.01; // Very quiet but not completely silent
+  silentAudio
+    .play()
+    .then(() => {
+      console.log("✅ Silent audio unlocked - OBS audio should now work");
+    })
+    .catch((err) => {
+      console.log(
+        "ℹ️ Silent audio play blocked (expected in some browsers):",
+        err.message,
+      );
+    });
+} catch (err) {
+  console.warn("⚠️ Silent audio unlock failed:", err);
+}
+
+// Map event names to simple, grammatically correct categories for the semicircle label
+const SEMICIRCLE_EVENT_CATEGORIES = [
+  {
+    name: "Tornado warnings",
+    match: [
+      "tornado warning",
+      "pds tornado warning",
+      "tornado emergency",
+      "radar confirmed tornado warning",
+      "observed tornado warning",
+      "spotter confirmed tornado warning",
+      "emergency mgmt confirmed tornado warning",
+      "law enforcement confirmed tornado warning",
+      "public confirmed tornado warning",
+    ],
+  },
+  {
+    name: "Severe thunderstorm warnings",
+    match: [
+      "severe thunderstorm warning",
+      "considerable severe thunderstorm warning",
+      "destructive severe thunderstorm warning",
+    ],
+  },
+  {
+    name: "Flood alerts",
+    match: [
+      "flash flood warning",
+      "considerable flash flood warning",
+      "flash flood emergency",
+      "flood warning",
+      "flood advisory",
+      "flood watch",
+    ],
+  },
+  {
+    name: "Winter weather alerts",
+    match: [
+      "winter weather advisory",
+      "winter storm watch",
+      "winter storm warning",
+      "blizzard warning",
+      "ice storm warning",
+      "lake effect snow warning",
+      "snow squall warning",
+    ],
+  },
+  {
+    name: "Heat alerts",
+    match: ["extreme heat warning", "extreme heat watch", "heat advisory"],
+  },
+  {
+    name: "Wind alerts",
+    match: ["high wind warning", "high wind watch", "wind advisory"],
+  },
+  {
+    name: "Cold alerts",
+    match: [
+      "wind chill warning",
+      "extreme cold warning",
+      "extreme cold watch",
+      "cold weather advisory",
+      "freeze warning",
+      "freeze watch",
+      "frost advisory",
+    ],
+  },
+  {
+    name: "Dense fog advisories",
+    match: ["dense fog advisory"],
+  },
+  {
+    name: "Weather watches",
+    match: ["tornado watch", "severe thunderstorm watch"],
+  },
+  {
+    name: "Special weather statements",
+    match: ["special weather statement"],
+  },
+];
+
+function getSemicircleCategory(eventName) {
+  if (!eventName) return null;
+  const lower = eventName.toLowerCase().replace(/\s+/g, " ").trim();
+  for (const cat of SEMICIRCLE_EVENT_CATEGORIES) {
+    if (cat.match.some((m) => lower.includes(m))) return cat.name;
+  }
+  return "Other alerts";
+}
 // Initialize the Raw Text toggle (persisted in localStorage)
 const SEMICIRCLE_COUNT_TOGGLE_KEY = "semicircleCountCyclerEnabled";
 let semicircleCountCycleInterval = null;
 let semicircleCountCycleMessages = [];
 let semicircleCountCycleIndex = 0;
 
+const INTENSITY_TOGGLE_KEY = "showIntensityGraph";
+const ALERT_ICONS_TOGGLE_KEY = "showAlertIcons";
+
+function getBooleanPreference(key, defaultValue = true) {
+  const stored = localStorage.getItem(key);
+  if (stored === null) return defaultValue;
+  return stored === "true";
+}
+
+function setBooleanPreference(key, value) {
+  localStorage.setItem(key, value ? "true" : "false");
+}
+
+function isIntensityEnabled() {
+  return getBooleanPreference(INTENSITY_TOGGLE_KEY, true);
+}
+
+function setIntensityEnabled(val) {
+  setBooleanPreference(INTENSITY_TOGGLE_KEY, val);
+}
+
+function areAlertIconsEnabled() {
+  return getBooleanPreference(ALERT_ICONS_TOGGLE_KEY, true);
+}
+
+function setAlertIconsEnabled(val) {
+  setBooleanPreference(ALERT_ICONS_TOGGLE_KEY, val);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  // Make all dashboard cards collapsible by default
+  try {
+    const sliderContainer = document.getElementById("sliderContainer");
+    if (sliderContainer) {
+      const cards = sliderContainer.querySelectorAll(".dash-card");
+      cards.forEach((card) => {
+        // Native <details> already provides collapse/expand behavior
+        if (card.tagName === "DETAILS") return;
+
+        const header = card.querySelector(":scope > .dash-card-header");
+        if (!header) return;
+
+        card.classList.add("is-collapsed");
+        header.setAttribute("role", "button");
+        header.setAttribute("tabindex", "0");
+        header.setAttribute("aria-expanded", "false");
+
+        const toggle = () => {
+          const collapsed = card.classList.toggle("is-collapsed");
+          header.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        };
+
+        header.addEventListener("click", (event) => {
+          // If a clickable control is ever added inside the header, don't hijack it.
+          const interactive = event.target.closest(
+            "button, a, input, select, textarea, label",
+          );
+          if (interactive && header.contains(interactive)) return;
+          toggle();
+        });
+
+        header.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggle();
+          }
+        });
+      });
+    }
+  } catch (e) {
+    console.warn("Dashboard collapsibles init failed:", e);
+  }
+
   const rawToggle = document.getElementById("rawTextToggle");
   if (rawToggle) {
     try {
@@ -81,6 +293,11 @@ const eventTypes = {
   "Lake Effect Snow Warning": "lake-effect-snow-warning",
 };
 
+// Map event name keywords to Font Awesome icon classes (FA6)
+function getIconClassForEvent(eventName) {
+  // This would normally house alert icons
+}
+
 const priority = {
   "Tornado Emergency": 1,
   "PDS Tornado Warning": 2,
@@ -136,9 +353,6 @@ const priority = {
 
   "Dense Fog Advisory": 42,
 };
-
-
-
 
 const STATE_FIPS_TO_ABBR = {
   Any: "US",
@@ -208,6 +422,164 @@ const floodCountElement = document.getElementById("floodCount");
 const winterWeatherCountElement = document.getElementById("winterWeatherCount");
 const socket = new WebSocket("");
 let isSpcMode = false;
+
+// ===== CPU / UI optimizations =====
+// Buffer incoming events and flush on a short interval to avoid
+// processing every single upstream message immediately.
+const __eventBuffer = [];
+let __eventFlushTimer = null;
+const EVENT_FLUSH_MS = 150; // tweakable
+
+// UI throttle
+let __lastUiUpdate = 0;
+const UI_THROTTLE_MS = 100; // ~10fps
+window.__uiUpdatePending = false;
+
+// Parser worker (offload JSON.parse / heavy parsing when available)
+let parserWorker = null;
+if (window.Worker) {
+  try {
+    parserWorker = new Worker("worker/parserWorker.js");
+    parserWorker.onmessage = (e) => {
+      const { type, payload } = e.data || {};
+      queueEvent(type || "message", payload);
+      // if cancel type, also trigger cancel (best-effort)
+      try {
+        if (Array.isArray(payload)) return; // batch will handle
+        if (
+          payload &&
+          payload.id &&
+          (window.cancelTypes || []).includes(type)
+        ) {
+          setTimeout(() => cancelAlert && cancelAlert(payload.id), 10);
+        }
+      } catch (er) {}
+    };
+  } catch (err) {
+    parserWorker = null;
+  }
+}
+
+function queueEvent(type, data) {
+  __eventBuffer.push({ type, data });
+  if (window.__processingPaused) return; // don't schedule flush while paused
+  if (!__eventFlushTimer) {
+    __eventFlushTimer = setTimeout(() => {
+      __eventFlushTimer = null;
+      flushEventBuffer();
+    }, EVENT_FLUSH_MS);
+  }
+}
+
+function flushEventBuffer() {
+  if (__eventBuffer.length === 0) return;
+  const batch = __eventBuffer.splice(0);
+  // process batch on next tick to give browser breathing room
+  setTimeout(() => handleBatch(batch), 0);
+}
+
+function handleBatch(batch) {
+  // Lightweight de-dup: keep latest by id when present
+  const byId = new Map();
+  const ordered = [];
+  for (const item of batch) {
+    const d = item.data || {};
+    const id = d && d.id ? d.id : null;
+    if (id) {
+      byId.set(id, item); // latest wins
+    } else {
+      ordered.push(item);
+    }
+  }
+  // process non-id'd first
+  for (const it of ordered) {
+    try {
+      HandleAlertPayload(it.data, it.type);
+    } catch (e) {
+      console.error("Error handling batched item:", e);
+    }
+  }
+  // then process unique id items
+  for (const item of byId.values()) {
+    try {
+      HandleAlertPayload(item.data, item.type);
+    } catch (e) {
+      console.error("Error handling batched id item:", e);
+    }
+  }
+
+  // schedule a single UI update rather than many
+  scheduleUiUpdate();
+}
+
+function scheduleUiUpdate() {
+  const now = performance.now();
+  if (now - __lastUiUpdate < UI_THROTTLE_MS) {
+    if (!window.__uiUpdatePending) {
+      window.__uiUpdatePending = true;
+      setTimeout(
+        () => {
+          window.__uiUpdatePending = false;
+          __lastUiUpdate = performance.now();
+          try {
+            updateDashboard();
+          } catch (e) {}
+        },
+        UI_THROTTLE_MS - (now - __lastUiUpdate),
+      );
+    }
+    return;
+  }
+  __lastUiUpdate = now;
+  requestAnimationFrame(() => {
+    try {
+      updateDashboard();
+    } catch (e) {}
+  });
+}
+
+// Pause unnecessary work when tab hidden
+window.__processingPaused = false;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    window.__processingPaused = true;
+    if (__eventFlushTimer) {
+      clearTimeout(__eventFlushTimer);
+      __eventFlushTimer = null;
+    }
+    if (semicircleCountCycleInterval) {
+      clearInterval(semicircleCountCycleInterval);
+      semicircleCountCycleInterval = null;
+    }
+  } else {
+    window.__processingPaused = false;
+    // flush any buffered events now
+    flushEventBuffer();
+    // restart semicircle cycle if enabled
+    try {
+      updateSemicircleCountCycler(true);
+    } catch (e) {}
+    scheduleUiUpdate();
+  }
+});
+
+// Debounce helper
+function debounce(fn, ms) {
+  let t;
+  return (...a) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...a), ms);
+  };
+}
+
+// Simple DOM node cache to reduce querySelector calls
+const __nodeCache = new Map();
+function getCached(selector) {
+  if (__nodeCache.has(selector)) return __nodeCache.get(selector);
+  const el = document.querySelector(selector);
+  __nodeCache.set(selector, el);
+  return el;
+}
 
 const alertEventTypes = [
   "INIT",
@@ -288,23 +660,35 @@ function initAlertStream() {
   const handleEvent = (type, event) => {
     updateLastMessageTime();
     try {
-      const data = JSON.parse(event.data);
-      console.log(`📩 Received ${type}`, data);
-      HandleAlertPayload(data, type);
+      const raw = event.data;
+      if (parserWorker) {
+        // Offload parsing to worker; worker will post back parsed payload
+        parserWorker.postMessage({ type, raw });
+      } else {
+        const data = JSON.parse(raw);
+        // queue for batched processing
+        queueEvent(type, data);
+      }
     } catch (error) {
-      console.error(`Error processing ${type} event:`, error);
+      console.error(`Error queuing ${type} event:`, error);
     }
   };
 
   const handleCancelEvent = (type, event) => {
     updateLastMessageTime();
     try {
-      const data = JSON.parse(event.data);
-      console.log(`🚨 Received ${type} for ${data.id || "unknown ID"}`);
-      HandleAlertPayload(data, type);
-      cancelAlert(data.id);
+      const raw = event.data;
+      if (parserWorker) {
+        parserWorker.postMessage({ type, raw });
+      } else {
+        const data = JSON.parse(raw);
+        queueEvent(type, data);
+        try {
+          cancelAlert && cancelAlert(data.id);
+        } catch (er) {}
+      }
     } catch (error) {
-      console.error(`Error processing ${type} event:`, error);
+      console.error(`Error queuing ${type} cancel event:`, error);
     }
   };
 
@@ -320,12 +704,12 @@ function initAlertStream() {
     "SPECIAL_WEATHER_STATEMENT",
   ];
   normalTypes.forEach((type) =>
-    source.addEventListener(type, (event) => handleEvent(type, event))
+    source.addEventListener(type, (event) => handleEvent(type, event)),
   );
 
   // Cancel events
   cancelTypes.forEach((type) =>
-    source.addEventListener(type, (event) => handleCancelEvent(type, event))
+    source.addEventListener(type, (event) => handleCancelEvent(type, event)),
   );
 }
 
@@ -381,6 +765,7 @@ function createCheckboxes() {
     { value: "Cold Weather Advisory", category: "winter" },
     { value: "Wind Chill Warning", category: "winter" },
     { value: "Extreme Cold Warning", category: "winter" },
+    { value: "Extreme Cold Watch", category: "winter" },
   ];
 
   // Load saved alerts from localStorage
@@ -499,13 +884,13 @@ function createCheckboxes() {
   container.addEventListener("change", updateSelectedAlerts);
   console.log(
     "Checkboxes created with",
-    savedAlerts.length > 0 ? "saved configuration" : "default settings"
+    savedAlerts.length > 0 ? "saved configuration" : "default settings",
   );
 }
 
 function updateSelectedAlerts() {
   const checkedBoxes = document.querySelectorAll(
-    "#checkboxContainer input:checked"
+    "#checkboxContainer input:checked",
   );
 
   if (!checkedBoxes) {
@@ -515,7 +900,7 @@ function updateSelectedAlerts() {
 
   // Store new selection without immediately applying it
   const newSelectedAlerts = new Set(
-    Array.from(checkedBoxes).map((cb) => cb.value)
+    Array.from(checkedBoxes).map((cb) => cb.value),
   );
 
   // Check if selections have changed
@@ -564,11 +949,11 @@ function showApplyButton(newAlerts) {
       // Save to localStorage
       localStorage.setItem(
         "selectedAlerts",
-        JSON.stringify(Array.from(newAlerts))
+        JSON.stringify(Array.from(newAlerts)),
       );
       console.log(
         "Saved alert settings to localStorage:",
-        Array.from(newAlerts)
+        Array.from(newAlerts),
       );
 
       // Clear activeWarnings and previousWarnings
@@ -774,7 +1159,7 @@ function parseVtecCore(input) {
     console.log(
       "parseVtecCore: Object input detected, extracting VTEC",
       input,
-      vtec
+      vtec,
     );
 
     if (Array.isArray(vtec) && vtec.length > 0) {
@@ -879,7 +1264,7 @@ function normalizeAlertsFromEvent(event) {
                 Object.entries(threats).map(([key, val]) => [
                   key,
                   Array.isArray(val) ? val : [val],
-                ])
+                ]),
               ),
               source: [source],
             },
@@ -890,7 +1275,7 @@ function normalizeAlertsFromEvent(event) {
                 coordinates: polygon.coordinates,
               }
             : geometry || null,
-        })
+        }),
       );
   } catch (err) {
     console.error(`❌ normalizeAlertsFromEvent() failed:`, err);
@@ -911,7 +1296,487 @@ const labels = {
 let currentWarningIndex = 0;
 let activeWarnings = [];
 let previousWarningVersions = new Map();
-const previousWarnings = new Map();
+// ============================================================================
+// MICHIGAN STORM CHASERS - INTENSITY ENGINE (FINAL TUNED)
+// ============================================================================
+intensityHistory = []; // Global history of intensity scores
+MAX_HISTORY_POINTS = 100; // Max points to keep in history
+// 1. BASE SEVERITY (Physics)
+const BASE_SEVERITY = {
+  TORNADO: 6.0,
+  SNOW_SQUALL: 5.0,
+  FLASH_FLOOD: 4.5,
+  DESTRUCTIVE_WIND: 4.5,
+  BLIZZARD: 4.5,
+  SEVERE_STORM: 3.5,
+  ICE_STORM: 3.5,
+  WINTER_STORM: 2.5,
+  FLOOD: 2.0,
+  WATCH_TORNADO: 2.5,
+  WATCH_SEVERE: 2.0,
+  ADVISORY: 1.5,
+  NOISE: 0.5,
+};
+
+// 2. CERTAINTY (Confidence)
+const CERTAINTY_BONUS = {
+  EMERGENCY: 4.0, // Base 6 + 4 = 10.0 (Guaranteed Max)
+  PDS: 3.5, // Base 6 + 3.5 = 9.5
+  CONFIRMED: 2.5, // Base 6 + 2.5 = 8.5 (Dangerous)
+  RADAR: 0.0,
+  WARNING: 0.0,
+  WATCH: 0.0,
+  ADVISORY: 0.0,
+};
+
+// 3. IMPACT (Keywords)
+const IMPACT_BONUS = {
+  CATASTROPHIC: 1.0, // Extra kicker for Emergency/Catastrophic tags
+  DESTRUCTIVE: 1.5,
+  CONSIDERABLE: 0.5,
+  STANDARD: 0.0,
+};
+
+// ----------------------------------------------------------------------------
+// THE GLASS CEILINGS (TUNED FOR RESPONSIVENESS)
+// ----------------------------------------------------------------------------
+function getGlassCeiling(event) {
+  // TIER 1: THE ONLY 10s
+  if (event.includes("Tornado Emergency")) return 10.0;
+
+  // TIER 2: EXTREME (Max 9.8)
+  // PDS or Confirmed Tornadoes need room to breathe.
+  if (event.includes("PDS")) return 9.8;
+  if (event.includes("Observed") || event.includes("Confirmed")) return 9.5;
+
+  // TIER 3: DANGEROUS (Max 8.5)
+  // Raised Flash Flood Emergency back to 8.0 because it IS life threatening.
+  if (event.includes("Flash Flood Emergency")) return 8.0;
+  if (event.includes("Tornado Warning")) return 8.5;
+
+  // TIER 4: SIGNIFICANT (Max 7.5)
+  if (event.includes("Destructive") || event.includes("Squall")) return 7.5;
+
+  // TIER 5: ELEVATED (Max 6.5)
+  if (event.includes("Blizzard") || event.includes("Severe")) return 6.5;
+
+  // TIER 6: ACTIVE (Max 5.0)
+  if (event.includes("Winter Storm") || event.includes("Flood")) return 5.0;
+
+  // TIER 7: NOISE (Max 3.0)
+  return 3.0;
+}
+
+// -------------------------------------
+// PARSERS (FIXED TO CATCH EMERGENCY)
+// -------------------------------------
+function getBaseSeverity(event) {
+  if (event.includes("Tornado Watch")) return BASE_SEVERITY.WATCH_TORNADO;
+  if (event.includes("Tornado")) return BASE_SEVERITY.TORNADO;
+  if (event.includes("Snow Squall")) return BASE_SEVERITY.SNOW_SQUALL;
+  if (event.includes("Blizzard")) return BASE_SEVERITY.BLIZZARD;
+  if (event.includes("Flash Flood")) return BASE_SEVERITY.FLASH_FLOOD;
+  if (event.includes("Ice Storm")) return BASE_SEVERITY.ICE_STORM;
+  if (event.includes("Severe Thunderstorm Watch"))
+    return BASE_SEVERITY.WATCH_SEVERE;
+  if (event.includes("Severe Thunderstorm")) return BASE_SEVERITY.SEVERE_STORM;
+  if (event.includes("High Wind")) return BASE_SEVERITY.DESTRUCTIVE_WIND;
+  if (event.includes("Winter Storm")) return BASE_SEVERITY.WINTER_STORM;
+  if (event.includes("Flood")) return BASE_SEVERITY.FLOOD;
+  if (event.includes("Advisory")) return BASE_SEVERITY.ADVISORY;
+  return BASE_SEVERITY.NOISE;
+}
+
+function getCertaintyBonus(event) {
+  if (event.includes("Emergency")) return CERTAINTY_BONUS.EMERGENCY;
+  if (event.includes("PDS") || event.includes("Particularly Dangerous"))
+    return CERTAINTY_BONUS.PDS;
+  if (
+    event.includes("Observed") ||
+    event.includes("Confirmed") ||
+    event.includes("Spotter") ||
+    event.includes("Law Enforcement")
+  )
+    return CERTAINTY_BONUS.CONFIRMED;
+  return CERTAINTY_BONUS.WARNING;
+}
+
+function getImpactBonus(event) {
+  // FIXED: Now checks for Emergency/Catastrophic to ensure 10/10
+  if (event.includes("Emergency") || event.includes("Catastrophic"))
+    return IMPACT_BONUS.CATASTROPHIC;
+  if (event.includes("Destructive")) return IMPACT_BONUS.DESTRUCTIVE;
+  if (event.includes("Considerable")) return IMPACT_BONUS.CONSIDERABLE;
+  return IMPACT_BONUS.STANDARD;
+}
+
+// -------------------------------------
+// MASTER ALGORITHM
+// -------------------------------------
+function calculateIntensityScore() {
+  if (!Array.isArray(activeWarnings) || activeWarnings.length === 0) {
+    return 0;
+  }
+
+  // 1. ANALYZE EVERY ALERT
+  let alerts = activeWarnings.map((alert) => {
+    const event = getEventName(alert);
+    const base = getBaseSeverity(event);
+    const certainty = getCertaintyBonus(event);
+    const impact = getImpactBonus(event);
+    const ceiling = getGlassCeiling(event);
+
+    return {
+      name: event,
+      rawScore: base + certainty + impact,
+      ceiling: ceiling,
+    };
+  });
+
+  // 2. FIND THE ALPHA THREAT (Highest Raw Score)
+  alerts.sort((a, b) => b.rawScore - a.rawScore);
+
+  const alpha = alerts[0];
+  let currentTotal = alpha.rawScore;
+
+  // 3. SMART VOLUME ACCUMULATION
+  for (let i = 1; i < alerts.length; i++) {
+    const item = alerts[i];
+
+    // RULE A: RELEVANCE GAP
+    // We widened the gap slightly (to 4.5) to allow PDS warnings to boost Emergencies
+    let diff = alpha.rawScore - item.rawScore;
+
+    // If the gap is massive (e.g. Tornado vs Winter Advisory), ignore it.
+    if (diff > 4.5) continue;
+
+    // RULE B: WEIGHTED ADDITION
+    let addition = 0;
+    if (diff < 1.0)
+      addition = 0.15; // High relevance (Peers)
+    else if (diff < 3.0)
+      addition = 0.05; // Moderate relevance
+    else addition = 0.01; // Low relevance
+
+    currentTotal += addition;
+  }
+
+  // 4. APPLY THE GLASS CEILING
+  return Math.min(currentTotal, alpha.ceiling);
+}
+
+function getIntensityCategory(score) {
+  if (score < 1.0) return "CALM";
+  if (score < 2.5) return "UNSETTLED";
+  if (score < 4.0) return "ACTIVE";
+  if (score < 5.5) return "ELEVATED";
+  if (score < 7.0) return "SIGNIFICANT";
+  if (score < 8.5) return "DANGEROUS";
+  if (score < 9.8) return "EXTREME";
+  return "CATASTROPHIC";
+}
+// -------------------------------------
+// TREND LOGIC (Unchanged)
+// -------------------------------------
+function determineTrend() {
+  if (intensityHistory.length < 2) return { arrow: "→", text: "STABLE" };
+
+  const current = intensityHistory[intensityHistory.length - 1];
+  const previous = intensityHistory[Math.max(0, intensityHistory.length - 5)];
+  const change = current - previous;
+  const threshold = 0.5;
+
+  if (change > threshold) return { arrow: "↗", text: "RAPIDLY\nRISING" };
+  if (change > 0.1) return { arrow: "↑", text: "RISING" };
+  if (change < -threshold) return { arrow: "↘", text: "FALLING" };
+  if (change < -0.1) return { arrow: "↓", text: "SUBSIDING" };
+  return { arrow: "→", text: "STABLE" };
+}
+
+// -------------------------------------
+// RENDERING (UI UPDATES)
+// -------------------------------------
+function updateIntensityComponent() {
+  const intensityContainer = document.querySelector(".intensity-component");
+  const enabled = isIntensityEnabled();
+
+  if (intensityContainer)
+    intensityContainer.style.display = enabled ? "" : "none";
+  if (!enabled) return;
+
+  const currentScore = calculateIntensityScore();
+
+  // History Buffer
+  intensityHistory.push(currentScore);
+  if (intensityHistory.length > MAX_HISTORY_POINTS) intensityHistory.shift();
+
+  // Update DOM Elements
+  const scoreDisplay = document.getElementById("intensityScoreNumber");
+  const categoryDisplay = document.getElementById("intensityCategory");
+
+  if (scoreDisplay) scoreDisplay.textContent = `${currentScore.toFixed(1)}/10`;
+  if (categoryDisplay)
+    categoryDisplay.textContent = getIntensityCategory(currentScore);
+
+  // Update Trend Elements
+  const trend = determineTrend();
+  const trendArrow = document.getElementById("trendArrow");
+  const trendText = document.getElementById("trendText");
+
+  if (trendArrow) {
+    trendArrow.textContent = trend.arrow;
+    trendArrow.className = "trend-arrow";
+    if (trend.arrow.includes("↑") || trend.arrow.includes("↗"))
+      trendArrow.classList.add("rising");
+    else if (trend.arrow.includes("↓") || trend.arrow.includes("↘"))
+      trendArrow.classList.add("falling");
+    else trendArrow.classList.add("stable");
+  }
+  if (trendText) trendText.textContent = trend.text;
+
+  // Render the Canvas Graph
+  drawIntensityChart();
+}
+
+function drawIntensityChart() {
+  if (!isIntensityEnabled()) return;
+
+  const canvas = document.getElementById("intensityChart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const padding = 6;
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Dynamic Color Selection based on Thresholds
+  const currentScore = intensityHistory[intensityHistory.length - 1] || 0;
+  let lineColor = "#4CAF50"; // Green
+  if (currentScore > 2.5) lineColor = "#FFEB3B"; // Yellow
+  if (currentScore > 4.0) lineColor = "#FF9800"; // Orange
+  if (currentScore > 7.0) lineColor = "#F44336"; // Red
+  if (currentScore > 9.0) lineColor = "#E040FB"; // Magenta
+
+  // Draw Axes
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, height - padding);
+  ctx.lineTo(width - padding, height - padding);
+  ctx.stroke();
+
+  if (intensityHistory.length < 2) return;
+
+  // Map Data Points
+  const points = intensityHistory.map((score, i) => {
+    const x = padding + (i / (MAX_HISTORY_POINTS - 1)) * (width - 2 * padding);
+    const y = height - padding - (score / 10) * (height - 2 * padding);
+    return { x, y };
+  });
+
+  // Gradient Area Fill
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, lineColor + "66");
+  gradient.addColorStop(1, lineColor + "00");
+
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, height - padding);
+  for (const p of points) ctx.lineTo(p.x, p.y);
+  ctx.lineTo(points[points.length - 1].x, height - padding);
+  ctx.fill();
+
+  // Line Stroke
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const p of points) ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+
+  // Glowing Head Dot
+  const last = points[points.length - 1];
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = lineColor;
+  ctx.fillStyle = "#FFFFFF";
+  ctx.beginPath();
+  ctx.arc(last.x, last.y, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+// -------------------------------------
+// TREND LOGIC
+// -------------------------------------
+function determineTrend() {
+  if (intensityHistory.length < 2) {
+    return { arrow: "→", text: "STABLE" };
+  }
+
+  const current = intensityHistory[intensityHistory.length - 1];
+  const previous = intensityHistory[Math.max(0, intensityHistory.length - 5)];
+
+  const change = current - previous;
+  const threshold = 0.5;
+
+  if (change > threshold) {
+    return { arrow: "↗", text: "RAPIDLY\nRISING" };
+  } else if (change > 0.1) {
+    return { arrow: "↑", text: "RISING" };
+  } else if (change < -threshold) {
+    return { arrow: "↘", text: "FALLING" };
+  } else if (change < -0.1) {
+    return { arrow: "↓", text: "SUBSIDING" };
+  } else {
+    return { arrow: "→", text: "STABLE" };
+  }
+}
+
+// Update intensity component display
+function updateIntensityComponent() {
+  const currentScore = calculateIntensityScore();
+
+  // Add to history
+  intensityHistory.push(currentScore);
+  if (intensityHistory.length > MAX_HISTORY_POINTS) {
+    intensityHistory.shift();
+  }
+
+  // Update score display
+  const scoreDisplay = document.getElementById("intensityScoreNumber");
+  const categoryDisplay = document.getElementById("intensityCategory");
+
+  if (scoreDisplay) {
+    scoreDisplay.textContent = `${currentScore.toFixed(1)}/10`;
+  }
+
+  const category = getIntensityCategory(currentScore);
+  if (categoryDisplay) {
+    categoryDisplay.textContent = category;
+  }
+
+  // Update trend
+  const trend = determineTrend();
+  const trendArrow = document.getElementById("trendArrow");
+  const trendText = document.getElementById("trendText");
+
+  if (trendArrow) {
+    trendArrow.textContent = trend.arrow;
+    trendArrow.className = "trend-arrow";
+    if (trend.arrow === "↗" || trend.arrow === "↑") {
+      trendArrow.classList.add("rising");
+    } else if (trend.arrow === "↘" || trend.arrow === "↓") {
+      trendArrow.classList.add("falling");
+    } else {
+      trendArrow.classList.add("stable");
+    }
+  }
+
+  if (trendText) {
+    trendText.textContent = trend.text;
+  }
+
+  // Draw chart
+  drawIntensityChart();
+}
+
+// Draw the intensity chart on canvas
+function drawIntensityChart() {
+  const canvas = document.getElementById("intensityChart");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const padding = 8;
+
+  // Clear canvas properly
+  ctx.clearRect(0, 0, width, height);
+
+  // Get current highest alert color
+  const highestAlert = getHighestActiveAlert();
+  const lineColor = highestAlert.color || "#FFD93D";
+
+  // Draw axes
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+  ctx.lineWidth = 1;
+
+  // Y-axis
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, height - padding);
+  ctx.stroke();
+
+  // X-axis
+  ctx.beginPath();
+  ctx.moveTo(padding, height - padding);
+  ctx.lineTo(width - padding, height - padding);
+  ctx.stroke();
+
+  if (intensityHistory.length === 0) return;
+
+  // Draw gradient fill
+  const graphWidth = width - padding * 2;
+  const graphHeight = height - padding * 2;
+  const pointSpacing = graphWidth / (MAX_HISTORY_POINTS - 1 || 1);
+
+  // Create gradient
+  const gradient = ctx.createLinearGradient(0, padding, 0, height - padding);
+  gradient.addColorStop(0, lineColor + "CC");
+  gradient.addColorStop(1, lineColor + "00");
+
+  // Draw area fill
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.moveTo(padding, height - padding);
+
+  // Points for area
+  for (let i = 0; i < intensityHistory.length; i++) {
+    const score = intensityHistory[i];
+    const x = padding + (i / (MAX_HISTORY_POINTS - 1 || 1)) * graphWidth;
+    const y = height - padding - (score / 10) * graphHeight;
+    ctx.lineTo(x, y);
+  }
+
+  ctx.lineTo(width - padding, height - padding);
+  ctx.fill();
+
+  // Draw line
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  for (let i = 0; i < intensityHistory.length; i++) {
+    const score = intensityHistory[i];
+    const x = padding + (i / (MAX_HISTORY_POINTS - 1 || 1)) * graphWidth;
+    const y = height - padding - (score / 10) * graphHeight;
+
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+
+  ctx.stroke();
+
+  // Draw current point highlight
+  if (intensityHistory.length > 0) {
+    const lastScore = intensityHistory[intensityHistory.length - 1];
+    const lastX =
+      padding +
+      ((intensityHistory.length - 1) / (MAX_HISTORY_POINTS - 1 || 1)) *
+        graphWidth;
+    const lastY = height - padding - (lastScore / 10) * graphHeight;
+
+    ctx.fillStyle = lineColor;
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
 
 document.body.addEventListener("click", enableSound);
 
@@ -974,20 +1839,26 @@ function adjustMessageFontSize(messageElement) {
 }
 
 const countiesInput = document.getElementById("countiesInput");
+const generateAlertButton = document.getElementById("generateAlertButton");
 
-document
-  .getElementById("generateAlertButton")
-  .addEventListener("click", function () {
-    const eventType = document.getElementById("alertType").value;
-    const damageThreat = document.getElementById("damageThreat").value;
-    const detection = document.getElementById("detection").value;
+if (generateAlertButton && countiesInput) {
+  generateAlertButton.addEventListener("click", function () {
+    const alertTypeEl = document.getElementById("alertType");
+    const damageThreatEl = document.getElementById("damageThreat");
+    const detectionEl = document.getElementById("detection");
+    const expirationEl = document.getElementById("customExpirationMinutes");
+
+    if (!alertTypeEl || !damageThreatEl || !detectionEl || !expirationEl) {
+      return;
+    }
+
+    const eventType = alertTypeEl.value;
+    const damageThreat = damageThreatEl.value;
+    const detection = detectionEl.value;
     const counties = countiesInput.value
       .split(",")
       .map((county) => county.trim());
-    const expirationTime = parseInt(
-      document.getElementById("expiration").value,
-      10
-    );
+    const expirationTime = parseInt(expirationEl.value, 10);
 
     const expirationDate = new Date();
     expirationDate.setMinutes(expirationDate.getMinutes() + expirationTime);
@@ -1028,7 +1899,7 @@ document
       "." +
       generateRandomString(4);
     const randomID = `urn:oid:urn:oid:2.49.0.1.840.0.${generateRandomString(
-      32
+      32,
     )}.001.1`;
 
     const warning = {
@@ -1044,6 +1915,7 @@ document
 
     showNotification(warning);
   });
+}
 
 function generateRandomString(length) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -1278,12 +2150,12 @@ function testNotification(eventName) {
   function generateRandomString(length) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     return Array.from({ length }, () =>
-      chars.charAt(Math.floor(Math.random() * chars.length))
+      chars.charAt(Math.floor(Math.random() * chars.length)),
     ).join("");
   }
 
   const randomVTEC = `${generateRandomString(4)}.${generateRandomString(
-    4
+    4,
   )}.${generateRandomString(4)}.${generateRandomString(4)}`;
   const randomID = `urn:oid:2.49.0.1.840.0.${generateRandomString(32)}.001.1`;
   const messageType = Math.random() < 0.5 ? "Alert" : "Update";
@@ -1367,8 +2239,8 @@ function testNotification(eventName) {
         parameters.threats?.tornadoDamageThreat === "CATASTROPHIC"
           ? "DEADLY TORNADO."
           : parameters.threats?.tornadoDamageThreat === "CONSIDERABLE"
-          ? "DAMAGING TORNADO."
-          : "TORNADO.";
+            ? "DAMAGING TORNADO."
+            : "TORNADO.";
     }
   } else if (eventName === "Severe Thunderstorm Warning") {
     const hazardText =
@@ -1442,10 +2314,20 @@ function normalizeAlert(alert) {
 }
 
 function updateWarningCounters(activeWarnings) {
+  // If the dashboard counters UI isn't present, skip safely.
+  if (
+    !tornadoCountElement ||
+    !thunderstormCountElement ||
+    !floodCountElement ||
+    !winterWeatherCountElement
+  ) {
+    return;
+  }
+
   if (!activeWarnings || !Array.isArray(activeWarnings)) {
     console.warn(
       "⚠️ updateWarningCounters skipped invalid activeWarnings:",
-      activeWarnings
+      activeWarnings,
     );
     return;
   }
@@ -1459,7 +2341,7 @@ function updateWarningCounters(activeWarnings) {
       if (!warning || !warning.properties || !warning.properties.event) {
         console.warn(
           "⚠️ updateWarningCounters skipped malformed warning:",
-          warning
+          warning,
         );
         return;
       }
@@ -1467,16 +2349,16 @@ function updateWarningCounters(activeWarnings) {
       const eventType = warning.properties.event;
 
       let tornadoCount = parseInt(
-        tornadoCountElement.textContent.split(":")[1]?.trim() || 0
+        tornadoCountElement.textContent.split(":")[1]?.trim() || 0,
       );
       let thunderstormCount = parseInt(
-        thunderstormCountElement.textContent.split(":")[1]?.trim() || 0
+        thunderstormCountElement.textContent.split(":")[1]?.trim() || 0,
       );
       let floodCount = parseInt(
-        floodCountElement.textContent.split(":")[1]?.trim() || 0
+        floodCountElement.textContent.split(":")[1]?.trim() || 0,
       );
       let winterWeatherCount = parseInt(
-        winterWeatherCountElement.textContent.split(":")[1]?.trim() || 0
+        winterWeatherCountElement.textContent.split(":")[1]?.trim() || 0,
       );
 
       if (eventType.includes("Tornado Warning")) {
@@ -1499,7 +2381,7 @@ function updateWarningCounters(activeWarnings) {
     } catch (e) {
       console.warn(
         "⚠️ updateWarningCounters failed to update warning counters:",
-        e
+        e,
       );
     }
   });
@@ -1596,7 +2478,7 @@ let activeRisks = [];
       eventTypeBar.style.backgroundColor = current.color;
 
       counties.textContent = `Cities: ${current.cities} (Pop. ${Number(
-        current.pop
+        current.pop,
       ).toLocaleString()})`;
       counties.style.visibility = "visible";
 
@@ -1688,7 +2570,7 @@ let activeRisks = [];
     eventType.className = `event-type-bar ${top.class}`;
     eventType.style.backgroundColor = top.color;
     counties.textContent = `Cities: ${top.cities} (Pop. ${Number(
-      top.pop
+      top.pop,
     ).toLocaleString()})`;
     counties.style.visibility = "visible";
     expiration.style.visibility = "hidden";
@@ -1892,7 +2774,7 @@ let emergencyText = "";
 function showNotification(
   warning,
   sseEventType = "NEW", // The type from the SSE stream (e.g., INIT, NEW, UPDATE, CANCEL)
-  currentVersion // Passed as an argument, usually from NWSheadline or properties.sent
+  currentVersion, // Passed as an argument, usually from NWSheadline or properties.sent
 ) {
   const eventName = getEventName(warning);
   const warningId = warning.id.trim().toUpperCase();
@@ -1948,7 +2830,7 @@ function showNotification(
       // If content is identical, do not re-notify.
       if (prevRawText === currentRawText && prevAreaDesc === currentAreaDesc) {
         console.log(
-          `⚠️ SWS [${warningId}] received again with identical content. Ignoring to prevent duplicate notifications.`
+          `⚠️ SWS [${warningId}] received again with identical content. Ignoring to prevent duplicate notifications.`,
         );
         // Update version/object even if identical content, for robust tracking.
         if (notifiedWarnings.get(warningId) !== currentVersion) {
@@ -1961,7 +2843,7 @@ function showNotification(
         isNew = true;
         notificationType = "NEW WEATHER ALERT";
         console.log(
-          `🔄 SWS [${warningId}] content changed. Marking as NEW weather alert.`
+          `🔄 SWS [${warningId}] content changed. Marking as NEW weather alert.`,
         );
       }
     } else {
@@ -1969,7 +2851,7 @@ function showNotification(
       isNew = true;
       notificationType = "NEW WEATHER ALERT";
       console.log(
-        `🆕 SWS [${warningId}] ID not previously tracked. Marking as NEW weather alert.`
+        `🆕 SWS [${warningId}] ID not previously tracked. Marking as NEW weather alert.`,
       );
     }
   }
@@ -2001,12 +2883,12 @@ function showNotification(
             isUpdated = true;
             notificationType = "WEATHER ALERT UPGRADE";
             console.log(
-              `⬆️ Action is ${alertAction}, severity UPGRADED from ${previousEventName} to ${eventName}.`
+              `⬆️ Action is ${alertAction}, severity UPGRADED from ${previousEventName} to ${eventName}.`,
             );
           } else {
             // Not an upgrade, just a regular update / continuance - treat as stale.
             console.log(
-              `⚠️ Action is ${alertAction}, but not a severity upgrade. Ignoring notification as stale.`
+              `⚠️ Action is ${alertAction}, but not a severity upgrade. Ignoring notification as stale.`,
             );
             previousWarnings.set(warningId, warning); // Still update internal state
             notifiedWarnings.set(warningId, currentVersion);
@@ -2018,7 +2900,7 @@ function showNotification(
           // if we receive an UPDATE/CON for a new ID, we silently track it.
           // It's not an "upgrade" we can confirm, so it's not notified.
           console.log(
-            `⚠️ Action is ${alertAction}, but alert ID not previously tracked. Tracking silently as potentially stale.`
+            `⚠️ Action is ${alertAction}, but alert ID not previously tracked. Tracking silently as potentially stale.`,
           );
           previousWarnings.set(warningId, warning);
           notifiedWarnings.set(warningId, currentVersion);
@@ -2033,7 +2915,7 @@ function showNotification(
           isNew = true;
           notificationType = "NEW WEATHER ALERT";
           console.log(
-            `🆕 Default action, not internally tracked. Marking as NEW.`
+            `🆕 Default action, not internally tracked. Marking as NEW.`,
           );
         }
         // If already tracked, determine if it's a visual update or a silent update.
@@ -2057,7 +2939,7 @@ function showNotification(
             isUpdated = true;
             notificationType = "ALERT UPDATED";
             console.log(
-              `🔃 Default action, but content/name changed. Marking as UPDATED.`
+              `🔃 Default action, but content/name changed. Marking as UPDATED.`,
             );
           } else {
             // No change, ignore.
@@ -2069,7 +2951,7 @@ function showNotification(
           isNew = true;
           notificationType = "NEW WEATHER ALERT";
           console.log(
-            `🆕 Default action, not internally tracked. Marking as NEW.`
+            `🆕 Default action, not internally tracked. Marking as NEW.`,
           );
         }
         break;
@@ -2079,13 +2961,13 @@ function showNotification(
   // Final validation: Ensure either isNew or isUpdated is true. If not, it means an edge case was missed, so ignore.
   if (!isNew && !isUpdated) {
     console.log(
-      `⛔ Final determination: No change for ${warningId}. Ignoring.`
+      `⛔ Final determination: No change for ${warningId}. Ignoring.`,
     );
     return;
   }
 
   console.log(
-    `✅ Determined notification status — New: ${isNew}, Updated: ${isUpdated}, Type: ${notificationType}`
+    `✅ Determined notification status — New: ${isNew}, Updated: ${isUpdated}, Type: ${notificationType}`,
   );
 
   // 🔊 Pick your fighter
@@ -2211,6 +3093,7 @@ function processNotificationQueue() {
  */
 function showNotificationElement(warning, notificationType, emergencyText) {
   const eventName = getEventName(warning);
+  const eventNameLC = eventName.toLowerCase();
   const description = warning.rawText || warning.properties?.rawText || "";
   const rawAreaDesc = Array.isArray(warning.counties)
     ? warning.counties.join(" • ")
@@ -2224,11 +3107,27 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   // Create inner container for gradient background
   const innerContainer = document.createElement("div");
   innerContainer.className = "notification-inner";
+
+  // Premium shimmer overlay (runs once after entrance animation)
+  // Layering: gradient (::before) < shimmer (.notif-shimmer) < text (z-index: 2)
+  const shimmer = document.createElement("div");
+  shimmer.className = "notif-shimmer";
+  innerContainer.appendChild(shimmer);
+  // Add decorative low-opacity Font Awesome icon behind text
+  // Move icon to title instead of background
+  /*const useIcons = areAlertIconsEnabled();
+  let iconClass = "";
+  if (useIcons) {
+    try {
+      iconClass = getIconClassForEvent(eventName);
+    } catch (e) {
+      iconClass = "fa-solid fa-triangle-exclamation";
+    }
+  }*/
   notification.appendChild(innerContainer);
 
   // Determine if it's a special weather statement early
-  const isSpecialWeatherStatement =
-    eventName.toLowerCase() === "special weather statement";
+  const isSpecialWeatherStatement = eventNameLC === "special weather statement";
   if (isSpecialWeatherStatement) {
     notification.classList.add("special-weather-statement");
   }
@@ -2248,7 +3147,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
 
   // Area/counties + expiration
   const expires = new Date(
-    warning.expires || warning.properties?.expires || Date.now()
+    warning.expires || warning.properties?.expires || Date.now(),
   );
   const expiresText = formatExpirationTime(expires);
   const countyDiv = document.createElement("div");
@@ -2258,10 +3157,8 @@ function showNotificationElement(warning, notificationType, emergencyText) {
 
   // Play appropriate sound
   const soundId = getSoundForEvent(eventName, notificationType);
-  console.log(`🔊 Playing sound ID: ${soundId}`);
   playSoundById(soundId);
 
-  // Scroll logic for long county lists
   // Scroll logic for long county lists
   requestAnimationFrame(() => {
     const commaCount = (countyDiv.textContent.match(/,/g) || []).length;
@@ -2282,9 +3179,10 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       countyDiv.appendChild(scrollWrapper);
 
       // Check if hazard/source info exists to adjust mask position
+      const eventNameLC = eventName.toLowerCase();
       const hasHazardInfo =
-        allowedTornadoAlerts.includes(nameLC) ||
-        eventName.toLowerCase().includes("severe thunderstorm warning");
+        allowedTornadoAlerts.includes(eventNameLC) ||
+        eventNameLC.includes("severe thunderstorm warning");
 
       // Adjust mask based on presence of hazard/source info
       let maskGradient;
@@ -2313,21 +3211,22 @@ function showNotificationElement(warning, notificationType, emergencyText) {
 
       // Determine scroll duration based on warning type
       const isCritical =
-        getEventName(warning).toLowerCase().includes("considerable") ||
-        getEventName(warning).toLowerCase().includes("destructive") ||
-        getEventName(warning).toLowerCase().includes("observed tornado") ||
-        getEventName(warning).includes("PDS") ||
-        getEventName(warning).toLowerCase().includes("emergency");
+        eventNameLC.includes("considerable") ||
+        eventNameLC.includes("destructive") ||
+        eventNameLC.includes("observed tornado") ||
+        eventName.includes("PDS") ||
+        eventNameLC.includes("emergency");
 
       const totalDuration = isCritical ? 20 : 10;
 
       const animName = `scrollNotif${Date.now()}`;
-      const oldStyle = document.getElementById("notif-scroll-style");
-      if (oldStyle) oldStyle.remove();
-
-      const style = document.createElement("style");
-      style.id = "notif-scroll-style";
-      style.textContent = `
+      let scrollStyle = document.getElementById("notif-scroll-style");
+      if (!scrollStyle) {
+        scrollStyle = document.createElement("style");
+        scrollStyle.id = "notif-scroll-style";
+        document.head.appendChild(scrollStyle);
+      }
+      scrollStyle.textContent = `
       @keyframes ${animName} {
         0%   { transform: translateX(0); }
         20%  { transform: translateX(0); }
@@ -2335,7 +3234,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
         100% { transform: translateX(-${scrollDistance}px); }
       }
     `;
-      document.head.appendChild(style);
 
       scrollWrapper.style.animation = `${animName} ${totalDuration}s linear forwards`;
     }
@@ -2349,19 +3247,23 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     const iconDiv = document.createElement("div");
     iconDiv.className = "emergency-icon";
 
-    // Add keyframes animation inline
-    const styleSheet = document.createElement("style");
-    const animationName = `fade${Date.now()}`; // Create unique animation name
-    styleSheet.textContent = `
-      @keyframes ${animationName} {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0; }
-      }
-    `;
-    document.head.appendChild(styleSheet);
+    // Reuse single animation style element for all emergency icons
+    const animationName = "emergencyFade";
+    if (!document.getElementById("emergency-icon-style")) {
+      const styleSheet = document.createElement("style");
+      styleSheet.id = "emergency-icon-style";
+      styleSheet.textContent = `
+        @keyframes ${animationName} {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+      `;
+      document.head.appendChild(styleSheet);
+    }
 
-    // Apply animation to iconDiv
+    // Apply animation to iconDiv with GPU acceleration hint
     iconDiv.style.animation = `${animationName} 2s ease-in-out infinite`;
+    iconDiv.style.willChange = "opacity";
 
     const iconImg = document.createElement("img");
     iconImg.src = "https://i.postimg.cc/DwFyZb3k/Exclamation.png";
@@ -2381,7 +3283,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   }
 
   // Tornado hazard/source info
-  const nameLC = eventName.toLowerCase().trim();
   const allowedTornadoAlerts = [
     "tornado warning",
     "radar confirmed tornado warning",
@@ -2394,70 +3295,41 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     "tornado emergency",
   ];
 
-  if (allowedTornadoAlerts.includes(nameLC)) {
-    const haz = (
-      description.match(/HAZARD\.{3}\s*(.*?)(?=SOURCE\.{3}|$)/is)?.[1] ||
-      warning.tornadoDamageThreat ||
-      "N/A"
-    ).trim();
-    const src = (
-      description.match(/SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is)?.[1] || "N/A"
-    ).trim();
-
-    const getHazardEmoji = (hazard) => {
-      const h = hazard.toLowerCase();
-      if (h.includes("deadly tornado")) return "";
-      if (h.includes("damaging tornado")) return "";
-      if (h.includes("tornado")) return "";
-      return "⚠️";
-    };
-
-    const getSourceEmoji = (source) => {
-      const s = source.toLowerCase();
-      if (s.includes("weather spotter")) return "";
-      if (s.includes("radar indicated")) return "";
-      if (s.includes("radar confirmed")) return "";
-      if (s.includes("public")) return "";
-      return "";
-    };
+  if (allowedTornadoAlerts.includes(eventNameLC)) {
+    const hazMatch = description.match(
+      /HAZARD\.{3}\s*(.*?)(?=SOURCE\.{3}|$)/is,
+    );
+    const srcMatch = description.match(
+      /SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is,
+    );
+    const haz = (hazMatch?.[1] || warning.tornadoDamageThreat || "N/A").trim();
+    const src = (srcMatch?.[1] || "N/A").trim();
 
     const hs = document.createElement("div");
     hs.className = "hazard-source-info";
-    hs.innerHTML = `
-      <div><strong>HAZARD:</strong> ${getHazardEmoji(
-        haz
-      )}${haz}${getHazardEmoji(haz)}</div>
-      <div><strong>SOURCE:</strong> ${getSourceEmoji(
-        src
-      )}${src}${getSourceEmoji(src)}</div>
-    `;
+    hs.innerHTML = `<div><strong>HAZARD:</strong> ${haz}</div><div><strong>SOURCE:</strong> ${src}</div>`;
     innerContainer.appendChild(hs);
   }
 
   // Severe thunderstorm wind/hail info
-  if (eventName.toLowerCase().includes("severe thunderstorm warning")) {
-    const haz = (
-      description.match(/HAZARD\.{3}\s*(.*?)(?=SOURCE\.{3}|$)/is)?.[1] || "N/A"
-    ).trim();
-    const src = (
-      description.match(/SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is)?.[1] || "N/A"
-    ).trim();
+  if (eventNameLC.includes("severe thunderstorm warning")) {
+    const hazMatch = description.match(
+      /HAZARD\.{3}\s*(.*?)(?=SOURCE\.{3}|$)/is,
+    );
+    const srcMatch = description.match(
+      /SOURCE\.{3}\s*(.*?)(?=IMPACT\.{3}|$)/is,
+    );
+    const haz = (hazMatch?.[1] || "N/A").trim();
+    const src = (srcMatch?.[1] || "N/A").trim();
     const tornadoDetection = warning.threats?.tornadoDetection || "N/A";
 
     const wh = document.createElement("div");
     wh.className = "wind-hail-info";
 
     if (tornadoDetection.toUpperCase() === "POSSIBLE") {
-      wh.innerHTML = `
-        <div><strong>HAZARD:</strong> ${haz}</div>
-        <div><strong>SOURCE:</strong> ${src}</div>
-        <div style="font-weight: bold;">**A TORNADO IS ALSO POSSIBLE**</div>
-      `;
+      wh.innerHTML = `<div><strong>HAZARD:</strong> ${haz}</div><div><strong>SOURCE:</strong> ${src}</div><div style="font-weight: bold;">**A TORNADO IS ALSO POSSIBLE**</div>`;
     } else {
-      wh.innerHTML = `
-        <div><strong>HAZARD:</strong> ${haz}</div>
-        <div><strong>SOURCE:</strong> ${src}</div>
-      `;
+      wh.innerHTML = `<div><strong>HAZARD:</strong> ${haz}</div><div><strong>SOURCE:</strong> ${src}</div>`;
     }
     innerContainer.appendChild(wh);
   }
@@ -2469,7 +3341,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
 
   // Set timeout for disappearing
   const duration =
-    eventName.toLowerCase().includes("tornado") || eventName.includes("PDS")
+    eventNameLC.includes("tornado") || eventName.includes("PDS")
       ? 10_000
       : 10_000;
 
@@ -2500,6 +3372,16 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   // Trigger entrance animation
   setTimeout(() => {
     notification.classList.add("appear");
+
+    // Trigger shimmer once after the notification locks into place.
+    // Matches the slide-in duration in CSS (~1.2s). Shimmer itself is fast (0.5s).
+    setTimeout(() => {
+      if (!notification.isConnected) return;
+      notification.classList.add("shimmering");
+      setTimeout(() => {
+        notification.classList.remove("shimmering");
+      }, 650);
+    }, 500);
   }, 10);
 }
 /**
@@ -2585,7 +3467,7 @@ async function syncWithTimeServer() {
             const rtt = t1 - t0;
             serverTimeOffset = serverTime + rtt / 2 - t1;
             console.log(
-              `✅ Synced. RTT: ${rtt} ms, offset: ${serverTimeOffset} ms`
+              `✅ Synced. RTT: ${rtt} ms, offset: ${serverTimeOffset} ms`,
             );
             if (isFirstSync) clock.textContent = ""; // clear placeholder only first time
             isFirstSync = false; // mark that first sync done
@@ -2623,9 +3505,8 @@ function updateClock() {
   const M = (displayTime.getMonth() + 1).toString().padStart(2, "0");
   const y = (displayTime.getFullYear() % 100).toString().padStart(2, "0");
 
-  document.getElementById(
-    "clockDisplay"
-  ).innerHTML = `<span class="time">${h}:${m}:${s} ${a} ${currentTimeZone}</span><span class="date">${M}/${d}/${y}</span>`;
+  document.getElementById("clockDisplay").innerHTML =
+    `<span class="time">${h}:${m}:${s} ${a} ${currentTimeZone}</span><span class="date">${M}/${d}/${y}</span>`;
 }
 
 function toggleTimeZone() {
@@ -2654,7 +3535,7 @@ async function initClock() {
   } catch (err) {
     console.error(
       "💥 Failed to sync time from server. Clock will not start.",
-      err
+      err,
     );
     document.getElementById("clockDisplay").textContent =
       "⚠️ Failed to sync time from server";
@@ -2663,11 +3544,17 @@ async function initClock() {
 
 // Go!
 initClock();
+updateIntensityComponent(); // Initialize intensity component
 
 document.addEventListener("DOMContentLoaded", initClock);
 setInterval(() => {
   updateWarningList(activeWarnings);
 }, 30000);
+
+// Update intensity component every minute
+setInterval(() => {
+  updateIntensityComponent();
+}, 1_000);
 
 let lastAlertText = "";
 let lastAlertColor = "";
@@ -2714,8 +3601,8 @@ function updateAlertBar() {
     highestAlert.alert === "N/A"
       ? "MICHIGAN STORM CHASERS"
       : highestAlert.originalAlert
-      ? getEventName(highestAlert.originalAlert)
-      : highestAlert.alert;
+        ? getEventName(highestAlert.originalAlert)
+        : highestAlert.alert;
   const currentColor = highestAlert.color || "#1F2593";
   const currentCount = activeWarnings.length;
 
@@ -2736,17 +3623,27 @@ function updateAlertBar() {
   const savedEventTypeBarColor = localStorage.getItem("eventTypeBarColor");
 
   if (highestAlert.alert === "N/A" && activeWarnings.length === 0) {
-    alertText.textContent = savedAlertText || "MICHIGAN STORM CHASERS";
+    alertText.innerHTML = savedAlertText || "MICHIGAN STORM CHASERS";
     alertText.style.color = ""; // Reset to default color
+    alertText.style.display = "flex";
+    alertText.style.alignItems = "center";
     alertBar.style.backgroundColor = savedAlertBarColor || "#1F2593";
     activeAlertsBox.style.display = "none";
     semicircle.style.background =
       "linear-gradient(to right, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 100%)";
     updateDashboard();
   } else if (highestAlert.alert) {
-    alertText.textContent = currentText;
+    const iconClass = areAlertIconsEnabled()
+      ? getIconClassForEvent(currentText)
+      : "";
+    const iconHtml = iconClass
+      ? `<i class="fas ${iconClass}" style="margin-right: 24px; vertical-align: middle;"></i>`
+      : "";
+    alertText.innerHTML = currentText;
     alertText.style.color =
       currentText === "Special Weather Statement" ? "black" : "";
+    alertText.style.display = "flex";
+    alertText.style.alignItems = "center";
     alertBar.style.backgroundColor = highestAlert.color;
 
     // Darken glow by 20%
@@ -2763,8 +3660,10 @@ function updateAlertBar() {
 
     updateDashboard();
   } else {
-    alertText.textContent = "No valid alert found.";
+    alertText.innerHTML = "No valid alert found.";
     alertText.style.color = ""; // Reset to default color
+    alertText.style.display = "flex";
+    alertText.style.alignItems = "center";
     alertBar.style.backgroundColor = "#606060";
     activeAlertsBox.style.display = "none";
     semicircle.style.background =
@@ -2985,7 +3884,7 @@ function displayWarningDetails(warning) {
       label: "Thunderstorm Damage Threat",
       critical: (v) =>
         ["CONSIDERABLE", "DESTRUCTIVE", "CATASTROPHIC"].includes(
-          v.toUpperCase()
+          v.toUpperCase(),
         ),
     },
   ];
@@ -3178,6 +4077,7 @@ function getWarningEmoji(eventName) {
     "Wind Chill Warning": "🥶",
     "Cold Weather Advisory": "🧥",
     "Extreme Cold Warning": "❄️🥶",
+    "Extreme Cold Watch": "❄️🥶",
   };
 
   return emojiMap[eventName] || "⚠️";
@@ -3370,6 +4270,21 @@ const audioElements = {
   Bloop: new Audio("Sounds/Bloop.mp3"),
 };
 
+// Preload all audio elements and connect to AudioContext for OBS compatibility
+Object.values(audioElements).forEach((audio) => {
+  audio.load(); // Preload the audio
+  audio.volume = 1.0; // Ensure full volume
+  // Connect to AudioContext if available
+  if (window.audioCtx) {
+    try {
+      const source = window.audioCtx.createMediaElementSource(audio);
+      source.connect(window.audioCtx.destination);
+    } catch (err) {
+      // Element may already be connected, ignore error
+    }
+  }
+});
+
 function playSoundById(soundId) {
   const sound = audioElements[soundId];
   if (!sound) {
@@ -3452,7 +4367,7 @@ function formatExpirationTime(expiresDate) {
   const expiresDay = new Date(
     expiresDate.getFullYear(),
     expiresDate.getMonth(),
-    expiresDate.getDate()
+    expiresDate.getDate(),
   );
 
   const timeStr = expiresDate
@@ -3563,7 +4478,7 @@ function updateWarningList(warnings = null) {
 
     const groupHeader = document.createElement("div");
     groupHeader.className = `warning-group-header ${getWarningClass(
-      eventType
+      eventType,
     )}`;
     groupHeader.innerHTML = `
       <div class="group-icon">${getWarningEmoji(eventType)}</div>
@@ -3650,7 +4565,7 @@ function createWarningCard(warning, index) {
 
   const progressPercentage = Math.min(
     100,
-    Math.max(0, (minutesRemaining / 60) * 100)
+    Math.max(0, (minutesRemaining / 60) * 100),
   );
 
   card.innerHTML = `
@@ -3767,7 +4682,7 @@ document.getElementById("saveStateButton").addEventListener("click", () => {
 
   const stateFipsCodes = window.selectedStates.map((state) => {
     const fipsCode = Object.keys(STATE_FIPS_TO_ABBR).find(
-      (key) => STATE_FIPS_TO_ABBR[key] === state
+      (key) => STATE_FIPS_TO_ABBR[key] === state,
     );
     return fipsCode || "Unknown";
   });
@@ -3975,8 +4890,8 @@ function TacticalMode(alerts, type = "NEW") {
   // Get selected alert types from checkboxes
   const selectedAlertTypes = Array.from(
     document.querySelectorAll(
-      '#checkboxContainer input[type="checkbox"]:checked'
-    )
+      '#checkboxContainer input[type="checkbox"]:checked',
+    ),
   ).map((cb) => cb.value);
 
   // Get selected states (if any); if none, disable state filtering
@@ -4027,7 +4942,7 @@ function TacticalMode(alerts, type = "NEW") {
 
       if (!passesSameFilter) {
         console.log(
-          `⛔ Alert [${eventName}] (${id}) filtered out by SAME/state selection`
+          `⛔ Alert [${eventName}] (${id}) filtered out by SAME/state selection`,
         );
         return;
       }
@@ -4071,7 +4986,7 @@ function TacticalMode(alerts, type = "NEW") {
       if (hasPolygon) {
         const polygonElem = drawPolygon(
           alert.polygon.coordinates,
-          document.body
+          document.body,
         );
         if (polygonElem) {
           document.body.appendChild(polygonElem);
@@ -4088,7 +5003,7 @@ function TacticalMode(alerts, type = "NEW") {
       Polygon: !!(
         w.polygon?.type === "Polygon" && Array.isArray(w.polygon.coordinates)
       ),
-    }))
+    })),
   );
   updateWarningList(activeWarnings);
   updateWarningCounters(activeWarnings);
@@ -4115,7 +5030,7 @@ function updateActiveWarningsList() {
         activeWarnings.push(warning);
       } else {
         console.log(
-          `🕒 Warning ${id} has expired and won't be added to active list`
+          `🕒 Warning ${id} has expired and won't be added to active list`,
         );
         // Clean up expired warnings
         window.previousWarnings.delete(id);
@@ -4218,6 +5133,7 @@ function cancelAlert(id) {
   updateWarningList(activeWarnings);
   updateHighestAlert();
   updateAlertBar();
+  updateIntensityComponent();
 
   // Get the alert bar element
   const alertBar = document.querySelector(".alert-bar");
@@ -4227,6 +5143,7 @@ function cancelAlert(id) {
     updateActiveAlertText();
     updateHighestAlert();
     updateAlertBar();
+    updateIntensityComponent();
     // Set the thinbg glow style when no warnings active
     if (alertBar) {
       alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
@@ -4303,12 +5220,12 @@ const lastFetchedData = new Map();
 async function fetchWeatherForCity(city, station, targetMap = lastFetchedData) {
   try {
     const resp = await fetch(
-      `https://api.weather.gov/stations/${station}/observations/latest`
+      `https://api.weather.gov/stations/${station}/observations/latest`,
     );
     if (!resp.ok) {
       if (resp.status === 404) {
         console.error(
-          `Weather data not found for ${city} (${station}). Skipping...`
+          `Weather data not found for ${city} (${station}). Skipping...`,
         );
       } else {
         throw new Error(`Network error ${resp.status}`);
@@ -4434,6 +5351,7 @@ clearWarningsButton.addEventListener("click", () => {
     updateWarningList(activeWarnings);
     updateHighestAlert();
     updateAlertBar();
+    updateIntensityComponent();
     updateCurrentConditions();
     updateWarningCounters();
 
@@ -4455,7 +5373,7 @@ async function rotateCity() {
   // Prevent rotation while scrolling is in progress
   if (isCountiesCurrentlyScrolling) {
     console.log(
-      "Counties currently scrolling. Skipping rotation to avoid interruption."
+      "Counties currently scrolling. Skipping rotation to avoid interruption.",
     );
     return;
   }
@@ -4465,7 +5383,7 @@ async function rotateCity() {
 
   if (!eventTypeBar || !countiesElement) {
     console.error(
-      "Required elements (event-type-bar or counties) not found. Cannot perform city rotation."
+      "Required elements (event-type-bar or counties) not found. Cannot perform city rotation.",
     );
     return;
   }
@@ -4493,8 +5411,8 @@ async function rotateCity() {
     // First part: icon + condition + temp (NO trailing |)
     const firstPart = `
       <img src="${updatedWeatherData.iconUrl}" alt="${
-      updatedWeatherData.text
-    }" style="width:24px;height:24px;vertical-align:middle;">
+        updatedWeatherData.text
+      }" style="width:24px;height:24px;vertical-align:middle;">
       ${
         updatedWeatherData.text.charAt(0).toUpperCase() +
         updatedWeatherData.text.slice(1)
@@ -4524,7 +5442,7 @@ async function rotateCity() {
           : "";
 
       parts.push(
-        `Wind from the ${updatedWeatherData.cardinalDirection} at ${updatedWeatherData.windSpeed} mph ${arrowSvg}`
+        `Wind from the ${updatedWeatherData.cardinalDirection} at ${updatedWeatherData.windSpeed} mph ${arrowSvg}`,
       );
     }
 
@@ -4766,7 +5684,7 @@ function updateCountiesText(newHTML, warning) {
 
     function setupPositioningAndScroll() {
       console.log(
-        "[setupPositioningAndScroll] Starting positioning calculation"
+        "[setupPositioningAndScroll] Starting positioning calculation",
       );
 
       const containerRect = countiesEl.getBoundingClientRect();
@@ -4778,7 +5696,7 @@ function updateCountiesText(newHTML, warning) {
         startX = eventBarRightEdge + additionalSafetyMargin;
         console.log(
           "[setupPositioningAndScroll] Event bar right edge relative to container:",
-          eventBarRightEdge
+          eventBarRightEdge,
         );
         console.log("[setupPositioningAndScroll] Final startX:", startX);
       }
@@ -4794,11 +5712,11 @@ function updateCountiesText(newHTML, warning) {
       console.log("[setupPositioningAndScroll] Content width:", contentWidth);
       console.log(
         "[setupPositioningAndScroll] Available width (up to 720px from screen edge):",
-        availableWidth
+        availableWidth,
       );
       console.log(
         "[setupPositioningAndScroll] Overflow amount:",
-        overflowAmount
+        overflowAmount,
       );
 
       // Fade position relative to container
@@ -4812,7 +5730,7 @@ function updateCountiesText(newHTML, warning) {
 
       if (overflowAmount > 10) {
         console.log(
-          "[setupPositioningAndScroll] Content overflows - setting up scrolling"
+          "[setupPositioningAndScroll] Content overflows - setting up scrolling",
         );
 
         const safeMargin = 50;
@@ -4845,22 +5763,22 @@ function updateCountiesText(newHTML, warning) {
         setTimeout(() => {
           isCountiesCurrentlyScrolling = false;
           console.log(
-            "[setupPositioningAndScroll] Scrolling complete, updates now allowed"
+            "[setupPositioningAndScroll] Scrolling complete, updates now allowed",
           );
         }, totalDuration * 1000);
 
         console.log(
-          `[setupPositioningAndScroll] Scroll distance: ${scrollDistance}px`
+          `[setupPositioningAndScroll] Scroll distance: ${scrollDistance}px`,
         );
         console.log(
           `[setupPositioningAndScroll] Scroll duration: ${scrollDuration.toFixed(
-            2
-          )}s`
+            2,
+          )}s`,
         );
         console.log(
           `[setupPositioningAndScroll] Total duration (with pauses): ${totalDuration.toFixed(
-            2
-          )}s`
+            2,
+          )}s`,
         );
 
         const animName = `scroll-${Date.now()}`;
@@ -4869,10 +5787,10 @@ function updateCountiesText(newHTML, warning) {
           @keyframes ${animName} {
             0%   { transform: translateX(${startX}px); }
             ${startPausePercent.toFixed(
-              2
+              2,
             )}%  { transform: translateX(${startX}px); }      /* Pause 1s at start */
             ${scrollEndPercent.toFixed(
-              2
+              2,
             )}%  { transform: translateX(${endX}px); }        /* Scroll */
             100% { transform: translateX(${endX}px); }        /* Pause 1s at end */
           }
@@ -4899,11 +5817,11 @@ function updateCountiesText(newHTML, warning) {
 
         console.log(
           "[setupPositioningAndScroll] Applied scrolling mask:",
-          mask
+          mask,
         );
       } else {
         console.log(
-          "[setupPositioningAndScroll] Content fits - positioning statically"
+          "[setupPositioningAndScroll] Content fits - positioning statically",
         );
         scrollWrapper.style.transform = `translateX(${startX}px)`;
 
@@ -4942,7 +5860,7 @@ function updateCountiesText(newHTML, warning) {
 
         countiesEl._resizeObserver = new ResizeObserver(() => {
           console.log(
-            "[ResizeObserver] Detected resize/change, recalculating position"
+            "[ResizeObserver] Detected resize/change, recalculating position",
           );
           setupPositioningAndScroll();
         });
@@ -4962,8 +5880,8 @@ function isCountiesScrolling() {
   const wrapper = document.querySelector("#counties span");
   return Boolean(
     wrapper &&
-      wrapper.style.animationName &&
-      wrapper.style.animationName !== "none"
+    wrapper.style.animationName &&
+    wrapper.style.animationName !== "none",
   );
 }
 
@@ -5047,7 +5965,7 @@ function setSemicircleCountCyclerEnabled(enabled) {
   try {
     localStorage.setItem(
       SEMICIRCLE_COUNT_TOGGLE_KEY,
-      enabled ? "true" : "false"
+      enabled ? "true" : "false",
     );
   } catch (err) {
     console.warn("Could not persist semicircle count toggle state", err);
@@ -5059,20 +5977,20 @@ function buildSemicircleCountMessages() {
     return [];
   }
 
-  const counts = {};
+  // Group by category, not event name
+  const catCounts = {};
   for (const warning of activeWarnings) {
     const eventName = getEventName(warning);
     if (!eventName) continue;
-    counts[eventName] = (counts[eventName] || 0) + 1;
+    const cat = getSemicircleCategory(eventName);
+    catCounts[cat] = (catCounts[cat] || 0) + 1;
   }
-
-  return Object.entries(counts)
-    .sort(
-      ([eventA], [eventB]) =>
-        (priority[eventA] || 9999) - (priority[eventB] || 9999) ||
-        eventA.localeCompare(eventB)
-    )
-    .map(([eventName, count]) => `${eventName}: ${count}`);
+  // Use the order in SEMICIRCLE_EVENT_CATEGORIES, then "Other alerts" last
+  const orderedCats = SEMICIRCLE_EVENT_CATEGORIES.map((c) => c.name);
+  if (catCounts["Other alerts"]) orderedCats.push("Other alerts");
+  return orderedCats
+    .filter((cat) => catCounts[cat])
+    .map((cat) => `${cat}: ${catCounts[cat]}`);
 }
 
 function stopSemicircleCountCycle() {
@@ -5095,9 +6013,17 @@ function updateSemicircleCountCycler(forceRestart = false) {
     toggleEl.checked = enabled;
   }
 
+  // If we're forcing the semicircle to follow the event-type bar, never
+  // start the cycler or change the label text from here. This ensures the
+  // semicircle is always synced to the event-type bar (frozen behavior).
+  if (semicircleFollowEventType) {
+    stopSemicircleCountCycle();
+    labelEl.classList.remove("semicircle-disabled");
+    return;
+  }
+
   if (!enabled) {
     stopSemicircleCountCycle();
-    labelEl.textContent = "ACTIVE ALERT COUNT";
     labelEl.classList.add("semicircle-disabled");
     return;
   }
@@ -5116,15 +6042,68 @@ function updateSemicircleCountCycler(forceRestart = false) {
     semicircleCountCycleIndex = 0;
   }
 
-  labelEl.textContent = semicircleCountCycleMessages[semicircleCountCycleIndex];
+  // Animate fade-out -> update -> fade-in when the text changes
+  const newLabelText = semicircleCountCycleMessages[semicircleCountCycleIndex];
+  if (labelEl.textContent !== newLabelText) {
+    labelEl.classList.remove("fade-in", "show");
+    labelEl.classList.add("fade-out");
+    setTimeout(() => {
+      // Update text and font size at the same time, while fully invisible
+      labelEl.textContent = newLabelText;
+      // Set font size before fade-in, so position is correct before visible
+      try {
+        adjustSemicircleLabelFontSize(labelEl);
+        // Re-apply bottom position in case font size changes
+        labelEl.style.bottom = "17px";
+      } catch (e) {
+        /* noop */
+      }
+      labelEl.classList.remove("fade-out");
+      labelEl.classList.add("fade-in", "show");
+      setTimeout(() => {
+        labelEl.classList.remove("fade-in", "show");
+      }, 400);
+    }, 200);
+  } else {
+    // still ensure sizing if same text
+    try {
+      adjustSemicircleLabelFontSize(labelEl);
+    } catch (e) {
+      /* noop */
+    }
+  }
 
   stopSemicircleCountCycle();
   if (semicircleCountCycleMessages.length > 0) {
     semicircleCountCycleInterval = setInterval(() => {
       semicircleCountCycleIndex =
         (semicircleCountCycleIndex + 1) % semicircleCountCycleMessages.length;
-      labelEl.textContent =
-        semicircleCountCycleMessages[semicircleCountCycleIndex];
+      const nextText = semicircleCountCycleMessages[semicircleCountCycleIndex];
+      if (labelEl.textContent !== nextText) {
+        labelEl.classList.remove("fade-in", "show");
+        labelEl.classList.add("fade-out");
+        setTimeout(() => {
+          // Update text and font size at the same time, while fully invisible
+          labelEl.textContent = nextText;
+          try {
+            adjustSemicircleLabelFontSize(labelEl);
+            labelEl.style.bottom = "17px";
+          } catch (e) {
+            /* noop */
+          }
+          labelEl.classList.remove("fade-out");
+          labelEl.classList.add("fade-in", "show");
+          setTimeout(() => {
+            labelEl.classList.remove("fade-in", "show");
+          }, 400);
+        }, 200);
+      } else {
+        try {
+          adjustSemicircleLabelFontSize(labelEl);
+        } catch (e) {
+          /* noop */
+        }
+      }
     }, 10000);
   }
 }
@@ -5134,8 +6113,8 @@ function isCountiesScrolling() {
   const wrapper = document.querySelector("#counties span");
   return Boolean(
     wrapper &&
-      wrapper.style.animationName &&
-      wrapper.style.animationName !== "none"
+    wrapper.style.animationName &&
+    wrapper.style.animationName !== "none",
   );
 }
 
@@ -5144,6 +6123,52 @@ let lastActiveIds = [];
 
 // Keep this map outside the function to track previous alert states
 const lastAlertsMap = new Map();
+// Track the last event type and count displayed in the semicircle label
+let lastEventTypeDisplayed = null;
+let lastEventCountDisplayed = null;
+// When true, the semicircle label is forced to follow the event-type bar and
+// the normal semicircle cycler is suppressed.
+let semicircleFollowEventType = true; // frozen by default, as requested by user
+
+// Ensure the semicircle label font size won't overlap the pulse logo/container.
+function adjustSemicircleLabelFontSize(labelEl) {
+  try {
+    const logo =
+      document.getElementById("pulseLogo") || document.querySelector(".logo");
+    const logoContainer =
+      document.querySelector(".logo-container") || (logo && logo.parentElement);
+    if (!labelEl || !logoContainer) return;
+
+    const margin = 8; // px buffer between elements
+    const minFont = 10; // px
+
+    // Start from computed font-size and reduce until no overlap
+    const cs = getComputedStyle(labelEl);
+    let fontSize = parseFloat(cs.fontSize) || 32;
+    labelEl.style.whiteSpace = "nowrap";
+
+    function intersects(r1, r2) {
+      return !(
+        r1.right < r2.left - margin ||
+        r1.left > r2.right + margin ||
+        r1.bottom < r2.top - margin ||
+        r1.top > r2.bottom + margin
+      );
+    }
+
+    const logoRect = logoContainer.getBoundingClientRect();
+    // Reduce font until it no longer intersects the logo container
+    while (fontSize >= minFont) {
+      labelEl.style.fontSize = fontSize + "px";
+      // Force layout read
+      const r = labelEl.getBoundingClientRect();
+      if (!intersects(r, logoRect)) break;
+      fontSize -= 1;
+    }
+  } catch (e) {
+    // noop
+  }
+}
 
 function updateDashboard(forceUpdate = false) {
   console.log("Starting updateDashboard function");
@@ -5154,12 +6179,12 @@ function updateDashboard(forceUpdate = false) {
     return;
   }
 
-  const expirationElement = document.querySelector("#expiration");
-  const eventTypeElement = document.querySelector("#eventType");
-  const countiesElement = document.querySelector("#counties");
-  const activeAlertsBox = document.querySelector(".active-alerts-box");
-  const activeAlertText = document.getElementById("ActiveAlertText");
-  const spcToggle = document.getElementById("spcModeToggle");
+  const expirationElement = getCached("#expiration");
+  const eventTypeElement = getCached("#eventType");
+  const countiesElement = getCached("#counties");
+  const activeAlertsBox = getCached(".active-alerts-box");
+  const activeAlertText = getCached("#ActiveAlertText");
+  const spcToggle = getCached("#spcModeToggle");
 
   console.log("Checking activeWarnings array:", activeWarnings);
 
@@ -5214,7 +6239,7 @@ function updateDashboard(forceUpdate = false) {
       .sort(
         (a, b) =>
           (priority[getEventName(a)] || 9999) -
-          (priority[getEventName(b)] || 9999)
+          (priority[getEventName(b)] || 9999),
       );
 
     currentWarningIndex = 0; // Reset index when alerts update
@@ -5275,7 +6300,7 @@ function updateDashboard(forceUpdate = false) {
   const formattedExpirationTime = formatExpirationTime(expirationDate);
   const fullFormattedExpirationTime = expirationDate.toLocaleString(
     "en-US",
-    fullOptions
+    fullOptions,
   );
 
   // Use our helper function to format expiration with date if not today
@@ -5296,7 +6321,7 @@ function updateDashboard(forceUpdate = false) {
     if (tornadoEmergencyLocation) {
       console.log(
         "Tornado emergency location found:",
-        tornadoEmergencyLocation
+        tornadoEmergencyLocation,
       );
     }
 
@@ -5316,14 +6341,14 @@ function updateDashboard(forceUpdate = false) {
       // Filter out empty strings and values like "and" or "."
       const filteredCounties = warning.counties.filter(
         (county) =>
-          county && county.trim() && !["and", "."].includes(county.trim())
+          county && county.trim() && !["and", "."].includes(county.trim()),
       );
 
       console.log("Filtered counties array:", filteredCounties);
 
       // Check if counties have state info
       const hasStateInfo = filteredCounties.some((county) =>
-        county.includes(",")
+        county.includes(","),
       );
       console.log("Counties contain state information:", hasStateInfo);
 
@@ -5335,7 +6360,7 @@ function updateDashboard(forceUpdate = false) {
         // Remove any trailing periods or "and" prefixes
         rawCounties = filteredCounties
           .map((county) =>
-            county.replace(/\.$/, "").replace(/^and /, "").trim()
+            county.replace(/\.$/, "").replace(/^and /, "").trim(),
           )
           .join(" • ");
       }
@@ -5439,6 +6464,58 @@ function updateDashboard(forceUpdate = false) {
     updateCountiesText(countiesText, warning);
 
     eventTypeElement.textContent = eventName;
+    // Update semicircle label to follow the event-type bar's alert count
+    try {
+      const labelEl = document.querySelector(".semicircle-label");
+      const countiesEl = document.querySelector("#counties");
+      if (labelEl) {
+        // Make visible and use pointer events
+        labelEl.style.visibility = "visible";
+        labelEl.style.opacity = "1";
+        labelEl.style.pointerEvents = "auto";
+
+        // Copy core visual styles from counties text so the label matches
+        if (countiesEl) {
+          const cs = getComputedStyle(countiesEl);
+          labelEl.style.font = cs.font;
+          labelEl.style.color = cs.color;
+          labelEl.style.letterSpacing = cs.letterSpacing;
+          labelEl.style.textTransform = cs.textTransform;
+          labelEl.style.whiteSpace = "nowrap";
+        }
+
+        // Compute count for the currently-displayed event type
+        const countForEvent = Array.isArray(activeWarnings)
+          ? activeWarnings.filter((w) => getEventName(w) === eventName).length
+          : 0;
+        const newText = `${eventName}: ${countForEvent}`;
+
+        // Animate label fade-out, update, then fade-in on text change
+        if (
+          lastEventTypeDisplayed !== eventName ||
+          lastEventCountDisplayed !== countForEvent
+        ) {
+          labelEl.classList.remove("fade-in", "show");
+          labelEl.classList.add("fade-out");
+          setTimeout(() => {
+            labelEl.textContent = newText;
+            adjustSemicircleLabelFontSize(labelEl);
+            labelEl.classList.remove("fade-out");
+            labelEl.classList.add("fade-in", "show");
+            setTimeout(() => {
+              labelEl.classList.remove("fade-in", "show");
+            }, 300);
+          }, 200);
+          lastEventTypeDisplayed = eventName;
+          lastEventCountDisplayed = countForEvent;
+        } else {
+          // ensure label remains visible if nothing changed
+          labelEl.style.visibility = "visible";
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to update semicircle label:", e);
+    }
     activeAlertsBox.style.display = "block";
     activeAlertText.textContent = "ALL ACTIVE ALERTS";
 
@@ -5477,7 +6554,7 @@ async function rotateCityWithDelay() {
       // Static content (no scrolling) - use base 10 second delay
       totalDelay = 10000;
       console.log(
-        `[rotateCityWithDelay] Static content - using base 10s delay`
+        `[rotateCityWithDelay] Static content - using base 10s delay`,
       );
     } else {
       // Scrolling content - wait for scroll to end + 1 second
@@ -5489,7 +6566,7 @@ async function rotateCityWithDelay() {
       console.log(
         `[rotateCityWithDelay] Scrolling content - waiting ${(
           totalDelay / 1000
-        ).toFixed(2)}s before next rotation`
+        ).toFixed(2)}s before next rotation`,
       );
     }
 
@@ -5596,6 +6673,26 @@ window.addEventListener("load", () => {
   if (savedTimeoutDuration) {
     document.getElementById("timeoutSlider").value = savedTimeoutDuration;
   }
+
+  const intensityToggle = document.getElementById("intensityToggle");
+  if (intensityToggle) {
+    intensityToggle.checked = isIntensityEnabled();
+    intensityToggle.addEventListener("change", () => {
+      setIntensityEnabled(intensityToggle.checked);
+      updateIntensityComponent();
+    });
+    updateIntensityComponent();
+  }
+
+  const alertIconsToggle = document.getElementById("alertIconsToggle");
+  if (alertIconsToggle) {
+    alertIconsToggle.checked = areAlertIconsEnabled();
+    alertIconsToggle.addEventListener("change", () => {
+      setAlertIconsEnabled(alertIconsToggle.checked);
+      updateDashboard();
+    });
+    updateDashboard();
+  }
 });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -5610,7 +6707,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Map TX to FIPS codes for logging
   const stateFipsCodes = window.selectedStates.map((state) => {
     const fipsCode = Object.keys(STATE_FIPS_TO_ABBR).find(
-      (key) => STATE_FIPS_TO_ABBR[key] === state
+      (key) => STATE_FIPS_TO_ABBR[key] === state,
     );
     return fipsCode || "Unknown";
   });
