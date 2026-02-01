@@ -1,14 +1,9 @@
-// ============================================================================
-// OBS AUDIO FIX: Force AudioContext initialization without user interaction
-// ============================================================================
-// This fixes audio not playing in OBS Browser Source even when audio monitoring is enabled
 if (
   typeof AudioContext !== "undefined" ||
   typeof webkitAudioContext !== "undefined"
 ) {
   window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-  // Immediately try to resume (this works in OBS unlike regular browsers)
   window.audioCtx
     .resume()
     .then(() => {
@@ -18,7 +13,6 @@ if (
       console.warn("⚠️ AudioContext resume failed:", err);
     });
 
-  // Force resume every second in case it gets suspended (OBS-specific behavior)
   setInterval(() => {
     if (window.audioCtx && window.audioCtx.state === "suspended") {
       console.log("🔄 AudioContext suspended, attempting resume...");
@@ -27,13 +21,11 @@ if (
   }, 1000);
 }
 
-// Play a silent audio file immediately to "unlock" audio in OBS Browser Source
-// This is required because OBS CEF may block audio until something plays
 try {
   const silentAudio = new Audio(
     "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjMyLjEwNAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhAC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAAAAAA4QAAAAAAAAAAAAAAAAAAA//sQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
   );
-  silentAudio.volume = 0.01; // Very quiet but not completely silent
+  silentAudio.volume = 0.01;
   silentAudio
     .play()
     .then(() => {
@@ -49,7 +41,6 @@ try {
   console.warn("⚠️ Silent audio unlock failed:", err);
 }
 
-// Map event names to simple, grammatically correct categories for the semicircle label
 const SEMICIRCLE_EVENT_CATEGORIES = [
   {
     name: "Tornado warnings",
@@ -138,7 +129,6 @@ function getSemicircleCategory(eventName) {
   }
   return "Other alerts";
 }
-// Initialize the Raw Text toggle (persisted in localStorage)
 const SEMICIRCLE_COUNT_TOGGLE_KEY = "semicircleCountCyclerEnabled";
 let semicircleCountCycleInterval = null;
 let semicircleCountCycleMessages = [];
@@ -174,13 +164,11 @@ function setAlertIconsEnabled(val) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Make all dashboard cards collapsible by default
   try {
     const sliderContainer = document.getElementById("sliderContainer");
     if (sliderContainer) {
       const cards = sliderContainer.querySelectorAll(".dash-card");
       cards.forEach((card) => {
-        // Native <details> already provides collapse/expand behavior
         if (card.tagName === "DETAILS") return;
 
         const header = card.querySelector(":scope > .dash-card-header");
@@ -197,7 +185,6 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         header.addEventListener("click", (event) => {
-          // If a clickable control is ever added inside the header, don't hijack it.
           const interactive = event.target.closest(
             "button, a, input, select, textarea, label",
           );
@@ -224,10 +211,8 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (_) {}
     rawToggle.addEventListener("change", () => {
       setRawTextInBarEnabled(rawToggle.checked);
-      // Immediately refresh the dashboard when toggled
       try {
         console.log("rawTextToggle changed:", rawToggle.checked);
-        // Bypass scrolling guard: force immediate dashboard refresh
         updateDashboard(true);
       } catch (e) {
         console.warn("updateDashboard not available yet:", e);
@@ -293,10 +278,7 @@ const eventTypes = {
   "Lake Effect Snow Warning": "lake-effect-snow-warning",
 };
 
-// Map event name keywords to Font Awesome icon classes (FA6)
-function getIconClassForEvent(eventName) {
-  // This would normally house alert icons
-}
+function getIconClassForEvent(eventName) {}
 
 const priority = {
   "Tornado Emergency": 1,
@@ -423,19 +405,14 @@ const winterWeatherCountElement = document.getElementById("winterWeatherCount");
 const socket = new WebSocket("");
 let isSpcMode = false;
 
-// ===== CPU / UI optimizations =====
-// Buffer incoming events and flush on a short interval to avoid
-// processing every single upstream message immediately.
 const __eventBuffer = [];
 let __eventFlushTimer = null;
-const EVENT_FLUSH_MS = 150; // tweakable
+const EVENT_FLUSH_MS = 150;
 
-// UI throttle
 let __lastUiUpdate = 0;
-const UI_THROTTLE_MS = 100; // ~10fps
+const UI_THROTTLE_MS = 100;
 window.__uiUpdatePending = false;
 
-// Parser worker (offload JSON.parse / heavy parsing when available)
 let parserWorker = null;
 if (window.Worker) {
   try {
@@ -443,9 +420,8 @@ if (window.Worker) {
     parserWorker.onmessage = (e) => {
       const { type, payload } = e.data || {};
       queueEvent(type || "message", payload);
-      // if cancel type, also trigger cancel (best-effort)
       try {
-        if (Array.isArray(payload)) return; // batch will handle
+        if (Array.isArray(payload)) return;
         if (
           payload &&
           payload.id &&
@@ -462,7 +438,7 @@ if (window.Worker) {
 
 function queueEvent(type, data) {
   __eventBuffer.push({ type, data });
-  if (window.__processingPaused) return; // don't schedule flush while paused
+  if (window.__processingPaused) return;
   if (!__eventFlushTimer) {
     __eventFlushTimer = setTimeout(() => {
       __eventFlushTimer = null;
@@ -474,24 +450,45 @@ function queueEvent(type, data) {
 function flushEventBuffer() {
   if (__eventBuffer.length === 0) return;
   const batch = __eventBuffer.splice(0);
-  // process batch on next tick to give browser breathing room
   setTimeout(() => handleBatch(batch), 0);
 }
 
 function handleBatch(batch) {
-  // Lightweight de-dup: keep latest by id when present
   const byId = new Map();
   const ordered = [];
+  const isCancelLike = (t, data) => {
+    try {
+      const cancelList = window.cancelTypes;
+      const t1 = t ? String(t).toUpperCase() : "";
+      const t2 = data && data.type ? String(data.type).toUpperCase() : "";
+      return (
+        Array.isArray(cancelList) &&
+        (cancelList.includes(t1) || cancelList.includes(t2))
+      );
+    } catch (e) {
+      return false;
+    }
+  };
   for (const item of batch) {
     const d = item.data || {};
     const id = d && d.id ? d.id : null;
     if (id) {
-      byId.set(id, item); // latest wins
+      const prev = byId.get(id);
+      if (!prev) {
+        byId.set(id, item);
+      } else {
+        const prevIsCancel = isCancelLike(prev.type, prev.data);
+        const curIsCancel = isCancelLike(item.type, item.data);
+        if (curIsCancel && !prevIsCancel) {
+          byId.set(id, item);
+        } else if (!prevIsCancel && !curIsCancel) {
+          byId.set(id, item);
+        }
+      }
     } else {
       ordered.push(item);
     }
   }
-  // process non-id'd first
   for (const it of ordered) {
     try {
       HandleAlertPayload(it.data, it.type);
@@ -499,7 +496,6 @@ function handleBatch(batch) {
       console.error("Error handling batched item:", e);
     }
   }
-  // then process unique id items
   for (const item of byId.values()) {
     try {
       HandleAlertPayload(item.data, item.type);
@@ -508,7 +504,6 @@ function handleBatch(batch) {
     }
   }
 
-  // schedule a single UI update rather than many
   scheduleUiUpdate();
 }
 
@@ -538,7 +533,6 @@ function scheduleUiUpdate() {
   });
 }
 
-// Pause unnecessary work when tab hidden
 window.__processingPaused = false;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -553,9 +547,7 @@ document.addEventListener("visibilitychange", () => {
     }
   } else {
     window.__processingPaused = false;
-    // flush any buffered events now
     flushEventBuffer();
-    // restart semicircle cycle if enabled
     try {
       updateSemicircleCountCycler(true);
     } catch (e) {}
@@ -563,7 +555,6 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
-// Debounce helper
 function debounce(fn, ms) {
   let t;
   return (...a) => {
@@ -572,7 +563,6 @@ function debounce(fn, ms) {
   };
 }
 
-// Simple DOM node cache to reduce querySelector calls
 const __nodeCache = new Map();
 function getCached(selector) {
   if (__nodeCache.has(selector)) return __nodeCache.get(selector);
@@ -605,29 +595,27 @@ const cancelTypes = [
   "EXPIRE_BEFORE_OPEN",
 ];
 
+window.cancelTypes = cancelTypes;
+
 function initAlertStream() {
   console.log("🔛 Tactical Alert Stream Engaged!");
 
-  // Close existing connection if there is one
   if (window.eventSource) {
     window.eventSource.close();
     console.log("🔌 Closed existing SSE connection");
   }
 
   const source = new EventSource("/api/xmpp-alerts");
-  window.eventSource = source; // Store reference globally
+  window.eventSource = source;
 
-  // Setup heartbeat checker
   let lastMessageTime = Date.now();
   let heartbeatInterval;
 
   source.onopen = () => {
     console.log("✅ SSE Connected at /api/xmpp-alerts");
 
-    // Start the heartbeat interval check
     heartbeatInterval = setInterval(() => {
       if (Date.now() - lastMessageTime > 300000) {
-        // 5 minutes
         console.warn("⚠️ No messages received, reconnecting...");
         clearInterval(heartbeatInterval);
         source.close();
@@ -637,24 +625,21 @@ function initAlertStream() {
           initAlertStream();
         }, 2000);
       }
-    }, 10000); // Check every 10 seconds
+    }, 10000);
   };
 
   source.onerror = (err) => {
     console.error("❌ SSE Error:", err);
     clearInterval(heartbeatInterval);
 
-    // Attempt to reconnect after a delay
     setTimeout(() => {
       console.log("🔄 Attempting to reconnect SSE after error...");
       initAlertStream();
-    }, 5000); // 5 second delay before reconnect
+    }, 5000);
   };
 
-  // Update lastMessageTime on any event
   const updateLastMessageTime = () => (lastMessageTime = Date.now());
 
-  // Listen for ping events to update the lastMessageTime
   source.addEventListener("ping", updateLastMessageTime);
 
   const handleEvent = (type, event) => {
@@ -662,11 +647,9 @@ function initAlertStream() {
     try {
       const raw = event.data;
       if (parserWorker) {
-        // Offload parsing to worker; worker will post back parsed payload
         parserWorker.postMessage({ type, raw });
       } else {
         const data = JSON.parse(raw);
-        // queue for batched processing
         queueEvent(type, data);
       }
     } catch (error) {
@@ -692,8 +675,6 @@ function initAlertStream() {
     }
   };
 
-  // Handle Special Weather Statements separately to ensure they always work
-  // Wire up all other normal alert events
   const normalTypes = [
     "NEW",
     "UPDATE",
@@ -707,13 +688,11 @@ function initAlertStream() {
     source.addEventListener(type, (event) => handleEvent(type, event)),
   );
 
-  // Cancel events
   cancelTypes.forEach((type) =>
     source.addEventListener(type, (event) => handleCancelEvent(type, event)),
   );
 }
 
-// Add this function to your script.js file
 function createCheckboxes() {
   const alertTypes = [
     { value: "Tornado Warning", category: "tornado" },
@@ -768,7 +747,6 @@ function createCheckboxes() {
     { value: "Extreme Cold Watch", category: "winter" },
   ];
 
-  // Load saved alerts from localStorage
   let savedAlerts = [];
   try {
     const savedData = localStorage.getItem("selectedAlerts");
@@ -789,7 +767,6 @@ function createCheckboxes() {
   container.className = "checkbox-container";
   container.innerHTML = "";
 
-  // Create category headers for better organization
   const categories = {};
   alertTypes.forEach((alert) => {
     if (!categories[alert.category]) {
@@ -814,7 +791,6 @@ function createCheckboxes() {
     input.type = "checkbox";
     input.value = alert.value;
 
-    // Use saved settings if available, otherwise default to checked
     if (savedAlerts.length > 0) {
       input.checked = savedAlerts.includes(alert.value);
     } else {
@@ -832,11 +808,9 @@ function createCheckboxes() {
     label.appendChild(span);
     label.appendChild(textSpan);
 
-    // Add to appropriate category div
     categories[alert.category].appendChild(label);
   });
 
-  // Add control buttons at the top
   const controlsDiv = document.createElement("div");
   controlsDiv.className = "controls";
 
@@ -869,7 +843,7 @@ function createCheckboxes() {
   resetBtn.className = "control-btn";
   resetBtn.addEventListener("click", () => {
     localStorage.removeItem("selectedAlerts");
-    createCheckboxes(); // Recreate checkboxes with defaults
+    createCheckboxes();
   });
 
   controlsDiv.appendChild(selectAllBtn);
@@ -877,10 +851,8 @@ function createCheckboxes() {
   controlsDiv.appendChild(resetBtn);
   container.insertBefore(controlsDiv, container.firstChild);
 
-  // Set up the selected alerts based on checked boxes
   updateSelectedAlerts();
 
-  // Add event listener to update selected alerts when checkboxes change
   container.addEventListener("change", updateSelectedAlerts);
   console.log(
     "Checkboxes created with",
@@ -898,12 +870,10 @@ function updateSelectedAlerts() {
     return;
   }
 
-  // Store new selection without immediately applying it
   const newSelectedAlerts = new Set(
     Array.from(checkedBoxes).map((cb) => cb.value),
   );
 
-  // Check if selections have changed
   let currentSelectionArray = [];
   try {
     currentSelectionArray = Array.from(selectedAlerts || []).sort();
@@ -917,7 +887,6 @@ function updateSelectedAlerts() {
   const newSelectionString = JSON.stringify(newSelectionArray);
 
   if (currentSelectionString !== newSelectionString) {
-    // Show apply button only when there are actual changes
     showApplyButton(newSelectedAlerts);
   }
 
@@ -925,28 +894,22 @@ function updateSelectedAlerts() {
 }
 
 function showApplyButton(newAlerts) {
-  // Remove existing button if present
   const existingButton = document.getElementById("applyChangesButton");
   if (existingButton) {
     existingButton.remove();
   }
 
-  // Create the apply button
   const applyButton = document.createElement("button");
   applyButton.id = "applyChangesButton";
   applyButton.className = "apply-changes-button";
   applyButton.textContent = "Apply Alert Changes";
 
-  // Add pulsing animation class
   applyButton.classList.add("pulse-animation");
 
-  // Add click handler
   applyButton.addEventListener("click", () => {
     try {
-      // Update the actual selectedAlerts with the new selection
       selectedAlerts = newAlerts;
 
-      // Save to localStorage
       localStorage.setItem(
         "selectedAlerts",
         JSON.stringify(Array.from(newAlerts)),
@@ -956,7 +919,6 @@ function showApplyButton(newAlerts) {
         Array.from(newAlerts),
       );
 
-      // Clear activeWarnings and previousWarnings
       if (Array.isArray(activeWarnings)) {
         activeWarnings.length = 0;
       } else {
@@ -971,14 +933,12 @@ function showApplyButton(newAlerts) {
         window.previousWarnings = new Map();
       }
 
-      // Get the alert bar element
       const alertBar = document.querySelector(".alert-bar");
       if (alertBar) {
         alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
         alertBar.classList.add("thinbg-glow");
       }
 
-      // Show success message
       const successMsg = document.createElement("div");
       successMsg.className = "success-message";
       successMsg.textContent = "Alert settings saved!";
@@ -994,14 +954,12 @@ function showApplyButton(newAlerts) {
         }, 2000);
       }, 10);
 
-      // Call initAlertStream to apply changes
       if (typeof initAlertStream === "function") {
         initAlertStream();
       } else {
         console.error("initAlertStream function not found");
       }
 
-      // Remove the button after applying
       applyButton.remove();
       console.log("Changes applied! Alert stream reinitialized.");
     } catch (error) {
@@ -1009,7 +967,6 @@ function showApplyButton(newAlerts) {
     }
   });
 
-  // Add button to the page (after checkbox container)
   const container = document.getElementById("checkboxContainer");
   if (container && container.parentNode) {
     container.parentNode.insertBefore(applyButton, container.nextSibling);
@@ -1018,9 +975,7 @@ function showApplyButton(newAlerts) {
   }
 }
 
-// Load saved alerts when the page loads
 document.addEventListener("DOMContentLoaded", function () {
-  // Initialize selectedAlerts if not already defined
   if (typeof selectedAlerts === "undefined") {
     try {
       const savedData = localStorage.getItem("selectedAlerts");
@@ -1035,13 +990,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Create checkboxes if the container exists
   if (document.getElementById("checkboxContainer")) {
     createCheckboxes();
   }
 });
 
-// Add some CSS for the new elements
 const styleElement = document.createElement("style");
 styleElement.textContent = `
   .alert-category {
@@ -1147,7 +1100,6 @@ function parseVtecCore(input) {
     return null;
   }
 
-  // Handle objects with vtec property or properties.vtec
   if (typeof input === "object") {
     const vtec =
       input.vtec ||
@@ -1173,7 +1125,6 @@ function parseVtecCore(input) {
     return null;
   }
 
-  // Handle VTEC string directly
   if (typeof input === "string") {
     console.log("parseVtecCore: String input detected, parsing directly");
     const parsed = parseVTEC(input);
@@ -1186,7 +1137,7 @@ function parseVtecCore(input) {
 
 function isWarningExpired(warning) {
   if (!warning || !warning.properties || !warning.properties.expires) {
-    return false; // Can't determine expiration, assume not expired
+    return false;
   }
 
   const expiresDate = new Date(warning.properties.expires);
@@ -1196,7 +1147,6 @@ function isWarningExpired(warning) {
 function HandleAlertPayload(payload, eventType) {
   console.log("HandleAlertPayload function called.");
 
-  // 1) Unwrap and normalize
   let alerts, type;
 
   if (Array.isArray(payload)) {
@@ -1210,14 +1160,64 @@ function HandleAlertPayload(payload, eventType) {
     type = eventType || "NEW";
   }
 
-  // 2) sanity check
   if (!Array.isArray(alerts) || !type) {
     console.warn("⚠️ Invalid alerts/type after unwrap:", { alerts, type });
     return;
   }
   alerts = alerts.filter((a) => a && typeof a === "object");
 
-  // 3) hand off to TacticalMode
+  try {
+    const cancelList = window.cancelTypes || [];
+    const t1 = type ? String(type).toUpperCase() : "";
+    const t2 = eventType ? String(eventType).toUpperCase() : "";
+    const t3 =
+      payload && payload.type ? String(payload.type).toUpperCase() : "";
+    const isCancelEvent =
+      Array.isArray(cancelList) &&
+      (cancelList.includes(t1) ||
+        cancelList.includes(t2) ||
+        cancelList.includes(t3));
+
+    if (isCancelEvent) {
+      const ids = new Set();
+      for (const raw of alerts) {
+        const a = raw?.feature || raw;
+        const id =
+          a?.id ||
+          a?.properties?.id ||
+          a?.eventCode ||
+          a?.properties?.eventCode ||
+          null;
+        if (id) ids.add(id);
+      }
+
+      if (ids.size === 0) {
+        console.warn("⚠️ Cancel/expire event received with no IDs:", {
+          type,
+          eventType,
+          payload,
+        });
+        return;
+      }
+
+      console.log(
+        `🧹 [Cancel] Processing ${ids.size} cancel/expire event(s):`,
+        Array.from(ids),
+      );
+
+      ids.forEach((id) => {
+        try {
+          cancelAlert && cancelAlert(id);
+        } catch (e) {
+          console.error("Error canceling alert:", id, e);
+        }
+      });
+      return;
+    }
+  } catch (e) {
+    console.warn("⚠️ Cancel/expire detection failed; continuing:", e);
+  }
+
   TacticalMode(alerts, type);
 }
 
@@ -1296,12 +1296,8 @@ const labels = {
 let currentWarningIndex = 0;
 let activeWarnings = [];
 let previousWarningVersions = new Map();
-// ============================================================================
-// MICHIGAN STORM CHASERS - INTENSITY ENGINE (FINAL TUNED)
-// ============================================================================
-intensityHistory = []; // Global history of intensity scores
-MAX_HISTORY_POINTS = 100; // Max points to keep in history
-// 1. BASE SEVERITY (Physics)
+intensityHistory = [];
+MAX_HISTORY_POINTS = 100;
 const BASE_SEVERITY = {
   TORNADO: 6.0,
   SNOW_SQUALL: 5.0,
@@ -1318,58 +1314,41 @@ const BASE_SEVERITY = {
   NOISE: 0.5,
 };
 
-// 2. CERTAINTY (Confidence)
 const CERTAINTY_BONUS = {
-  EMERGENCY: 4.0, // Base 6 + 4 = 10.0 (Guaranteed Max)
-  PDS: 3.5, // Base 6 + 3.5 = 9.5
-  CONFIRMED: 2.5, // Base 6 + 2.5 = 8.5 (Dangerous)
+  EMERGENCY: 4.0,
+  PDS: 3.5,
+  CONFIRMED: 2.5,
   RADAR: 0.0,
   WARNING: 0.0,
   WATCH: 0.0,
   ADVISORY: 0.0,
 };
 
-// 3. IMPACT (Keywords)
 const IMPACT_BONUS = {
-  CATASTROPHIC: 1.0, // Extra kicker for Emergency/Catastrophic tags
+  CATASTROPHIC: 1.0,
   DESTRUCTIVE: 1.5,
   CONSIDERABLE: 0.5,
   STANDARD: 0.0,
 };
 
-// ----------------------------------------------------------------------------
-// THE GLASS CEILINGS (TUNED FOR RESPONSIVENESS)
-// ----------------------------------------------------------------------------
 function getGlassCeiling(event) {
-  // TIER 1: THE ONLY 10s
   if (event.includes("Tornado Emergency")) return 10.0;
 
-  // TIER 2: EXTREME (Max 9.8)
-  // PDS or Confirmed Tornadoes need room to breathe.
   if (event.includes("PDS")) return 9.8;
   if (event.includes("Observed") || event.includes("Confirmed")) return 9.5;
 
-  // TIER 3: DANGEROUS (Max 8.5)
-  // Raised Flash Flood Emergency back to 8.0 because it IS life threatening.
   if (event.includes("Flash Flood Emergency")) return 8.0;
   if (event.includes("Tornado Warning")) return 8.5;
 
-  // TIER 4: SIGNIFICANT (Max 7.5)
   if (event.includes("Destructive") || event.includes("Squall")) return 7.5;
 
-  // TIER 5: ELEVATED (Max 6.5)
   if (event.includes("Blizzard") || event.includes("Severe")) return 6.5;
 
-  // TIER 6: ACTIVE (Max 5.0)
   if (event.includes("Winter Storm") || event.includes("Flood")) return 5.0;
 
-  // TIER 7: NOISE (Max 3.0)
   return 3.0;
 }
 
-// -------------------------------------
-// PARSERS (FIXED TO CATCH EMERGENCY)
-// -------------------------------------
 function getBaseSeverity(event) {
   if (event.includes("Tornado Watch")) return BASE_SEVERITY.WATCH_TORNADO;
   if (event.includes("Tornado")) return BASE_SEVERITY.TORNADO;
@@ -1402,7 +1381,6 @@ function getCertaintyBonus(event) {
 }
 
 function getImpactBonus(event) {
-  // FIXED: Now checks for Emergency/Catastrophic to ensure 10/10
   if (event.includes("Emergency") || event.includes("Catastrophic"))
     return IMPACT_BONUS.CATASTROPHIC;
   if (event.includes("Destructive")) return IMPACT_BONUS.DESTRUCTIVE;
@@ -1410,15 +1388,11 @@ function getImpactBonus(event) {
   return IMPACT_BONUS.STANDARD;
 }
 
-// -------------------------------------
-// MASTER ALGORITHM
-// -------------------------------------
 function calculateIntensityScore() {
   if (!Array.isArray(activeWarnings) || activeWarnings.length === 0) {
     return 0;
   }
 
-  // 1. ANALYZE EVERY ALERT
   let alerts = activeWarnings.map((alert) => {
     const event = getEventName(alert);
     const base = getBaseSeverity(event);
@@ -1433,35 +1407,26 @@ function calculateIntensityScore() {
     };
   });
 
-  // 2. FIND THE ALPHA THREAT (Highest Raw Score)
   alerts.sort((a, b) => b.rawScore - a.rawScore);
 
   const alpha = alerts[0];
   let currentTotal = alpha.rawScore;
 
-  // 3. SMART VOLUME ACCUMULATION
   for (let i = 1; i < alerts.length; i++) {
     const item = alerts[i];
 
-    // RULE A: RELEVANCE GAP
-    // We widened the gap slightly (to 4.5) to allow PDS warnings to boost Emergencies
     let diff = alpha.rawScore - item.rawScore;
 
-    // If the gap is massive (e.g. Tornado vs Winter Advisory), ignore it.
     if (diff > 4.5) continue;
 
-    // RULE B: WEIGHTED ADDITION
     let addition = 0;
-    if (diff < 1.0)
-      addition = 0.15; // High relevance (Peers)
-    else if (diff < 3.0)
-      addition = 0.05; // Moderate relevance
-    else addition = 0.01; // Low relevance
+    if (diff < 1.0) addition = 0.15;
+    else if (diff < 3.0) addition = 0.05;
+    else addition = 0.01;
 
     currentTotal += addition;
   }
 
-  // 4. APPLY THE GLASS CEILING
   return Math.min(currentTotal, alpha.ceiling);
 }
 
@@ -1475,9 +1440,6 @@ function getIntensityCategory(score) {
   if (score < 9.8) return "EXTREME";
   return "CATASTROPHIC";
 }
-// -------------------------------------
-// TREND LOGIC (Unchanged)
-// -------------------------------------
 function determineTrend() {
   if (intensityHistory.length < 2) return { arrow: "→", text: "STABLE" };
 
@@ -1493,9 +1455,6 @@ function determineTrend() {
   return { arrow: "→", text: "STABLE" };
 }
 
-// -------------------------------------
-// RENDERING (UI UPDATES)
-// -------------------------------------
 function updateIntensityComponent() {
   const intensityContainer = document.querySelector(".intensity-component");
   const enabled = isIntensityEnabled();
@@ -1506,11 +1465,9 @@ function updateIntensityComponent() {
 
   const currentScore = calculateIntensityScore();
 
-  // History Buffer
   intensityHistory.push(currentScore);
   if (intensityHistory.length > MAX_HISTORY_POINTS) intensityHistory.shift();
 
-  // Update DOM Elements
   const scoreDisplay = document.getElementById("intensityScoreNumber");
   const categoryDisplay = document.getElementById("intensityCategory");
 
@@ -1518,7 +1475,6 @@ function updateIntensityComponent() {
   if (categoryDisplay)
     categoryDisplay.textContent = getIntensityCategory(currentScore);
 
-  // Update Trend Elements
   const trend = determineTrend();
   const trendArrow = document.getElementById("trendArrow");
   const trendText = document.getElementById("trendText");
@@ -1534,7 +1490,6 @@ function updateIntensityComponent() {
   }
   if (trendText) trendText.textContent = trend.text;
 
-  // Render the Canvas Graph
   drawIntensityChart();
 }
 
@@ -1550,15 +1505,13 @@ function drawIntensityChart() {
 
   ctx.clearRect(0, 0, width, height);
 
-  // Dynamic Color Selection based on Thresholds
   const currentScore = intensityHistory[intensityHistory.length - 1] || 0;
-  let lineColor = "#4CAF50"; // Green
-  if (currentScore > 2.5) lineColor = "#FFEB3B"; // Yellow
-  if (currentScore > 4.0) lineColor = "#FF9800"; // Orange
-  if (currentScore > 7.0) lineColor = "#F44336"; // Red
-  if (currentScore > 9.0) lineColor = "#E040FB"; // Magenta
+  let lineColor = "#4CAF50";
+  if (currentScore > 2.5) lineColor = "#FFEB3B";
+  if (currentScore > 4.0) lineColor = "#FF9800";
+  if (currentScore > 7.0) lineColor = "#F44336";
+  if (currentScore > 9.0) lineColor = "#E040FB";
 
-  // Draw Axes
   ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -1569,14 +1522,12 @@ function drawIntensityChart() {
 
   if (intensityHistory.length < 2) return;
 
-  // Map Data Points
   const points = intensityHistory.map((score, i) => {
     const x = padding + (i / (MAX_HISTORY_POINTS - 1)) * (width - 2 * padding);
     const y = height - padding - (score / 10) * (height - 2 * padding);
     return { x, y };
   });
 
-  // Gradient Area Fill
   const gradient = ctx.createLinearGradient(0, 0, 0, height);
   gradient.addColorStop(0, lineColor + "66");
   gradient.addColorStop(1, lineColor + "00");
@@ -1588,7 +1539,6 @@ function drawIntensityChart() {
   ctx.lineTo(points[points.length - 1].x, height - padding);
   ctx.fill();
 
-  // Line Stroke
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = 2.5;
   ctx.lineCap = "round";
@@ -1597,7 +1547,6 @@ function drawIntensityChart() {
   for (const p of points) ctx.lineTo(p.x, p.y);
   ctx.stroke();
 
-  // Glowing Head Dot
   const last = points[points.length - 1];
   ctx.shadowBlur = 8;
   ctx.shadowColor = lineColor;
@@ -1607,9 +1556,6 @@ function drawIntensityChart() {
   ctx.fill();
   ctx.shadowBlur = 0;
 }
-// -------------------------------------
-// TREND LOGIC
-// -------------------------------------
 function determineTrend() {
   if (intensityHistory.length < 2) {
     return { arrow: "→", text: "STABLE" };
@@ -1634,17 +1580,14 @@ function determineTrend() {
   }
 }
 
-// Update intensity component display
 function updateIntensityComponent() {
   const currentScore = calculateIntensityScore();
 
-  // Add to history
   intensityHistory.push(currentScore);
   if (intensityHistory.length > MAX_HISTORY_POINTS) {
     intensityHistory.shift();
   }
 
-  // Update score display
   const scoreDisplay = document.getElementById("intensityScoreNumber");
   const categoryDisplay = document.getElementById("intensityCategory");
 
@@ -1657,7 +1600,6 @@ function updateIntensityComponent() {
     categoryDisplay.textContent = category;
   }
 
-  // Update trend
   const trend = determineTrend();
   const trendArrow = document.getElementById("trendArrow");
   const trendText = document.getElementById("trendText");
@@ -1678,11 +1620,9 @@ function updateIntensityComponent() {
     trendText.textContent = trend.text;
   }
 
-  // Draw chart
   drawIntensityChart();
 }
 
-// Draw the intensity chart on canvas
 function drawIntensityChart() {
   const canvas = document.getElementById("intensityChart");
   if (!canvas) return;
@@ -1692,24 +1632,19 @@ function drawIntensityChart() {
   const height = canvas.height;
   const padding = 8;
 
-  // Clear canvas properly
   ctx.clearRect(0, 0, width, height);
 
-  // Get current highest alert color
   const highestAlert = getHighestActiveAlert();
   const lineColor = highestAlert.color || "#FFD93D";
 
-  // Draw axes
   ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
   ctx.lineWidth = 1;
 
-  // Y-axis
   ctx.beginPath();
   ctx.moveTo(padding, padding);
   ctx.lineTo(padding, height - padding);
   ctx.stroke();
 
-  // X-axis
   ctx.beginPath();
   ctx.moveTo(padding, height - padding);
   ctx.lineTo(width - padding, height - padding);
@@ -1717,22 +1652,18 @@ function drawIntensityChart() {
 
   if (intensityHistory.length === 0) return;
 
-  // Draw gradient fill
   const graphWidth = width - padding * 2;
   const graphHeight = height - padding * 2;
   const pointSpacing = graphWidth / (MAX_HISTORY_POINTS - 1 || 1);
 
-  // Create gradient
   const gradient = ctx.createLinearGradient(0, padding, 0, height - padding);
   gradient.addColorStop(0, lineColor + "CC");
   gradient.addColorStop(1, lineColor + "00");
 
-  // Draw area fill
   ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.moveTo(padding, height - padding);
 
-  // Points for area
   for (let i = 0; i < intensityHistory.length; i++) {
     const score = intensityHistory[i];
     const x = padding + (i / (MAX_HISTORY_POINTS - 1 || 1)) * graphWidth;
@@ -1743,7 +1674,6 @@ function drawIntensityChart() {
   ctx.lineTo(width - padding, height - padding);
   ctx.fill();
 
-  // Draw line
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -1762,7 +1692,6 @@ function drawIntensityChart() {
 
   ctx.stroke();
 
-  // Draw current point highlight
   if (intensityHistory.length > 0) {
     const lastScore = intensityHistory[intensityHistory.length - 1];
     const lastX =
@@ -1951,7 +1880,6 @@ function testUpgradeNotification(type) {
   warning.properties.action = "UPDATE";
   warning.forceUpgrade = true;
 
-  // Damage threats
   if (typeUpper.includes("TORNADO WARNING")) {
     if (typeUpper.includes("PDS")) {
       warning.properties.parameters.tornadoDamageThreat = ["CONSIDERABLE"];
@@ -2020,7 +1948,6 @@ function createTestWarning(eventType, id = null) {
     },
   };
 
-  // Add proper threat tags
   if (eventTypeUpper.includes("TORNADO WARNING")) {
     if (eventTypeUpper.includes("PDS")) {
       warning.properties.parameters.tornadoDamageThreat = ["CONSIDERABLE"];
@@ -2042,7 +1969,6 @@ function testNotification(eventName) {
   const expirationDate = new Date();
   expirationDate.setMinutes(expirationDate.getMinutes() + 30);
 
-  // Get random counties
   const allCounties = [
     "Alcona, MI",
     "Alger, MI",
@@ -2129,8 +2055,7 @@ function testNotification(eventName) {
     "Wexford, MI",
   ];
 
-  // Determine max counties based on alert type
-  let maxCounties = 20; // Default for other alert types
+  let maxCounties = 20;
   const alertTypeLower = eventName.toLowerCase();
 
   if (
@@ -2144,7 +2069,6 @@ function testNotification(eventName) {
   const countyCount = Math.floor(Math.random() * maxCounties) + 1;
   const shuffledCounties = [...allCounties].sort(() => 0.5 - Math.random());
   const selectedCounties = shuffledCounties.slice(0, countyCount);
-  // Ensure counties are separated with " • "
   const areaDesc = "TEST - " + selectedCounties.join(" • ");
 
   function generateRandomString(length) {
@@ -2161,12 +2085,10 @@ function testNotification(eventName) {
   const messageType = Math.random() < 0.5 ? "Alert" : "Update";
   const currentVersion = `v${Math.floor(Math.random() * 1000)}`;
 
-  // Create parameters object with threats
   const parameters = {
     threats: {},
   };
 
-  // Handle special tornado warning types
   if (eventName.includes("Tornado Warning")) {
     if (eventName === "Radar Confirmed Tornado Warning") {
       parameters.source = ["RADAR CONFIRMED TORNADO"];
@@ -2223,10 +2145,7 @@ function testNotification(eventName) {
     description += `SOURCE... ${parameters.source[0]}\n`;
   }
 
-  // Add hazard information based on event type
   if (eventName === "Tornado Warning") {
-    // Only add hazard if not already included in the source or description
-    // If the source or description already contains "TORNADO", don't add another hazard line
     const sourceText = parameters.source
       ? parameters.source[0].toUpperCase()
       : "";
@@ -2248,11 +2167,9 @@ function testNotification(eventName) {
         ? "DESTRUCTIVE THUNDERSTORM WINDS AND LARGE HAIL."
         : "DAMAGING WINDS AND LARGE HAIL.";
   }
-  // ...existing code...
-  // Create the warning object using the normalizeAlert format
   const warning = {
     id: randomID,
-    geometry: null, // Assuming no geometry for test notifications
+    geometry: null,
     rawText: description,
     vtec: randomVTEC,
     properties: {
@@ -2303,18 +2220,17 @@ function normalizeAlert(alert) {
     rawText: alert.rawText || props.rawText || "",
     vtec: alert.vtec || props.vtec || "",
     properties: {
-      action: alert.action || null, // Added this line
+      action: alert.action || null,
       event: fallbackEvent,
       expires: props.expires || alert.expires || "",
       areaDesc: fallbackArea,
       parameters: props.parameters || alert.threats || {},
-      ...props, // keep original props if they exist
+      ...props,
     },
   };
 }
 
 function updateWarningCounters(activeWarnings) {
-  // If the dashboard counters UI isn't present, skip safely.
   if (
     !tornadoCountElement ||
     !thunderstormCountElement ||
@@ -2387,8 +2303,6 @@ function updateWarningCounters(activeWarnings) {
   });
 }
 
-// Or if you're directly processing the data property from your example:
-// updateWarningCounters(eventData.data);
 function updateHighestAlert() {
   const sortedWarnings = [...activeWarnings].sort((a, b) => {
     const priorityA = priority[getEventName(a)] || 999;
@@ -2529,7 +2443,7 @@ let activeRisks = [];
       return exitSpcMode();
     }
 
-    const rows = [...nestedTable.querySelectorAll("tr")].slice(1); // skip header
+    const rows = [...nestedTable.querySelectorAll("tr")].slice(1);
     const risksMap = {};
 
     rows.forEach((tr) => {
@@ -2682,13 +2596,12 @@ function getEventName(alert) {
 
   const props =
     alert.properties || alert.feature?.properties || alert.feature || alert;
-  const threats = alert.threats || props.threats || {}; // ✅ THIS LINE FIXES IT
+  const threats = alert.threats || props.threats || {};
 
   const event = props.eventName || props.event || "Unknown Event";
   const description = props.description || props.rawText || alert.rawText || "";
   const normalizedSourceText = resolveTornadoSourceText(props, description);
 
-  // 💥 Threat levels
   const tornadoDamageThreat = (
     props.tornadoDamageThreat ||
     threats.tornadoDamageThreat ||
@@ -2717,7 +2630,6 @@ function getEventName(alert) {
     ""
   ).toUpperCase();
 
-  // 🌪 Tornado logic
   if (event.includes("Tornado Warning")) {
     if (tornadoDamageThreat === "CATASTROPHIC") return "Tornado Emergency";
     if (tornadoDamageThreat === "CONSIDERABLE") return "PDS Tornado Warning";
@@ -2729,7 +2641,6 @@ function getEventName(alert) {
     return "Tornado Warning";
   }
 
-  // ⚡ Thunderstorm logic
   if (event.includes("Severe Thunderstorm Warning")) {
     if (thunderstormDamageThreat === "DESTRUCTIVE")
       return "Destructive Severe Thunderstorm Warning";
@@ -2738,7 +2649,6 @@ function getEventName(alert) {
     return "Severe Thunderstorm Warning";
   }
 
-  // 🌊 Flash Flood logic
   if (event.includes("Flash Flood Warning")) {
     const floodthreat = (flashFloodDamageThreat || "").toUpperCase();
     if (floodthreat === "CATASTROPHIC") return "Flash Flood Emergency";
@@ -2766,60 +2676,44 @@ document
       buttonText;
   });
 
-// globals—ensure these live outside any function
-
 const notifiedWarnings = new Map();
 let emergencyText = "";
 
-function showNotification(
-  warning,
-  sseEventType = "NEW", // The type from the SSE stream (e.g., INIT, NEW, UPDATE, CANCEL)
-  currentVersion, // Passed as an argument, usually from NWSheadline or properties.sent
-) {
+function showNotification(warning, sseEventType = "NEW", currentVersion) {
   const eventName = getEventName(warning);
   const warningId = warning.id.trim().toUpperCase();
 
-  // Determine the CAP-style action, falling back to SSE event type if none.
-  // This `alertAction` is primarily for logging and understanding the message intent.
   const alertAction =
     (warning.properties.action || warning.action)?.toUpperCase() ||
     sseEventType.toUpperCase();
 
-  // Check if we've processed this alert ID before (even if not visually notified)
   const hasBeenInternallyTracked = previousWarnings.has(warningId);
-  const previousWarningObject = previousWarnings.get(warningId); // Will be undefined if not tracked
+  const previousWarningObject = previousWarnings.get(warningId);
 
-  // --- Determine notification type (NEW vs UPDATED vs IGNORED) ---
   let isNew = false;
   let isUpdated = false;
-  let notificationType = "NEW WEATHER ALERT"; // Default for alerts that will be shown
+  let notificationType = "NEW WEATHER ALERT";
   if (warning.forceUpgrade === true) {
     console.log(`⚡ Brute-forcing WEATHER ALERT UPGRADE for ID ${warningId}`);
     isUpdated = true;
     notificationType = "WEATHER ALERT UPGRADE";
 
-    // 🛑 short-circuit to skip the rest
     previousWarnings.set(warningId, warning);
     notifiedWarnings.set(warningId, currentVersion);
     displayNotification(warning, notificationType, emergencyText);
     return;
   }
 
-  // 1. INIT alerts are special: always store, never notify explicitly
   if (sseEventType.toUpperCase() === "INIT") {
     previousWarnings.set(warningId, warning);
     notifiedWarnings.set(warningId, currentVersion);
     console.log(`🧠 State updated for ${warningId} (INIT, no notification)`);
-    return; // Exit, no visual notification
+    return;
   }
 
-  // 2. Special handling for Special Weather Statements (SWS)
-  // SWS will NEVER be "UPDATED" based on action field. They are either NEW (first time seeing, or content changed)
-  // or ignored (content unchanged). This logic takes precedence for SWS.
   if (eventName === "Special Weather Statement") {
     if (hasBeenInternallyTracked) {
-      // If we've seen this SWS ID before
-      const previousSWS = previousWarningObject; // Use previousWarningObject directly
+      const previousSWS = previousWarningObject;
       const prevRawText =
         previousSWS?.rawText || previousSWS?.properties?.rawText || "";
       const currentRawText =
@@ -2827,19 +2721,16 @@ function showNotification(
       const prevAreaDesc = previousSWS?.properties?.areaDesc || "";
       const currentAreaDesc = warning.properties?.areaDesc || "";
 
-      // If content is identical, do not re-notify.
       if (prevRawText === currentRawText && prevAreaDesc === currentAreaDesc) {
         console.log(
           `⚠️ SWS [${warningId}] received again with identical content. Ignoring to prevent duplicate notifications.`,
         );
-        // Update version/object even if identical content, for robust tracking.
         if (notifiedWarnings.get(warningId) !== currentVersion) {
           notifiedWarnings.set(warningId, currentVersion);
         }
         previousWarnings.set(warningId, warning);
-        return; // Ignore this alert for visual notification purposes.
+        return;
       } else {
-        // Content has changed for an existing SWS ID. Treat this as a NEW alert (from notification perspective).
         isNew = true;
         notificationType = "NEW WEATHER ALERT";
         console.log(
@@ -2847,16 +2738,13 @@ function showNotification(
         );
       }
     } else {
-      // First time seeing this SWS ID.
       isNew = true;
       notificationType = "NEW WEATHER ALERT";
       console.log(
         `🆕 SWS [${warningId}] ID not previously tracked. Marking as NEW weather alert.`,
       );
     }
-  }
-  // 3. Main logic driven by `alertAction` for non-SWS alerts
-  else {
+  } else {
     switch (alertAction) {
       case "NEW":
         isNew = true;
@@ -2865,16 +2753,12 @@ function showNotification(
         break;
 
       case "UPDATE":
-      case "CON": // Group UPDATE and CON as they share upgrade logic.
-        // Per your request, if an alert's action is UPDATE or CON,
-        // it should ONLY trigger a notification if it's an UPGRADE.
-        // Otherwise, it's considered stale and will not be displayed.
+      case "CON":
         if (previousWarningObject) {
           const previousEventName = getEventName(previousWarningObject);
           const currentPriority = priority[eventName];
           const prevPriority = priority[previousEventName];
 
-          // Check if this is a severity upgrade (lower priority number means higher priority alert)
           if (
             currentPriority !== undefined &&
             prevPriority !== undefined &&
@@ -2886,40 +2770,31 @@ function showNotification(
               `⬆️ Action is ${alertAction}, severity UPGRADED from ${previousEventName} to ${eventName}.`,
             );
           } else {
-            // Not an upgrade, just a regular update / continuance - treat as stale.
             console.log(
               `⚠️ Action is ${alertAction}, but not a severity upgrade. Ignoring notification as stale.`,
             );
-            previousWarnings.set(warningId, warning); // Still update internal state
+            previousWarnings.set(warningId, warning);
             notifiedWarnings.set(warningId, currentVersion);
-            return; // DO NOT notify
+            return;
           }
         } else {
-          // Alert is UPDATE/CON, but we haven't tracked it before.
-          // As per "no more useless tracking" for non-upgrades,
-          // if we receive an UPDATE/CON for a new ID, we silently track it.
-          // It's not an "upgrade" we can confirm, so it's not notified.
           console.log(
             `⚠️ Action is ${alertAction}, but alert ID not previously tracked. Tracking silently as potentially stale.`,
           );
           previousWarnings.set(warningId, warning);
           notifiedWarnings.set(warningId, currentVersion);
-          return; // DO NOT notify
+          return;
         }
         break;
 
       default:
-        // This default case handles alerts where the 'action' field is missing or unknown.
-        // It falls back to content comparison to decide if it's a visual update.
         if (!hasBeenInternallyTracked) {
           isNew = true;
           notificationType = "NEW WEATHER ALERT";
           console.log(
             `🆕 Default action, not internally tracked. Marking as NEW.`,
           );
-        }
-        // If already tracked, determine if it's a visual update or a silent update.
-        else if (previousWarningObject) {
+        } else if (previousWarningObject) {
           const prevRawText =
             previousWarningObject?.rawText ||
             previousWarningObject?.properties?.rawText ||
@@ -2930,7 +2805,6 @@ function showNotification(
             previousWarningObject?.properties?.areaDesc || "";
           const currentAreaDesc = warning.properties?.areaDesc || "";
 
-          // If any meaningful content changed or event name changed, consider it an implicit update.
           if (
             prevRawText !== currentRawText ||
             prevAreaDesc !== currentAreaDesc ||
@@ -2942,12 +2816,10 @@ function showNotification(
               `🔃 Default action, but content/name changed. Marking as UPDATED.`,
             );
           } else {
-            // No change, ignore.
             console.log(`⚠️ Default action, no significant change. Ignoring.`);
             return;
           }
         } else {
-          // Fallback if not tracked and no specific action, treat as new.
           isNew = true;
           notificationType = "NEW WEATHER ALERT";
           console.log(
@@ -2958,7 +2830,6 @@ function showNotification(
     }
   }
 
-  // Final validation: Ensure either isNew or isUpdated is true. If not, it means an edge case was missed, so ignore.
   if (!isNew && !isUpdated) {
     console.log(
       `⛔ Final determination: No change for ${warningId}. Ignoring.`,
@@ -2970,11 +2841,8 @@ function showNotification(
     `✅ Determined notification status — New: ${isNew}, Updated: ${isUpdated}, Type: ${notificationType}`,
   );
 
-  // 🔊 Pick your fighter
-
-  // 🧠 Track state - consistently store the full warning object for future comparisons
-  previousWarnings.set(warningId, warning); // Store the current warning object for next comparison
-  notifiedWarnings.set(warningId, currentVersion); // Store the version for future version comparisons
+  previousWarnings.set(warningId, warning);
+  notifiedWarnings.set(warningId, currentVersion);
   console.log(`🧠 State updated for ${warningId}`);
   switch (eventName) {
     case "Destructive Severe Thunderstorm Warning":
@@ -3012,19 +2880,16 @@ function showNotification(
       emergencyText = "";
   }
 
-  // Display the notification
   displayNotification(warning, notificationType, emergencyText);
 }
 
 function getSoundForEvent(eventName, notificationType) {
   if (notificationType === "WEATHER ALERT UPGRADE") {
-    if (eventName.includes("Tornado Emergency")) return "TorUpgradeSound"; // Re-using update sound for upgrade to Tornado Warning
-    if (eventName.includes("Tornado Warning")) return "TorUpgradeSound"; // Re-using update sound for upgrade to Tornado Warning
+    if (eventName.includes("Tornado Emergency")) return "TorUpgradeSound";
+    if (eventName.includes("Tornado Warning")) return "TorUpgradeSound";
     if (eventName.includes("Severe Thunderstorm Warning"))
-      return "SvrUpgradeSound"; // Re-using update sound for upgrade to Tornado Warning
+      return "SvrUpgradeSound";
   } else {
-    // notificationType === "NEW WEATHER ALERT"
-    // Sounds for initial issuance of an alert
     if (eventName.includes("Tornado Emergency")) return "TOREISS";
     if (eventName.includes("PDS Tornado Warning")) return "TorPDSSound";
     if (eventName.includes("Tornado Warning")) return "TorIssSound";
@@ -3037,12 +2902,10 @@ function getSoundForEvent(eventName, notificationType) {
     if (eventName.includes("Flash Flood Emergency")) return "FFENewIss";
     if (eventName.includes("Considerable Flash Flood Warning"))
       return "FFWCNewIss";
-    // Default sound if no specific match for new alerts
     return "SVRCSound";
   }
 }
 
-// Queue to store pending notifications
 const notificationQueue = [];
 let isNotificationDisplaying = false;
 
@@ -3053,16 +2916,14 @@ let isNotificationDisplaying = false;
  * @param {string|null} emergencyText - Emergency text if applicable
  */
 function displayNotification(warning, notificationType, emergencyText) {
-  if (notificationsMuted) return; // no logging, keep it chill
+  if (notificationsMuted) return;
 
-  // Add the notification to the queue
   notificationQueue.push({
     warning,
     notificationType,
     emergencyText,
   });
 
-  // Process the queue if no notification is currently displaying
   if (!isNotificationDisplaying) {
     processNotificationQueue();
   }
@@ -3081,7 +2942,6 @@ function processNotificationQueue() {
   const { warning, notificationType, emergencyText } =
     notificationQueue.shift();
 
-  // Create and display the notification
   showNotificationElement(warning, notificationType, emergencyText);
 }
 
@@ -3100,52 +2960,33 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     : warning.properties?.areaDesc || "";
   const cleanAreaDesc = rawAreaDesc.replace(/^TEST\s*-\s*/i, "").trim();
 
-  // Build container
   const notification = document.createElement("div");
   notification.className = "notification-popup";
 
-  // Create inner container for gradient background
   const innerContainer = document.createElement("div");
   innerContainer.className = "notification-inner";
 
-  // Premium shimmer overlay (runs once after entrance animation)
-  // Layering: gradient (::before) < shimmer (.notif-shimmer) < text (z-index: 2)
   const shimmer = document.createElement("div");
   shimmer.className = "notif-shimmer";
   innerContainer.appendChild(shimmer);
-  // Add decorative low-opacity Font Awesome icon behind text
-  // Move icon to title instead of background
-  /*const useIcons = areAlertIconsEnabled();
-  let iconClass = "";
-  if (useIcons) {
-    try {
-      iconClass = getIconClassForEvent(eventName);
-    } catch (e) {
-      iconClass = "fa-solid fa-triangle-exclamation";
-    }
-  }*/
   notification.appendChild(innerContainer);
 
-  // Determine if it's a special weather statement early
   const isSpecialWeatherStatement = eventNameLC === "special weather statement";
   if (isSpecialWeatherStatement) {
     notification.classList.add("special-weather-statement");
   }
 
-  // Type badge (protruding element)
   const typeBadge = document.createElement("div");
   typeBadge.className = "notification-type-badge";
   typeBadge.textContent = notificationType;
   typeBadge.style.backgroundColor = getAlertColor(eventName);
   notification.appendChild(typeBadge);
 
-  // Title
   const title = document.createElement("div");
   title.className = "notification-title";
   title.textContent = eventName;
   innerContainer.appendChild(title);
 
-  // Area/counties + expiration
   const expires = new Date(
     warning.expires || warning.properties?.expires || Date.now(),
   );
@@ -3155,11 +2996,9 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   countyDiv.textContent = `COUNTIES: ${cleanAreaDesc} | EFFECTIVE UNTIL ${expiresText}`;
   innerContainer.appendChild(countyDiv);
 
-  // Play appropriate sound
   const soundId = getSoundForEvent(eventName, notificationType);
   playSoundById(soundId);
 
-  // Scroll logic for long county lists
   requestAnimationFrame(() => {
     const commaCount = (countyDiv.textContent.match(/,/g) || []).length;
     const semiCount = (countyDiv.textContent.match(/;/g) || []).length;
@@ -3171,29 +3010,22 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       countyDiv.style.whiteSpace = "nowrap";
       countyDiv.style.overflow = "hidden";
 
-      // Wrap the text before measuring
       const scrollWrapper = document.createElement("span");
       scrollWrapper.style.display = "inline-block";
       scrollWrapper.innerHTML = countyDiv.innerHTML;
       countyDiv.innerHTML = "";
       countyDiv.appendChild(scrollWrapper);
 
-      // Check if hazard/source info exists to adjust mask position
       const eventNameLC = eventName.toLowerCase();
       const hasHazardInfo =
         allowedTornadoAlerts.includes(eventNameLC) ||
         eventNameLC.includes("severe thunderstorm warning");
 
-      // Adjust mask based on presence of hazard/source info
       let maskGradient;
       if (hasHazardInfo) {
-        // Position mask to end 30px left of hazard box (which is at right: 10px)
-        // Hazard box width is approximately 250px (from CSS min-width), so we need to account for:
-        // 10px (right position) + 250px (box width) + 30px (buffer) = 290px from right edge
         maskGradient =
           "linear-gradient(to right, transparent 0px, black 20px, black calc(100% - 290px), transparent calc(100% - 270px))";
       } else {
-        // Original mask for notifications without hazard info
         maskGradient =
           "linear-gradient(to right, transparent 0px, black 20px, black calc(100% - 20px), transparent 100%)";
       }
@@ -3202,14 +3034,12 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       countyDiv.style.maskImage = maskGradient;
 
       const extraPadding = 10;
-      // Adjust scroll distance calculation for hazard info presence
-      const rightBuffer = hasHazardInfo ? 290 : 20; // Account for hazard box space
+      const rightBuffer = hasHazardInfo ? 290 : 20;
       const scrollDistance =
         scrollWrapper.scrollWidth -
         (countyDiv.offsetWidth - rightBuffer) +
         extraPadding;
 
-      // Determine scroll duration based on warning type
       const isCritical =
         eventNameLC.includes("considerable") ||
         eventNameLC.includes("destructive") ||
@@ -3239,7 +3069,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     }
   });
 
-  // Emergency block (if any)
   if (emergencyText) {
     const emergencyWrapper = document.createElement("div");
     emergencyWrapper.className = "emergency-alert";
@@ -3247,7 +3076,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     const iconDiv = document.createElement("div");
     iconDiv.className = "emergency-icon";
 
-    // Reuse single animation style element for all emergency icons
     const animationName = "emergencyFade";
     if (!document.getElementById("emergency-icon-style")) {
       const styleSheet = document.createElement("style");
@@ -3261,7 +3089,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
       document.head.appendChild(styleSheet);
     }
 
-    // Apply animation to iconDiv with GPU acceleration hint
     iconDiv.style.animation = `${animationName} 2s ease-in-out infinite`;
     iconDiv.style.willChange = "opacity";
 
@@ -3282,7 +3109,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     innerContainer.appendChild(emergencyWrapper);
   }
 
-  // Tornado hazard/source info
   const allowedTornadoAlerts = [
     "tornado warning",
     "radar confirmed tornado warning",
@@ -3311,7 +3137,6 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     innerContainer.appendChild(hs);
   }
 
-  // Severe thunderstorm wind/hail info
   if (eventNameLC.includes("severe thunderstorm warning")) {
     const hazMatch = description.match(
       /HAZARD\.{3}\s*(.*?)(?=SOURCE\.{3}|$)/is,
@@ -3334,31 +3159,23 @@ function showNotificationElement(warning, notificationType, emergencyText) {
     innerContainer.appendChild(wh);
   }
 
-  // Append notification to document body
   document.body.appendChild(notification);
 
-  // Apply background color to notification
-
-  // Set timeout for disappearing
   const duration =
     eventNameLC.includes("tornado") || eventName.includes("PDS")
       ? 10_000
       : 10_000;
 
   setTimeout(() => {
-    // Remove appear class to prevent conflicts with disappear animation
     notification.classList.remove("appear");
-    // Apply exit animation
     notification.classList.add("disappear");
 
-    // Remove after animation completes
     setTimeout(() => {
       notification.remove();
       processNotificationQueue();
-    }, 800); // Match this to the disappear animation duration (0.7s parent + 0.2s max child delay + 0.3s child animation = ~1s, using 800ms for safety)
+    }, 800);
   }, duration);
 
-  // Update warning list if needed
   if (
     typeof updateWarningList === "function" &&
     typeof activeWarnings !== "undefined"
@@ -3369,12 +3186,9 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   const alertColor = getAlertColor(eventName);
   notification.style.setProperty("--alert-color", alertColor);
 
-  // Trigger entrance animation
   setTimeout(() => {
     notification.classList.add("appear");
 
-    // Trigger shimmer once after the notification locks into place.
-    // Matches the slide-in duration in CSS (~1.2s). Shimmer itself is fast (0.5s).
     setTimeout(() => {
       if (!notification.isConnected) return;
       notification.classList.add("shimmering");
@@ -3428,16 +3242,16 @@ function getHighestActiveAlert() {
   };
 }
 
-let serverTimeOffset = 0; // ms
-let currentTimeZone = "ET"; // or "CT"
+let serverTimeOffset = 0;
+let currentTimeZone = "ET";
 
-let isFirstSync = true; // track if it’s first sync or not
+let isFirstSync = true;
 
 async function syncWithTimeServer() {
   const clock = document.getElementById("clockDisplay");
 
   if (isFirstSync) {
-    clock.textContent = "Syncronizing Time..."; // placeholder only on first try
+    clock.textContent = "Syncronizing Time...";
   }
 
   console.log("⏰ Starting time sync…");
@@ -3446,7 +3260,7 @@ async function syncWithTimeServer() {
     "https://timeapi.io/api/Time/current/zone?timeZone=America/New_York",
   ];
   const maxRetries = 10;
-  const retryDelay = 500; // ms
+  const retryDelay = 500;
 
   let lastError = null;
 
@@ -3469,8 +3283,8 @@ async function syncWithTimeServer() {
             console.log(
               `✅ Synced. RTT: ${rtt} ms, offset: ${serverTimeOffset} ms`,
             );
-            if (isFirstSync) clock.textContent = ""; // clear placeholder only first time
-            isFirstSync = false; // mark that first sync done
+            if (isFirstSync) clock.textContent = "";
+            isFirstSync = false;
             return;
           } else {
             console.warn(`⚠️ Missing datetime in response from ${url}`);
@@ -3523,15 +3337,12 @@ async function initClock() {
     await syncWithTimeServer();
     updateClock();
 
-    // Align next tick to the next full second
     const now = getCurrentTime();
     const delay = 1000 - now.getMilliseconds();
     setTimeout(() => {
       updateClock();
       setInterval(updateClock, 1000);
     }, delay);
-
-    // Re-sync every hour to stay precise
   } catch (err) {
     console.error(
       "💥 Failed to sync time from server. Clock will not start.",
@@ -3542,16 +3353,14 @@ async function initClock() {
   }
 }
 
-// Go!
 initClock();
-updateIntensityComponent(); // Initialize intensity component
+updateIntensityComponent();
 
 document.addEventListener("DOMContentLoaded", initClock);
 setInterval(() => {
   updateWarningList(activeWarnings);
 }, 30000);
 
-// Update intensity component every minute
 setInterval(() => {
   updateIntensityComponent();
 }, 1_000);
@@ -3617,14 +3426,13 @@ function updateAlertBar() {
   lastAlertColor = currentColor;
   lastWarningsCount = currentCount;
 
-  // Check for custom settings
   const savedAlertText = localStorage.getItem("customAlertText");
   const savedAlertBarColor = localStorage.getItem("alertBarColor");
   const savedEventTypeBarColor = localStorage.getItem("eventTypeBarColor");
 
   if (highestAlert.alert === "N/A" && activeWarnings.length === 0) {
     alertText.innerHTML = savedAlertText || "MICHIGAN STORM CHASERS";
-    alertText.style.color = ""; // Reset to default color
+    alertText.style.color = "";
     alertText.style.display = "flex";
     alertText.style.alignItems = "center";
     alertBar.style.backgroundColor = savedAlertBarColor || "#1F2593";
@@ -3646,13 +3454,11 @@ function updateAlertBar() {
     alertText.style.alignItems = "center";
     alertBar.style.backgroundColor = highestAlert.color;
 
-    // Darken glow by 20%
     const darkerGlow = darkenColor(highestAlert.color, 20);
     alertBar.style.setProperty("--glow-color", darkerGlow);
 
     activeAlertsBox.textContent = "HIGHEST ACTIVE ALERT";
     activeAlertsBox.style.display = "block";
-    // Set text color to black if it's a Special Weather Statement
     activeAlertsBox.style.color =
       currentText === "Special Weather Statement" ? "black" : "";
     semicircle.style.background =
@@ -3661,7 +3467,7 @@ function updateAlertBar() {
     updateDashboard();
   } else {
     alertText.innerHTML = "No valid alert found.";
-    alertText.style.color = ""; // Reset to default color
+    alertText.style.color = "";
     alertText.style.display = "flex";
     alertText.style.alignItems = "center";
     alertBar.style.backgroundColor = "#606060";
@@ -3786,14 +3592,12 @@ function displayWarningDetails(warning) {
   const content = modal.querySelector(".warning-detail-content");
   content.innerHTML = "";
 
-  // Close button
   const closeButton = document.createElement("span");
   closeButton.className = "close-modal";
   closeButton.innerHTML = "&times;";
   closeButton.onclick = () => (modal.style.display = "none");
   content.appendChild(closeButton);
 
-  // Header & title
   const eventName = getEventName(warning);
   const eventClass = eventTypes[eventName] || "unknown-event";
   content.className = `warning-detail-content ${eventClass}`;
@@ -3806,7 +3610,6 @@ function displayWarningDetails(warning) {
   title.innerHTML = `${emoji} <span class="event-emoji"></span>${eventName}`;
   header.appendChild(title);
 
-  // Area description (counties or fallback)
   const areaDescText = Array.isArray(warning.counties)
     ? warning.counties.join(", ")
     : warning.areaDesc || "Area information unavailable";
@@ -3816,7 +3619,6 @@ function displayWarningDetails(warning) {
 
   content.appendChild(header);
 
-  // 🕒 Timing & Details
   const infoSection = document.createElement("div");
   infoSection.className = "detail-section";
 
@@ -3827,7 +3629,6 @@ function displayWarningDetails(warning) {
   const infoContainer = document.createElement("div");
   infoContainer.className = "detail-info";
 
-  // date detection: look for .effective, .sent, fallback to rawText parse?
   const issuedRaw = warning.effective || warning.sent;
   const expiresRaw = warning.expires;
   const issuedDate = issuedRaw ? new Date(issuedRaw) : null;
@@ -3844,10 +3645,8 @@ function displayWarningDetails(warning) {
     },
   ];
 
-  // unified threats object
   const t = warning.threats || {};
 
-  // pull every possible threat field, normalize missing to "Unknown"
   const fieldDefs = [
     {
       key: "windThreat",
@@ -3890,7 +3689,6 @@ function displayWarningDetails(warning) {
   ];
 
   fieldDefs.forEach(({ key, label, critical }) => {
-    // fetch from top-level first, then from t object
     const raw = warning[key] ?? t[key];
     if (raw != null) {
       const val = String(raw);
@@ -3902,7 +3700,6 @@ function displayWarningDetails(warning) {
     }
   });
 
-  // render all detail rows
   details.forEach((d) => {
     const row = document.createElement("div");
     row.className = "detail-row";
@@ -3923,7 +3720,6 @@ function displayWarningDetails(warning) {
   infoSection.appendChild(infoContainer);
   content.appendChild(infoSection);
 
-  // 📝 Description block
   if (warning.rawText) {
     const descSection = document.createElement("div");
     descSection.className = "detail-section";
@@ -3934,7 +3730,7 @@ function displayWarningDetails(warning) {
     const descText = document.createElement("div");
     descText.className = "description-text";
     descText.style.whiteSpace = "pre-wrap";
-    descText.style.maxHeight = "150px"; // initial height
+    descText.style.maxHeight = "150px";
     descText.style.overflow = "hidden";
     descText.style.transition = "max-height 0.3s ease";
     descText.textContent = warning.rawText;
@@ -3954,7 +3750,6 @@ function displayWarningDetails(warning) {
     content.appendChild(descSection);
   }
 
-  // ⚠️ Instructions block
   if (warning.instruction) {
     const instrSection = document.createElement("div");
     instrSection.className = "detail-section instructions";
@@ -3967,7 +3762,6 @@ function displayWarningDetails(warning) {
     content.appendChild(instrSection);
   }
 
-  // 🗺️ Polygon overlay (white on transparent)
   if (
     warning.polygon &&
     warning.polygon.type === "Polygon" &&
@@ -3978,7 +3772,6 @@ function displayWarningDetails(warning) {
       Array.isArray(outer) &&
       outer.every((p) => Array.isArray(p) && p.length === 2)
     ) {
-      // NEW: no flip, treat as [lat, lon]
       const latlon = outer.map(([lat, lon]) => [lat, lon]);
       const areaSection = document.createElement("div");
       areaSection.className = "detail-section areas";
@@ -3994,11 +3787,9 @@ function displayWarningDetails(warning) {
     }
   }
 
-  // show modal & add animations
   modal.style.display = "block";
   content.style.animation = "fadeIn 0.3s ease-in-out";
 
-  // flash special emergencies
   if (["Tornado Emergency", "PDS Tornado Warning"].includes(eventName)) {
     setupFlashingEffect(content);
   } else {
@@ -4127,8 +3918,8 @@ function drawPolygon(rawPoints, parentElement, eventClass = "") {
   const offsetX = (canvas.width - scaledWidth) / 2;
   const offsetY = (canvas.height - scaledHeight) / 2;
 
-  let alpha = 0.15; // starting opacity
-  let alphaDirection = 1; // 1 for fade in, -1 for fade out
+  let alpha = 0.15;
+  let alphaDirection = 1;
   const alphaMin = 0.05;
   const alphaMax = 0.4;
   const alphaStep = 0.01;
@@ -4149,7 +3940,6 @@ function drawPolygon(rawPoints, parentElement, eventClass = "") {
     });
     ctx.closePath();
 
-    // flashing fill with dynamic alpha
     ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
     ctx.fill();
 
@@ -4157,14 +3947,12 @@ function drawPolygon(rawPoints, parentElement, eventClass = "") {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // update alpha for flashing effect
     alpha += alphaDirection * alphaStep;
     if (alpha >= alphaMax || alpha <= alphaMin) alphaDirection *= -1;
 
     requestAnimationFrame(drawFrame);
   }
 
-  // kick off the animation loop
   drawFrame();
 
   return canvas;
@@ -4216,7 +4004,7 @@ function getAlertColor(eventName) {
     "Considerable Severe Thunderstorm Warning": "#FF8000",
     "Destructive Severe Thunderstorm Warning": "#FF8000",
     "Flash Flood Warning": "#228B22",
-    "Considerable Flash Flood Warning": "#228B22", // Same color as flash flood warning
+    "Considerable Flash Flood Warning": "#228B22",
     "Flood Warning": "#00c900ff",
     "Flood Advisory": "#66ca66ff",
     "Flood Watch": "#1d5736ff",
@@ -4270,25 +4058,20 @@ const audioElements = {
   Bloop: new Audio("Sounds/Bloop.mp3"),
 };
 
-// Preload all audio elements and connect to AudioContext for OBS compatibility
 Object.values(audioElements).forEach((audio) => {
-  audio.load(); // Preload the audio
-  audio.volume = 1.0; // Ensure full volume
-  // Connect to AudioContext if available
+  audio.load();
+  audio.volume = 1.0;
   if (window.audioCtx) {
     try {
       const source = window.audioCtx.createMediaElementSource(audio);
       source.connect(window.audioCtx.destination);
-    } catch (err) {
-      // Element may already be connected, ignore error
-    }
+    } catch (err) {}
   }
 });
 
 function playSoundById(soundId) {
   const sound = audioElements[soundId];
   if (!sound) {
-    // fallback
     const fallback = audioElements.SVRCSound;
     fallback.currentTime = 0;
     fallback.play().catch((error) => {
@@ -4297,7 +4080,6 @@ function playSoundById(soundId) {
     return;
   }
 
-  // Try to resume audio context if suspended (for browsers like Chrome)
   if (typeof window.AudioContext !== "undefined") {
     try {
       const ctx = window.audioCtx || new window.AudioContext();
@@ -4305,15 +4087,12 @@ function playSoundById(soundId) {
       if (ctx.state === "suspended") {
         ctx.resume();
       }
-    } catch (e) {
-      // Ignore if not supported
-    }
+    } catch (e) {}
   }
 
   sound.currentTime = 0;
   sound.play().catch((error) => {
     console.error("Error playing sound:", error);
-    // Try to re-create the audio element if it failed
     if (audioElements[soundId].src) {
       audioElements[soundId] = new Audio(audioElements[soundId].src);
       audioElements[soundId].currentTime = 0;
@@ -4378,12 +4157,10 @@ function formatExpirationTime(expiresDate) {
     })
     .toUpperCase();
 
-  // If expires today, just show time
   if (expiresDay.getTime() === today.getTime()) {
     return timeStr;
   }
 
-  // If expires on a different day, show "MONTH DAY AT TIME"
   const month = expiresDate
     .toLocaleString("en-US", { month: "long" })
     .toUpperCase();
@@ -4393,7 +4170,6 @@ function formatExpirationTime(expiresDate) {
 }
 
 function updateWarningList(warnings = null) {
-  // Allow callers to omit the warnings array; default to global activeWarnings
   if (!Array.isArray(warnings))
     warnings = Array.isArray(activeWarnings) ? activeWarnings : [];
   const warningList = document.getElementById("warningList");
@@ -4474,7 +4250,7 @@ function updateWarningList(warnings = null) {
     const warnings = warningGroups[eventType];
 
     const groupContainer = document.createElement("div");
-    groupContainer.className = "warning-group collapsed"; // Start collapsed
+    groupContainer.className = "warning-group collapsed";
 
     const groupHeader = document.createElement("div");
     groupHeader.className = `warning-group-header ${getWarningClass(
@@ -4533,18 +4309,14 @@ function updateWarningList(warnings = null) {
 }
 
 function createWarningCard(warning, index) {
-  // pull properties from either root or nested 'properties' obj
   const props = warning.properties || warning;
 
-  // eventName may exist at root or inside properties
   const eventName = getEventName(warning) || props.eventName || "Unknown Event";
 
-  // counties can be array at root or string in properties.areaDesc
   const counties = Array.isArray(warning.counties)
     ? warning.counties.join(", ")
     : props.areaDesc || "Unknown Area";
 
-  // expiration date either root or properties
   const expiresStr = warning.expires || props.expires;
   const expires = new Date(expiresStr);
 
@@ -4720,7 +4492,6 @@ document.getElementById("tacticalModeButton").addEventListener("click", () => {
   console.log("Save button clicked. Starting to listen for alerts...");
 });
 
-// Event listener for saveStateButton
 document.getElementById("saveStateButton").addEventListener("click", () => {
   initAlertStream();
   console.log("Save state button clicked. Starting to listen for alerts...");
@@ -4785,12 +4556,11 @@ function getVTECCore(vtecStr) {
   return vtecs[0];
 }
 
-let alertIndex = 0; // To keep track of the current alert index
-let alertCycleInterval; // To hold the interval ID
+let alertIndex = 0;
+let alertCycleInterval;
 
-let alertListeningActive = false; // Flag to track if alert listening is active
+let alertListeningActive = false;
 
-// VTEC Action Codes - Maps action codes to their types and descriptions
 const VTEC_ACTION_CODES = {
   NEW: {
     type: "NEW",
@@ -4834,10 +4604,8 @@ const VTEC_ACTION_CODES = {
   },
 };
 
-// Helper: parse VTEC into key components
 function parseVTEC(vtec) {
-  // format: /O.ACTION.WFO.PHEN.SIG.ETN.YYYYMMDDThhmmZ-.../
-  const parts = vtec.replace(/^\//, "").replace(/\/$/, "").split(".");
+  const parts = vtec.replace(/^\s+/, "").split(".");
   if (parts.length < 6) return {};
   const [preamble, action, wfo, phenSig, etn] = [
     parts[0],
@@ -4847,7 +4615,6 @@ function parseVTEC(vtec) {
     parts[5],
   ];
 
-  // Get action code details
   const actionInfo = VTEC_ACTION_CODES[action] || {
     type: "UNKNOWN",
     description: "Unknown action code",
@@ -4872,7 +4639,7 @@ function normalizeAlert(alert) {
       expires:
         alert.expires ||
         alert.expiration ||
-        new Date(Date.now() + 3600000).toISOString(), // fallback 1 hour from now
+        new Date(Date.now() + 3600000).toISOString(),
     };
   }
   return alert;
@@ -4887,14 +4654,12 @@ function TacticalMode(alerts, type = "NEW") {
     window.previousWarnings = new Map();
   }
 
-  // Get selected alert types from checkboxes
   const selectedAlertTypes = Array.from(
     document.querySelectorAll(
       '#checkboxContainer input[type="checkbox"]:checked',
     ),
   ).map((cb) => cb.value);
 
-  // Get selected states (if any); if none, disable state filtering
   const selectedStates =
     window.selectedStates && window.selectedStates.length > 0
       ? window.selectedStates.map((s) => s.toUpperCase())
@@ -4921,7 +4686,6 @@ function TacticalMode(alerts, type = "NEW") {
       return;
     }
 
-    // --- SAME code logic START ---
     let sameCodes = [];
     if (alert.geocode?.SAME) {
       sameCodes = Array.isArray(alert.geocode.SAME)
@@ -4947,7 +4711,6 @@ function TacticalMode(alerts, type = "NEW") {
         return;
       }
     }
-    // --- SAME code logic END ---
 
     const hasPolygon = !!(
       alert.polygon?.type === "Polygon" &&
@@ -4970,19 +4733,16 @@ function TacticalMode(alerts, type = "NEW") {
     if (existingIndex >= 0) {
       activeWarnings[existingIndex] = normalized;
 
-      // Skip notifications for "INIT" alerts
       if (type !== "INIT") {
         showNotification(normalized, "UPDATE");
       }
     } else {
       activeWarnings.push(normalized);
 
-      // Skip notifications for "INIT" alerts
       if (type !== "INIT") {
         showNotification(normalized, "NEW");
       }
 
-      // 🎯 🆕 NEW: Draw polygon if available
       if (hasPolygon) {
         const polygonElem = drawPolygon(
           alert.polygon.coordinates,
@@ -5020,10 +4780,8 @@ function isWarningExpired(warning) {
 }
 
 function updateActiveWarningsList() {
-  // Clear the current active warnings
   activeWarnings = [];
 
-  // Add all non-expired warnings from previousWarnings to activeWarnings
   if (window.previousWarnings) {
     window.previousWarnings.forEach((warning, id) => {
       if (!isWarningExpired(warning)) {
@@ -5032,54 +4790,43 @@ function updateActiveWarningsList() {
         console.log(
           `🕒 Warning ${id} has expired and won't be added to active list`,
         );
-        // Clean up expired warnings
         window.previousWarnings.delete(id);
       }
     });
   }
 
-  // Update the UI with the current warnings
   updateWarningList(activeWarnings);
   updateHighestAlert();
 }
 
 function processNewWarning(warning, action, isUpdate, currentVersion) {
-  // Set default action if not provided
   const actionType = action ? action.toUpperCase() : "NEW";
 
-  // For INIT alerts, add them to activeWarnings but don't show notifications
   if (actionType === "INIT") {
     console.log(`🏁 Adding INIT warning to active list: ${warning.id}`);
 
-    // Make sure activeWarnings exists
     if (!Array.isArray(activeWarnings)) {
       activeWarnings = [];
     }
 
-    // Add to active warnings if not already there
     if (!activeWarnings.some((w) => w.id === warning.id)) {
       activeWarnings.push(warning);
     }
 
-    // Update UI without notifications
     updateWarningCounters(warning);
     updateWarningList(activeWarnings);
     updateHighestAlert();
     return;
   }
 
-  // For other types, process normally with notifications
   if (!activeWarnings) {
     activeWarnings = [];
   }
 
-  // Check if warning already exists in activeWarnings
   const existingIndex = activeWarnings.findIndex((w) => w.id === warning.id);
   if (existingIndex >= 0) {
-    // Update existing warning
     activeWarnings[existingIndex] = warning;
   } else {
-    // Add new warning
     activeWarnings.push(warning);
   }
 
@@ -5103,7 +4850,7 @@ function getStateFromSAME(sameCode) {
     console.warn("⚠️ SAME code too short:", sameCode);
     return "Unknown";
   }
-  const fips = sameCode.slice(0, 2); // fix here
+  const fips = sameCode.slice(0, 2);
   return STATE_FIPS_TO_ABBR[fips] || "Unknown";
 }
 
@@ -5115,10 +4862,8 @@ function cancelAlert(id) {
 
   console.log(`🗑️ Removing warning: ${id}`);
 
-  // Remove from activeWarnings array
   activeWarnings = activeWarnings.filter((warning) => warning.id !== id);
 
-  // Clean up from tracking maps
   if (window.previousWarnings) {
     window.previousWarnings.delete(id);
   }
@@ -5129,13 +4874,11 @@ function cancelAlert(id) {
     previousWarningVersions.delete(id);
   }
 
-  // Update UI
   updateWarningList(activeWarnings);
   updateHighestAlert();
   updateAlertBar();
   updateIntensityComponent();
 
-  // Get the alert bar element
   const alertBar = document.querySelector(".alert-bar");
 
   if (activeWarnings.length === 0) {
@@ -5144,10 +4887,9 @@ function cancelAlert(id) {
     updateHighestAlert();
     updateAlertBar();
     updateIntensityComponent();
-    // Set the thinbg glow style when no warnings active
     if (alertBar) {
       alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
-      alertBar.classList.add("thinbg-glow"); // Optional if you have a CSS class for the glow
+      alertBar.classList.add("thinbg-glow");
     }
   } else {
     return;
@@ -5236,14 +4978,11 @@ async function fetchWeatherForCity(city, station, targetMap = lastFetchedData) {
     const json = await resp.json();
     const obs = json.properties;
 
-    // Temp (°C → °F)
     const tempC = obs.temperature?.value;
     const tempF = tempC != null ? ((tempC * 9) / 5 + 32).toFixed(1) : "N/A";
 
-    // Description
     const text = obs.textDescription?.toLowerCase() || "unknown";
 
-    // Wind speed & dir
     let windSpeed = "N/A";
     if (obs.windSpeed?.value != null) {
       windSpeed = (obs.windSpeed.value * 0.621371).toFixed(0);
@@ -5251,31 +4990,25 @@ async function fetchWeatherForCity(city, station, targetMap = lastFetchedData) {
     const windDirection = obs.windDirection?.value ?? "N/A";
     const cardinalDirection = getCardinalDirection(windDirection);
 
-    // Store raw wind direction degrees for arrow rotation
     const windDirectionValue = windDirection !== "N/A" ? windDirection : null;
 
-    // Humidity
     const humidity =
       obs.relativeHumidity?.value != null
         ? `${Math.round(obs.relativeHumidity.value)}%`
         : "N/A";
 
-    // Heat Index (°C → °F)
     const heatIndexC = obs.heatIndex?.value;
     const heatIndexF =
       heatIndexC != null ? ((heatIndexC * 9) / 5 + 32).toFixed(1) : "N/A";
 
-    // Wind Chill (°C → °F)
     const windChillC = obs.windChill?.value;
     const windChillF =
       windChillC != null ? ((windChillC * 9) / 5 + 32).toFixed(1) : "N/A";
 
-    // Pressure (Pa → inHg)
     const pressurePa = obs.barometricPressure?.value;
     const pressureInHg =
       pressurePa != null ? (pressurePa / 3386.39).toFixed(2) : "N/A";
 
-    // Clouds summary
     let clouds = "N/A";
     if (obs.cloudLayers?.length > 0) {
       clouds = obs.cloudLayers
@@ -5283,7 +5016,6 @@ async function fetchWeatherForCity(city, station, targetMap = lastFetchedData) {
         .join(", ");
     }
 
-    // Icon logic
     let iconUrl = WEATHER_ICONS.clear;
     if (text.includes("thunder")) iconUrl = WEATHER_ICONS.thunderstorm;
     else if (text.includes("rain")) iconUrl = WEATHER_ICONS.rain;
@@ -5292,14 +5024,13 @@ async function fetchWeatherForCity(city, station, targetMap = lastFetchedData) {
       iconUrl = WEATHER_ICONS.fog;
     else if (text.includes("cloud")) iconUrl = WEATHER_ICONS.cloudy;
 
-    // Store all fields in map
     targetMap.set(city, {
       tempF,
       text,
       iconUrl,
       windSpeed,
       cardinalDirection,
-      windDirectionValue, // raw degrees for arrow rotation
+      windDirectionValue,
       humidity,
       heatIndexF,
       windChillF,
@@ -5327,7 +5058,6 @@ async function fetchAllWeatherData() {
 
 const clearWarningsButton = document.getElementById("clearWarningsButton");
 
-// Add the click handler
 clearWarningsButton.addEventListener("click", () => {
   try {
     if (!Array.isArray(activeWarnings)) {
@@ -5345,7 +5075,7 @@ clearWarningsButton.addEventListener("click", () => {
     previousWarnings.clear();
     if (alertBar) {
       alertBar.style.setProperty("--glow-color", "rgba(255, 255, 255, 0.6)");
-      alertBar.classList.add("thinbg-glow"); // Optional if you have a CSS class for the glow
+      alertBar.classList.add("thinbg-glow");
     }
     let highestAlertText = "N/A";
     updateWarningList(activeWarnings);
@@ -5364,13 +5094,11 @@ clearWarningsButton.addEventListener("click", () => {
 async function rotateCity() {
   const isSpcModeEnabled = document.getElementById("spcModeToggle").checked;
 
-  // If SPC mode is enabled, do not update current conditions
   if (isSpcModeEnabled) {
     console.log("SPC mode is enabled. Skipping current conditions update.");
     return;
   }
 
-  // Prevent rotation while scrolling is in progress
   if (isCountiesCurrentlyScrolling) {
     console.log(
       "Counties currently scrolling. Skipping rotation to avoid interruption.",
@@ -5408,7 +5136,6 @@ async function rotateCity() {
 
   const updatedWeatherData = lastFetchedData.get(city);
   if (updatedWeatherData) {
-    // First part: icon + condition + temp (NO trailing |)
     const firstPart = `
       <img src="${updatedWeatherData.iconUrl}" alt="${
         updatedWeatherData.text
@@ -5421,7 +5148,6 @@ async function rotateCity() {
 
     const parts = [];
 
-    // Wind arrow SVG + rotation calc
     if (
       updatedWeatherData.windSpeed !== "N/A" &&
       updatedWeatherData.cardinalDirection !== "N/A"
@@ -5450,10 +5176,8 @@ async function rotateCity() {
       parts.push(`Humidity: ${updatedWeatherData.humidity}`);
     }
 
-    // Only display Feels Like if it's at least 5 degrees different from actual temp
     const tempF = parseFloat(updatedWeatherData.tempF);
 
-    // Heat index check - only show if 5+ degrees above actual temp
     if (updatedWeatherData.heatIndexF !== "N/A") {
       const heatIndex = parseFloat(updatedWeatherData.heatIndexF);
       if (!isNaN(heatIndex) && !isNaN(tempF) && heatIndex - tempF >= 5) {
@@ -5461,7 +5185,6 @@ async function rotateCity() {
       }
     }
 
-    // Wind chill check - only show if 5+ degrees below actual temp
     if (updatedWeatherData.windChillF !== "N/A") {
       const windChill = parseFloat(updatedWeatherData.windChillF);
       if (!isNaN(windChill) && !isNaN(tempF) && tempF - windChill >= 5) {
@@ -5496,10 +5219,9 @@ function showNoWarningDashboard() {
   const savedEventTypeBarColor = localStorage.getItem("eventTypeBarColor");
   eventTypeBar.style.backgroundColor = savedEventTypeBarColor || "#1F2593";
 
-  // Explicitly reset the text color to white or use custom settings if available
   const eventTypeElement = document.querySelector("#eventType");
   if (eventTypeElement) {
-    eventTypeElement.style.color = "white"; // or "" to use default color
+    eventTypeElement.style.color = "white";
   }
 }
 
@@ -5521,7 +5243,6 @@ function showWarningDashboard() {
 function extractTornadoEmergencyLocation(rawText) {
   if (!rawText) return null;
 
-  // Look for the tornado emergency line with regex
   const emergencyMatch =
     rawText.match(/\.\.\.TORNADO EMERGENCY FOR ([^\.]+)\.\.\./) ||
     rawText.match(/TORNADO EMERGENCY for ([^\.]+)/i);
@@ -5539,15 +5260,11 @@ function extractTornadoEmergencyLocation(rawText) {
  * @param {string} newHTML The new HTML content for the counties bar.
  * @param {object} [warning] Optional warning object for special formatting.
  */
-// Global: keep track of last scrolled text and animation state
 let lastScrollingHTML = "";
-let countiesScrollEndTime = 0; // Timestamp when scroll animation will end
-let isCountiesCurrentlyScrolling = false; // Flag to prevent updates while scrolling
-const SCROLL_SPEED_PX_PER_SEC = 150; // Fixed scroll speed in pixels per second
+let countiesScrollEndTime = 0;
+let isCountiesCurrentlyScrolling = false;
+const SCROLL_SPEED_PX_PER_SEC = 150;
 
-// in script.js
-
-// Setting toggle: whether to append formatted rawText into the counties bar
 function isRawTextInBarEnabled() {
   try {
     return localStorage.getItem("showRawTextInCounties") === "true";
@@ -5562,7 +5279,6 @@ function setRawTextInBarEnabled(val) {
   } catch (_) {}
 }
 
-// Escape HTML to ensure raw text is safe for insertion into innerHTML
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, "&amp;")
@@ -5636,15 +5352,12 @@ function formatRawTextForBar(rawText) {
 
 function updateCountiesText(newHTML, warning) {
   const countiesEl = document.querySelector("#counties");
-  if (!countiesEl)
-    return console.warn("[updateCountiesText] Missing #counties");
+  if (!countiesEl) return;
 
   const eventTypeBar = document.querySelector(".event-type-bar");
   const leftGap = 40;
   const additionalSafetyMargin = 20; // 20px to the right of event-type bar
   const rightEdgeOffset = 720; // distance from right edge of screen where fade/scroll stops
-
-  console.log("[updateCountiesText] Starting update with new HTML:", newHTML);
 
   // Reset scroll state immediately - will be updated if scrolling is needed
   countiesScrollEndTime = -1;
@@ -5654,7 +5367,6 @@ function updateCountiesText(newHTML, warning) {
   if (countiesEl._resizeObserver) {
     countiesEl._resizeObserver.disconnect();
     countiesEl._resizeObserver = null;
-    console.log("[updateCountiesText] Disconnected old resize observer");
   }
 
   // Fade out old text
@@ -5672,9 +5384,7 @@ function updateCountiesText(newHTML, warning) {
           contentHTML = `${newHTML} | ${formatted}`;
         }
       }
-    } catch (e) {
-      console.warn("[updateCountiesText] Failed to format rawText:", e);
-    }
+    } catch (e) {}
 
     const scrollWrapper = document.createElement("span");
     scrollWrapper.innerHTML = contentHTML;
@@ -5683,10 +5393,6 @@ function updateCountiesText(newHTML, warning) {
     scrollWrapper.style.opacity = "0"; // Start invisible
 
     function setupPositioningAndScroll() {
-      console.log(
-        "[setupPositioningAndScroll] Starting positioning calculation",
-      );
-
       const containerRect = countiesEl.getBoundingClientRect();
       let startX = leftGap;
 
@@ -5694,11 +5400,6 @@ function updateCountiesText(newHTML, warning) {
         const barRect = eventTypeBar.getBoundingClientRect();
         const eventBarRightEdge = barRect.right - containerRect.left;
         startX = eventBarRightEdge + additionalSafetyMargin;
-        console.log(
-          "[setupPositioningAndScroll] Event bar right edge relative to container:",
-          eventBarRightEdge,
-        );
-        console.log("[setupPositioningAndScroll] Final startX:", startX);
       }
 
       const contentWidth = scrollWrapper.offsetWidth;
@@ -5709,19 +5410,8 @@ function updateCountiesText(newHTML, warning) {
       const availableWidth = screenRightLimit - (containerLeft + startX);
       const overflowAmount = contentWidth - availableWidth;
 
-      console.log("[setupPositioningAndScroll] Content width:", contentWidth);
-      console.log(
-        "[setupPositioningAndScroll] Available width (up to 720px from screen edge):",
-        availableWidth,
-      );
-      console.log(
-        "[setupPositioningAndScroll] Overflow amount:",
-        overflowAmount,
-      );
-
       // Fade position relative to container
       const fadePosition = screenRightLimit - containerLeft;
-      console.log("[setupPositioningAndScroll] Fade position:", fadePosition);
 
       // Reset styles before recalculating
       scrollWrapper.style.animation = "none";
@@ -5729,10 +5419,6 @@ function updateCountiesText(newHTML, warning) {
       countiesEl.style.maskImage = "";
 
       if (overflowAmount > 10) {
-        console.log(
-          "[setupPositioningAndScroll] Content overflows - setting up scrolling",
-        );
-
         const safeMargin = 50;
         const endX =
           screenRightLimit - containerLeft - contentWidth - safeMargin;
@@ -5762,24 +5448,7 @@ function updateCountiesText(newHTML, warning) {
         // Clear the flag when animation completes
         setTimeout(() => {
           isCountiesCurrentlyScrolling = false;
-          console.log(
-            "[setupPositioningAndScroll] Scrolling complete, updates now allowed",
-          );
         }, totalDuration * 1000);
-
-        console.log(
-          `[setupPositioningAndScroll] Scroll distance: ${scrollDistance}px`,
-        );
-        console.log(
-          `[setupPositioningAndScroll] Scroll duration: ${scrollDuration.toFixed(
-            2,
-          )}s`,
-        );
-        console.log(
-          `[setupPositioningAndScroll] Total duration (with pauses): ${totalDuration.toFixed(
-            2,
-          )}s`,
-        );
 
         const animName = `scroll-${Date.now()}`;
         const animationStyle = document.createElement("style");
@@ -5814,20 +5483,8 @@ function updateCountiesText(newHTML, warning) {
 
         countiesEl.style.webkitMaskImage = mask;
         countiesEl.style.maskImage = mask;
-
-        console.log(
-          "[setupPositioningAndScroll] Applied scrolling mask:",
-          mask,
-        );
       } else {
-        console.log(
-          "[setupPositioningAndScroll] Content fits - positioning statically",
-        );
         scrollWrapper.style.transform = `translateX(${startX}px)`;
-
-        // Static content - flags already set to default at start of updateCountiesText
-        // countiesScrollEndTime remains -1
-        // isCountiesCurrentlyScrolling remains false
 
         // --- STATIC MASK ---
         const maskGap = 10;
@@ -5842,11 +5499,7 @@ function updateCountiesText(newHTML, warning) {
 
         countiesEl.style.webkitMaskImage = mask;
         countiesEl.style.maskImage = mask;
-
-        console.log("[setupPositioningAndScroll] Applied static mask:", mask);
       }
-
-      console.log("[setupPositioningAndScroll] Positioning setup complete");
     }
 
     countiesEl.appendChild(scrollWrapper);
@@ -5859,9 +5512,6 @@ function updateCountiesText(newHTML, warning) {
         scrollWrapper.style.opacity = "1";
 
         countiesEl._resizeObserver = new ResizeObserver(() => {
-          console.log(
-            "[ResizeObserver] Detected resize/change, recalculating position",
-          );
           setupPositioningAndScroll();
         });
 
@@ -5869,7 +5519,6 @@ function updateCountiesText(newHTML, warning) {
         if (eventTypeBar) countiesEl._resizeObserver.observe(eventTypeBar);
 
         countiesEl.classList.remove("fade-out");
-        console.log("[updateCountiesText] Fade in complete, observers set up");
       }, 50);
     });
   }, 400);
