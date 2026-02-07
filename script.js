@@ -2741,6 +2741,22 @@ function getCountiesBarSpecialPrefix(eventName, rawText) {
   return "";
 }
 
+function filterMichiganCounties(countiesString) {
+  if (!countiesString) return "";
+
+  // Split by bullet or semicolon separators
+  const separator = countiesString.includes(" • ") ? " • " : ";";
+  const counties = countiesString.split(separator).map((c) => c.trim());
+
+  // Filter for only Michigan counties (those ending with ", MI")
+  const michiganCounties = counties.filter((county) => {
+    return county.includes(", MI") || county.endsWith(", MI");
+  });
+
+  // Return filtered counties joined by the same separator
+  return michiganCounties.join(" • ");
+}
+
 let currentCountyIndex = 0;
 
 let isNotificationQueueEnabled = false;
@@ -3044,7 +3060,9 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   const rawAreaDesc = Array.isArray(warning.counties)
     ? warning.counties.join(" • ")
     : warning.properties?.areaDesc || "";
-  const cleanAreaDesc = rawAreaDesc.replace(/^TEST\s*-\s*/i, "").trim();
+  const cleanAreaDesc = filterMichiganCounties(
+    rawAreaDesc.replace(/^TEST\s*-\s*/i, "").trim(),
+  );
 
   const notification = document.createElement("div");
   notification.className = "notification-popup";
@@ -3608,7 +3626,7 @@ function createWarningDetailModal() {
 function showAlertDetails(warning) {
   document.getElementById("alertTitle").textContent = getEventName(warning);
   document.getElementById("alertDescription").textContent =
-    warning.properties.areaDesc;
+    filterMichiganCounties(warning.properties.areaDesc);
 
   const parameters = warning.properties.parameters || {};
 
@@ -3697,8 +3715,10 @@ function displayWarningDetails(warning) {
   header.appendChild(title);
 
   const areaDescText = Array.isArray(warning.counties)
-    ? warning.counties.join(", ")
-    : warning.areaDesc || "Area information unavailable";
+    ? filterMichiganCounties(warning.counties.join(", "))
+    : filterMichiganCounties(
+        warning.areaDesc || "Area information unavailable",
+      );
   const areaDesc = document.createElement("h3");
   areaDesc.textContent = areaDescText;
   header.appendChild(areaDesc);
@@ -4399,9 +4419,11 @@ function createWarningCard(warning, index) {
 
   const eventName = getEventName(warning) || props.eventName || "Unknown Event";
 
-  const counties = Array.isArray(warning.counties)
-    ? warning.counties.join(", ")
-    : props.areaDesc || "Unknown Area";
+  const counties = filterMichiganCounties(
+    Array.isArray(warning.counties)
+      ? warning.counties.join(", ")
+      : props.areaDesc || "Unknown Area",
+  );
 
   const expiresStr = warning.expires || props.expires;
   const expires = new Date(expiresStr);
@@ -6136,7 +6158,10 @@ function updateDashboard(forceUpdate = false) {
     // Fix any instances of double bullets that might still exist
     counties = counties.replace(/\s*•\s*•\s*/g, " • ");
 
-    console.log("Final formatted counties:", counties);
+    // Filter to show only Michigan counties
+    counties = filterMichiganCounties(counties);
+
+    console.log("Final formatted counties (Michigan only):", counties);
 
     // Extract hazard information
     const threats = warning.threats || warning.properties?.threats || {};
