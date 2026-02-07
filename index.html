@@ -18,11 +18,68 @@
   <body>
     <div class="content">
       <div class="container">
-        <button id="toggleSlider" onclick="toggleslider()">
-          Toggle Dashboard
-        </button>
         <div class="logo-container">
           <img src="Logo.png" alt="Logo" class="logo" id="pulseLogo" />
+        </div>
+        <div
+          class="dashboard-dock"
+          id="dashboardDock"
+          aria-label="Dashboard sections"
+        >
+          <button
+            class="dock-btn is-active"
+            data-panel="alerts"
+            data-label="Active Alerts"
+            type="button"
+          >
+            <i class="fa-solid fa-bell"></i>
+            <span>Alerts</span>
+          </button>
+          <button
+            class="dock-btn"
+            data-panel="filters"
+            data-label="Filters"
+            type="button"
+          >
+            <i class="fa-solid fa-filter"></i>
+            <span>Filters</span>
+          </button>
+          <button
+            class="dock-btn"
+            data-panel="controls"
+            data-label="Controls"
+            type="button"
+          >
+            <i class="fa-solid fa-sliders"></i>
+            <span>Controls</span>
+          </button>
+          <button
+            class="dock-btn"
+            data-panel="customize"
+            data-label="Customize"
+            type="button"
+          >
+            <i class="fa-solid fa-paintbrush"></i>
+            <span>Customize</span>
+          </button>
+          <button
+            class="dock-btn"
+            data-panel="tests"
+            data-label="Test Notifications"
+            type="button"
+          >
+            <i class="fa-solid fa-vial"></i>
+            <span>Tests</span>
+          </button>
+          <button
+            class="dock-btn"
+            data-panel="tools"
+            data-label="Tools"
+            type="button"
+          >
+            <i class="fa-solid fa-wrench"></i>
+            <span>Tools</span>
+          </button>
         </div>
         <div id="alertDetailModal" class="modal hidden">
           <div class="modal-content">
@@ -53,534 +110,572 @@
         </div>
         <div
           id="sliderContainer"
-          class="slider-container"
+          class="slider-container dashboard-panel"
+          data-collapsible="false"
           aria-label="Dashboard panel"
+          aria-hidden="true"
         >
-          <div class="dash-header">
-            <div class="dash-header-left">
-              <h2 class="dash-title">Dashboard</h2>
-              <p class="dash-subtitle">Alerts, filters, and tools</p>
+          <div class="dashboard-panel-header">
+            <div class="dashboard-panel-title">
+              <span class="panel-eyebrow">Dashboard</span>
+              <h2 id="dashboardPanelTitle">Active Alerts</h2>
             </div>
-
-            <div class="dash-header-right">
-              <div class="dash-inline-toggle">
-                <span class="dash-inline-label">SPC Mode</span>
-                <div class="spc-toggle-container">
-                  <label class="switch" for="spcModeToggle">
-                    <input
-                      type="checkbox"
-                      id="spcModeToggle"
-                      title="Toggle SPC Mode"
-                    />
-                    <span class="slider round"></span>
-                    <span class="visually-hidden">Toggle SPC Mode</span>
-                  </label>
-                </div>
-              </div>
-
-              <button
-                id="toggleTimeZone"
-                class="dash-btn dash-btn--ghost"
-                onclick="toggleTimeZone()"
-              >
-                Switch to Central Time
-              </button>
-
-              <button id="customizeButton" class="dash-btn">Customize</button>
-            </div>
+            <button
+              class="panel-close"
+              type="button"
+              data-action="close"
+              aria-label="Close dashboard"
+            >
+              x
+            </button>
           </div>
 
-          <div class="dash-grid">
-            <section class="dash-card dash-span-2">
-              <div class="dash-card-header">
-                <h3>Active Warnings</h3>
+          <div class="dashboard-panel-body">
+            <section class="panel-section is-active" data-panel="alerts">
+              <div class="dash-card">
+                <div class="dash-card-header">
+                  <h3>Active Warnings</h3>
+                </div>
+                <div id="warningList" class="warning-list"></div>
               </div>
-              <div id="warningList" class="warning-list"></div>
             </section>
 
-            <section class="dash-card">
-              <div class="dash-card-header">
-                <h3>Filters</h3>
-              </div>
+            <section class="panel-section" data-panel="filters">
+              <div class="dash-card">
+                <div class="dash-card-header">
+                  <h3>Filters</h3>
+                </div>
 
-              <div class="checkbox-section">
-                <div id="checkboxContainer" class="checkbox-container"></div>
+                <div class="checkbox-section">
+                  <div id="checkboxContainer" class="checkbox-container"></div>
 
-                <div class="state-controls">
-                  <label for="stateInput"
-                    >State Warnings (US for all US alerts)</label
-                  >
-                  <input type="text" id="stateInput" placeholder="e.g., OK" />
-
-                  <div class="dash-button-row">
-                    <button
-                      id="saveStateButton"
-                      class="dash-btn dash-btn--primary"
+                  <div class="state-controls">
+                    <label for="stateInput"
+                      >State Warnings (US for all US alerts)</label
                     >
-                      Listen For Warnings
+                    <input type="text" id="stateInput" placeholder="e.g., OK" />
+
+                    <div class="dash-button-row">
+                      <button
+                        id="saveStateButton"
+                        class="dash-btn dash-btn--primary"
+                      >
+                        Listen For Warnings
+                      </button>
+                      <button id="tacticalModeButton" class="dash-btn">
+                        Listen for ALL US Alerts
+                      </button>
+                    </div>
+
+                    <button id="saveButton" class="dash-btn">
+                      Begin Fetching Warnings from NWS API (Slower, More
+                      Reliable)
                     </button>
-                    <button id="tacticalModeButton" class="dash-btn">
-                      Listen for ALL US Alerts
+                    <button
+                      id="clearWarningsButton"
+                      class="dash-btn dash-btn--danger"
+                    >
+                      Clear All Warnings (Test Notifications)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-section" data-panel="controls">
+              <div class="dash-card">
+                <div class="dash-card-header">
+                  <h3>Controls</h3>
+                </div>
+
+                <div class="dash-controls-stack">
+                  <div class="dash-inline-toggle">
+                    <span class="dash-inline-label">SPC Mode</span>
+                    <div class="spc-toggle-container">
+                      <label class="switch" for="spcModeToggle">
+                        <input
+                          type="checkbox"
+                          id="spcModeToggle"
+                          title="Toggle SPC Mode"
+                        />
+                        <span class="slider round"></span>
+                        <span class="visually-hidden">Toggle SPC Mode</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="dash-controls-row">
+                    <button
+                      id="toggleTimeZone"
+                      class="dash-btn dash-btn--ghost"
+                      onclick="toggleTimeZone()"
+                    >
+                      Switch to Central Time
+                    </button>
+
+                    <button id="customizeButton" class="dash-btn">
+                      Customize
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              id="customizationPanel"
+              class="panel-section"
+              data-panel="customize"
+            >
+              <div class="dash-card">
+                <div class="dash-card-header">
+                  <h3>Customize</h3>
+                </div>
+
+                <div class="dash-form">
+                  <div class="dash-field">
+                    <label for="logoInput">Upload Logo</label>
+                    <input type="file" id="logoInput" accept="image/*" />
+                  </div>
+
+                  <div class="dash-field">
+                    <label for="alertTextInput">Custom Alert Text</label>
+                    <input
+                      type="text"
+                      id="alertTextInput"
+                      placeholder="Enter custom text"
+                    />
+                  </div>
+
+                  <div class="dash-field dash-field-inline">
+                    <div>
+                      <label for="alertBarColor">Alert Bar Color</label>
+                      <input type="color" id="alertBarColor" />
+                    </div>
+                    <div>
+                      <label for="eventTypeBarColor"
+                        >Event Type Bar Color</label
+                      >
+                      <input type="color" id="eventTypeBarColor" />
+                    </div>
+                  </div>
+
+                  <div class="dash-field">
+                    <label for="timeoutSlider"
+                      >Notification Timeout (seconds)</label
+                    >
+                    <input
+                      type="range"
+                      id="timeoutSlider"
+                      min="3"
+                      max="30"
+                      value="10"
+                    />
+                  </div>
+
+                  <button
+                    id="saveSettingsButton"
+                    class="dash-btn dash-btn--primary"
+                  >
+                    Save Settings
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-section" data-panel="tests">
+              <div class="dash-card test-card" id="testButtons">
+                <div class="dash-card-header">
+                  <h3>Test Notifications</h3>
+                  <span class="dash-pill">Dev</span>
+                </div>
+
+                <div class="test-panel-body">
+                  <div
+                    class="category-divider"
+                    data-category="Warning Upgrades"
+                  ></div>
+                  <div class="button-group">
+                    <button
+                      class="tornado-special"
+                      onclick="testUpgradeNotification('PDS Tornado Warning')"
+                    >
+                      Tornado Warning Upgrade
+                    </button>
+                    <button
+                      class="thunderstorm"
+                      onclick="
+                        testUpgradeNotification(
+                          'Considerable Severe Thunderstorm Warning',
+                        )
+                      "
+                    >
+                      Severe T-Storm Upgrade
                     </button>
                   </div>
 
-                  <button id="saveButton" class="dash-btn">
-                    Begin Fetching Warnings from NWS API (Slower, More Reliable)
-                  </button>
-                  <button
-                    id="clearWarningsButton"
-                    class="dash-btn dash-btn--danger"
-                  >
-                    Clear All Warnings (Test Notifications)
-                  </button>
+                  <div
+                    class="category-divider"
+                    data-category="Tornado Warnings"
+                  ></div>
+                  <div class="button-group">
+                    <button
+                      class="tornado"
+                      onclick="testNotification('Tornado Warning')"
+                    >
+                      Tornado Warning (Radar Indicated)
+                    </button>
+                    <button
+                      class="tornado-special"
+                      onclick="
+                        testNotification('Radar Confirmed Tornado Warning')
+                      "
+                    >
+                      Radar Confirmed Tornado Warning
+                    </button>
+                    <button
+                      class="tornado-special"
+                      onclick="
+                        testNotification('Spotter Confirmed Tornado Warning')
+                      "
+                    >
+                      Spotter Confirmed Tornado Warning
+                    </button>
+                    <button
+                      class="tornado-special"
+                      onclick="
+                        testNotification(
+                          'Law Enforcement Confirmed Tornado Warning',
+                        )
+                      "
+                    >
+                      Law Enforcement Confirmed Tornado Warning
+                    </button>
+                    <button
+                      class="tornado-special"
+                      onclick="
+                        testNotification(
+                          'Emergency Mgmt Confirmed Tornado Warning',
+                        )
+                      "
+                    >
+                      Emergency Mgmt Confirmed Tornado Warning
+                    </button>
+                    <button
+                      class="tornado-special"
+                      onclick="
+                        testNotification('Public Confirmed Tornado Warning')
+                      "
+                    >
+                      Public Confirmed Tornado Warning
+                    </button>
+                    <button
+                      class="tornado-special"
+                      onclick="testNotification('Observed Tornado Warning')"
+                    >
+                      Observed Tornado Warning
+                    </button>
+                    <button
+                      class="tornado-special"
+                      onclick="testNotification('PDS Tornado Warning')"
+                    >
+                      PDS Tornado Warning
+                    </button>
+                    <button
+                      class="tornado-emergency"
+                      onclick="testNotification('Tornado Emergency')"
+                    >
+                      Tornado Emergency
+                    </button>
+                  </div>
+
+                  <div
+                    class="category-divider"
+                    data-category="Thunderstorm Warnings"
+                  ></div>
+                  <div class="button-group">
+                    <button
+                      class="thunderstorm"
+                      onclick="testNotification('Severe Thunderstorm Warning')"
+                    >
+                      Severe Thunderstorm Warning
+                    </button>
+                    <button
+                      class="thunderstorm"
+                      onclick="
+                        testNotification(
+                          'Considerable Severe Thunderstorm Warning',
+                        )
+                      "
+                    >
+                      Considerable Severe T-Storm Warning
+                    </button>
+                    <button
+                      class="thunderstorm"
+                      onclick="
+                        testNotification(
+                          'Destructive Severe Thunderstorm Warning',
+                        )
+                      "
+                    >
+                      Destructive Severe T-Storm Warning
+                    </button>
+                  </div>
+
+                  <div
+                    class="category-divider"
+                    data-category="Flood Warnings"
+                  ></div>
+                  <div class="button-group">
+                    <button
+                      class="flood"
+                      onclick="testNotification('Flash Flood Warning')"
+                    >
+                      Flash Flood Warning
+                    </button>
+                    <button
+                      class="flood"
+                      onclick="testNotification('Flood Warning')"
+                    >
+                      Flood Warning
+                    </button>
+                    <button
+                      class="flood"
+                      onclick="testNotification('Flood Watch')"
+                    >
+                      Flood Watch
+                    </button>
+                    <button
+                      class="flood"
+                      onclick="testNotification('Flood Advisory')"
+                    >
+                      Flood Advisory
+                    </button>
+                    <button
+                      class="flood"
+                      onclick="
+                        testNotification('Considerable Flash Flood Warning')
+                      "
+                    >
+                      Considerable Flash Flood Warning
+                    </button>
+                    <button
+                      class="flood-emergency"
+                      onclick="testNotification('Flash Flood Emergency')"
+                    >
+                      Flash Flood Emergency
+                    </button>
+                  </div>
+
+                  <div
+                    class="category-divider"
+                    data-category="Weather Watches"
+                  ></div>
+                  <div class="button-group">
+                    <button
+                      class="tornado-watch"
+                      onclick="testNotification('Tornado Watch')"
+                    >
+                      Tornado Watch
+                    </button>
+                    <button
+                      class="watch"
+                      onclick="testNotification('Severe Thunderstorm Watch')"
+                    >
+                      Severe Thunderstorm Watch
+                    </button>
+                  </div>
+
+                  <div
+                    class="category-divider"
+                    data-category="Winter Weather"
+                  ></div>
+                  <div class="button-group">
+                    <button
+                      class="winter"
+                      onclick="testNotification('Winter Weather Advisory')"
+                    >
+                      Winter Weather Advisory
+                    </button>
+                    <button
+                      class="winter"
+                      onclick="testNotification('Winter Storm Watch')"
+                    >
+                      Winter Storm Watch
+                    </button>
+                    <button
+                      class="winter-warning"
+                      onclick="testNotification('Winter Storm Warning')"
+                    >
+                      Winter Storm Warning
+                    </button>
+                    <button
+                      class="ice"
+                      onclick="testNotification('Ice Storm Warning')"
+                    >
+                      Ice Storm Warning
+                    </button>
+                    <button
+                      class="winter-blizzard"
+                      onclick="testNotification('Blizzard Warning')"
+                    >
+                      Blizzard Warning
+                    </button>
+                    <button
+                      class="snow-squall"
+                      onclick="testNotification('Snow Squall Warning')"
+                    >
+                      Snow Squall Warning
+                    </button>
+                    <button
+                      class="frost"
+                      onclick="testNotification('Frost Advisory')"
+                    >
+                      Frost Advisory
+                    </button>
+                    <button
+                      class="freeze-watch"
+                      onclick="testNotification('Freeze Watch')"
+                    >
+                      Freeze Watch
+                    </button>
+                    <button
+                      class="winter"
+                      onclick="testNotification('Freeze Warning')"
+                    >
+                      Freeze Warning
+                    </button>
+                    <button
+                      class="winter"
+                      onclick="testNotification('Cold Weather Advisory')"
+                    >
+                      Cold Weather Advisory
+                    </button>
+                    <button
+                      class="winter"
+                      onclick="testNotification('Wind Chill Warning')"
+                    >
+                      Wind Chill Warning
+                    </button>
+                    <button
+                      class="winter"
+                      onclick="testNotification('Extreme Cold Warning')"
+                    >
+                      Extreme Cold Warning
+                    </button>
+                    <button
+                      class="winter"
+                      onclick="testNotification('Extreme Cold Watch')"
+                    >
+                      Extreme Cold Watch
+                    </button>
+                  </div>
+
+                  <div
+                    class="category-divider"
+                    data-category="Heat Alerts"
+                  ></div>
+                  <div class="button-group">
+                    <button
+                      class="heat"
+                      onclick="testNotification('Extreme Heat Warning')"
+                    >
+                      Extreme Heat Warning
+                    </button>
+                    <button
+                      class="heat"
+                      onclick="testNotification('Extreme Heat Watch')"
+                    >
+                      Extreme Heat Watch
+                    </button>
+                    <button
+                      class="heat"
+                      onclick="testNotification('Heat Advisory')"
+                    >
+                      Heat Advisory
+                    </button>
+                  </div>
+
+                  <div
+                    class="category-divider"
+                    data-category="Other Alerts"
+                  ></div>
+                  <div class="button-group">
+                    <button
+                      class="special"
+                      onclick="testNotification('Special Weather Statement')"
+                    >
+                      Special Weather Statement
+                    </button>
+                    <button
+                      class="wind"
+                      onclick="testNotification('High Wind Warning')"
+                    >
+                      High Wind Warning
+                    </button>
+                    <button
+                      class="wind"
+                      onclick="testNotification('High Wind Watch')"
+                    >
+                      High Wind Watch
+                    </button>
+                    <button
+                      class="wind"
+                      onclick="testNotification('Wind Advisory')"
+                    >
+                      Wind Advisory
+                    </button>
+                    <button
+                      class="fog"
+                      onclick="testNotification('Dense Fog Advisory')"
+                    >
+                      Dense Fog Advisory
+                    </button>
+                  </div>
+
+                  <div
+                    class="category-divider"
+                    data-category="Test Functions"
+                  ></div>
+                  <div class="button-group">
+                    <button class="test-recent" onclick="testMostRecentAlert()">
+                      Test Most Recent Alert
+                    </button>
+                  </div>
                 </div>
               </div>
             </section>
 
-            <div id="customizationPanel" class="dash-card hidden">
-              <div class="dash-card-header">
-                <h3>Customize</h3>
-              </div>
-
-              <div class="dash-form">
-                <div class="dash-field">
-                  <label for="logoInput">Upload Logo</label>
-                  <input type="file" id="logoInput" accept="image/*" />
+            <section class="panel-section" data-panel="tools">
+              <div id="customWarningContainer" class="dash-card">
+                <div class="dash-card-header">
+                  <h3>Custom Warning Input</h3>
                 </div>
 
-                <div class="dash-field">
-                  <label for="alertTextInput">Custom Alert Text</label>
-                  <input
-                    type="text"
-                    id="alertTextInput"
-                    placeholder="Enter custom text"
-                  />
-                </div>
+                <button id="singleNotificationToggleButton" class="dash-btn">
+                  Enable Single Notification Queue (Enable after loading
+                  warnings)
+                </button>
+
+                <label class="dash-inline-checkbox">
+                  <input type="checkbox" id="testMessageCheckbox" />
+                  Show "THIS IS A TEST MESSAGE" on notifications
+                </label>
 
                 <div class="dash-field dash-field-inline">
-                  <div>
-                    <label for="alertBarColor">Alert Bar Color</label>
-                    <input type="color" id="alertBarColor" />
-                  </div>
-                  <div>
-                    <label for="eventTypeBarColor">Event Type Bar Color</label>
-                    <input type="color" id="eventTypeBarColor" />
-                  </div>
-                </div>
-
-                <div class="dash-field">
-                  <label for="timeoutSlider"
-                    >Notification Timeout (seconds)</label
-                  >
                   <input
-                    type="range"
-                    id="timeoutSlider"
-                    min="3"
-                    max="30"
-                    value="10"
+                    type="text"
+                    id="customWarningInput"
+                    placeholder="Paste your warning here"
                   />
-                </div>
-
-                <button
-                  id="saveSettingsButton"
-                  class="dash-btn dash-btn--primary"
-                >
-                  Save Settings
-                </button>
-              </div>
-            </div>
-            <details
-              class="dash-card dash-span-2 dash-collapsible test-buttons"
-              id="testButtons"
-            >
-              <summary>
-                <span>Test Notifications (Click to expand)</span>
-                <span class="dash-pill">Dev</span>
-              </summary>
-
-              <div class="dash-collapsible-body">
-                <div
-                  class="category-divider"
-                  data-category="Warning Upgrades"
-                ></div>
-                <div class="button-group">
                   <button
-                    class="tornado-special"
-                    onclick="testUpgradeNotification('PDS Tornado Warning')"
+                    id="testCustomWarningButton"
+                    class="dash-btn dash-btn--primary"
                   >
-                    Tornado Warning Upgrade
-                  </button>
-                  <button
-                    class="thunderstorm"
-                    onclick="
-                      testUpgradeNotification(
-                        'Considerable Severe Thunderstorm Warning',
-                      )
-                    "
-                  >
-                    Severe T-Storm Upgrade
-                  </button>
-                </div>
-
-                <div
-                  class="category-divider"
-                  data-category="Tornado Warnings"
-                ></div>
-                <div class="button-group">
-                  <button
-                    class="tornado"
-                    onclick="testNotification('Tornado Warning')"
-                  >
-                    Tornado Warning (Radar Indicated)
-                  </button>
-                  <button
-                    class="tornado-special"
-                    onclick="
-                      testNotification('Radar Confirmed Tornado Warning')
-                    "
-                  >
-                    Radar Confirmed Tornado Warning
-                  </button>
-                  <button
-                    class="tornado-special"
-                    onclick="
-                      testNotification('Spotter Confirmed Tornado Warning')
-                    "
-                  >
-                    Spotter Confirmed Tornado Warning
-                  </button>
-                  <button
-                    class="tornado-special"
-                    onclick="
-                      testNotification(
-                        'Law Enforcement Confirmed Tornado Warning',
-                      )
-                    "
-                  >
-                    Law Enforcement Confirmed Tornado Warning
-                  </button>
-                  <button
-                    class="tornado-special"
-                    onclick="
-                      testNotification(
-                        'Emergency Mgmt Confirmed Tornado Warning',
-                      )
-                    "
-                  >
-                    Emergency Mgmt Confirmed Tornado Warning
-                  </button>
-                  <button
-                    class="tornado-special"
-                    onclick="
-                      testNotification('Public Confirmed Tornado Warning')
-                    "
-                  >
-                    Public Confirmed Tornado Warning
-                  </button>
-                  <button
-                    class="tornado-special"
-                    onclick="testNotification('Observed Tornado Warning')"
-                  >
-                    Observed Tornado Warning
-                  </button>
-                  <button
-                    class="tornado-special"
-                    onclick="testNotification('PDS Tornado Warning')"
-                  >
-                    PDS Tornado Warning
-                  </button>
-                  <button
-                    class="tornado-emergency"
-                    onclick="testNotification('Tornado Emergency')"
-                  >
-                    Tornado Emergency
-                  </button>
-                </div>
-
-                <div
-                  class="category-divider"
-                  data-category="Thunderstorm Warnings"
-                ></div>
-                <div class="button-group">
-                  <button
-                    class="thunderstorm"
-                    onclick="testNotification('Severe Thunderstorm Warning')"
-                  >
-                    Severe Thunderstorm Warning
-                  </button>
-                  <button
-                    class="thunderstorm"
-                    onclick="
-                      testNotification(
-                        'Considerable Severe Thunderstorm Warning',
-                      )
-                    "
-                  >
-                    Considerable Severe T-Storm Warning
-                  </button>
-                  <button
-                    class="thunderstorm"
-                    onclick="
-                      testNotification(
-                        'Destructive Severe Thunderstorm Warning',
-                      )
-                    "
-                  >
-                    Destructive Severe T-Storm Warning
-                  </button>
-                </div>
-
-                <div
-                  class="category-divider"
-                  data-category="Flood Warnings"
-                ></div>
-                <div class="button-group">
-                  <button
-                    class="flood"
-                    onclick="testNotification('Flash Flood Warning')"
-                  >
-                    Flash Flood Warning
-                  </button>
-                  <button
-                    class="flood"
-                    onclick="testNotification('Flood Warning')"
-                  >
-                    Flood Warning
-                  </button>
-                  <button
-                    class="flood"
-                    onclick="testNotification('Flood Watch')"
-                  >
-                    Flood Watch
-                  </button>
-                  <button
-                    class="flood"
-                    onclick="testNotification('Flood Advisory')"
-                  >
-                    Flood Advisory
-                  </button>
-                  <button
-                    class="flood"
-                    onclick="
-                      testNotification('Considerable Flash Flood Warning')
-                    "
-                  >
-                    Considerable Flash Flood Warning
-                  </button>
-                  <button
-                    class="flood-emergency"
-                    onclick="testNotification('Flash Flood Emergency')"
-                  >
-                    Flash Flood Emergency
-                  </button>
-                </div>
-
-                <div
-                  class="category-divider"
-                  data-category="Weather Watches"
-                ></div>
-                <div class="button-group">
-                  <button
-                    class="tornado-watch"
-                    onclick="testNotification('Tornado Watch')"
-                  >
-                    Tornado Watch
-                  </button>
-                  <button
-                    class="watch"
-                    onclick="testNotification('Severe Thunderstorm Watch')"
-                  >
-                    Severe Thunderstorm Watch
-                  </button>
-                </div>
-
-                <div
-                  class="category-divider"
-                  data-category="Winter Weather"
-                ></div>
-                <div class="button-group">
-                  <button
-                    class="winter"
-                    onclick="testNotification('Winter Weather Advisory')"
-                  >
-                    Winter Weather Advisory
-                  </button>
-                  <button
-                    class="winter"
-                    onclick="testNotification('Winter Storm Watch')"
-                  >
-                    Winter Storm Watch
-                  </button>
-                  <button
-                    class="winter-warning"
-                    onclick="testNotification('Winter Storm Warning')"
-                  >
-                    Winter Storm Warning
-                  </button>
-                  <button
-                    class="ice"
-                    onclick="testNotification('Ice Storm Warning')"
-                  >
-                    Ice Storm Warning
-                  </button>
-                  <button
-                    class="winter-blizzard"
-                    onclick="testNotification('Blizzard Warning')"
-                  >
-                    Blizzard Warning
-                  </button>
-                  <button
-                    class="snow-squall"
-                    onclick="testNotification('Snow Squall Warning')"
-                  >
-                    Snow Squall Warning
-                  </button>
-                  <button
-                    class="frost"
-                    onclick="testNotification('Frost Advisory')"
-                  >
-                    Frost Advisory
-                  </button>
-                  <button
-                    class="freeze-watch"
-                    onclick="testNotification('Freeze Watch')"
-                  >
-                    Freeze Watch
-                  </button>
-                  <button
-                    class="winter"
-                    onclick="testNotification('Freeze Warning')"
-                  >
-                    Freeze Warning
-                  </button>
-                  <button
-                    class="winter"
-                    onclick="testNotification('Cold Weather Advisory')"
-                  >
-                    Cold Weather Advisory
-                  </button>
-                  <button
-                    class="winter"
-                    onclick="testNotification('Wind Chill Warning')"
-                  >
-                    Wind Chill Warning
-                  </button>
-                  <button
-                    class="winter"
-                    onclick="testNotification('Extreme Cold Warning')"
-                  >
-                    Extreme Cold Warning
-                  </button>
-                  <button
-                    class="winter"
-                    onclick="testNotification('Extreme Cold Watch')"
-                  >
-                    Extreme Cold Watch
-                  </button>
-                </div>
-
-                <div class="category-divider" data-category="Heat Alerts"></div>
-                <div class="button-group">
-                  <button
-                    class="heat"
-                    onclick="testNotification('Extreme Heat Warning')"
-                  >
-                    Extreme Heat Warning
-                  </button>
-                  <button
-                    class="heat"
-                    onclick="testNotification('Extreme Heat Watch')"
-                  >
-                    Extreme Heat Watch
-                  </button>
-                  <button
-                    class="heat"
-                    onclick="testNotification('Heat Advisory')"
-                  >
-                    Heat Advisory
-                  </button>
-                </div>
-
-                <div
-                  class="category-divider"
-                  data-category="Other Alerts"
-                ></div>
-                <div class="button-group">
-                  <button
-                    class="special"
-                    onclick="testNotification('Special Weather Statement')"
-                  >
-                    Special Weather Statement
-                  </button>
-                  <button
-                    class="wind"
-                    onclick="testNotification('High Wind Warning')"
-                  >
-                    High Wind Warning
-                  </button>
-                  <button
-                    class="wind"
-                    onclick="testNotification('High Wind Watch')"
-                  >
-                    High Wind Watch
-                  </button>
-                  <button
-                    class="wind"
-                    onclick="testNotification('Wind Advisory')"
-                  >
-                    Wind Advisory
-                  </button>
-                  <button
-                    class="fog"
-                    onclick="testNotification('Dense Fog Advisory')"
-                  >
-                    Dense Fog Advisory
-                  </button>
-                </div>
-
-                <div
-                  class="category-divider"
-                  data-category="Test Functions"
-                ></div>
-                <div class="button-group">
-                  <button class="test-recent" onclick="testMostRecentAlert()">
-                    Test Most Recent Alert
+                    Test Custom Warning
                   </button>
                 </div>
               </div>
-            </details>
-
-            <div
-              id="customWarningContainer"
-              class="dash-card hidden dash-span-2"
-            >
-              <div class="dash-card-header">
-                <h3>Custom Warning Input</h3>
-              </div>
-
-              <button id="singleNotificationToggleButton" class="dash-btn">
-                Enable Single Notification Queue (Enable after loading warnings)
-              </button>
-
-              <label class="dash-inline-checkbox">
-                <input type="checkbox" id="testMessageCheckbox" />
-                Show “THIS IS A TEST MESSAGE” on notifications
-              </label>
-
-              <div class="dash-field dash-field-inline">
-                <input
-                  type="text"
-                  id="customWarningInput"
-                  placeholder="Paste your warning here"
-                />
-                <button
-                  id="testCustomWarningButton"
-                  class="dash-btn dash-btn--primary"
-                >
-                  Test Custom Warning
-                </button>
-              </div>
-            </div>
+            </section>
           </div>
         </div>
         <div class="active-alerts-box">LOADING...</div>

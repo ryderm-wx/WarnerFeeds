@@ -166,7 +166,8 @@ function setAlertIconsEnabled(val) {
 document.addEventListener("DOMContentLoaded", () => {
   try {
     const sliderContainer = document.getElementById("sliderContainer");
-    if (sliderContainer) {
+    const enableCollapsible = sliderContainer?.dataset.collapsible === "true";
+    if (sliderContainer && enableCollapsible) {
       const cards = sliderContainer.querySelectorAll(".dash-card");
       cards.forEach((card) => {
         if (card.tagName === "DETAILS") return;
@@ -1730,13 +1731,67 @@ selectedAlerts = new Set([
   "Special Weather Statement",
 ]);
 
-function toggleslider() {
-  const slider = document.getElementById("sliderContainer");
-  const body = document.body;
-  const isOpen = slider.classList.toggle("open");
+let currentDashboardPanel = "alerts";
 
-  body.classList.toggle("overlay", isOpen);
+function setDashboardPanel(panelId) {
+  const dock = document.getElementById("dashboardDock");
+  const panel = document.getElementById("sliderContainer");
+  if (!dock || !panel) return;
+
+  const sections = panel.querySelectorAll(".panel-section");
+  const buttons = dock.querySelectorAll("[data-panel]");
+  const target = panel.querySelector(`.panel-section[data-panel="${panelId}"]`);
+
+  if (!target) return;
+
+  sections.forEach((section) => {
+    section.classList.toggle("is-active", section === target);
+  });
+
+  buttons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.panel === panelId);
+  });
+
+  const title = document.getElementById("dashboardPanelTitle");
+  const label =
+    dock.querySelector(`[data-panel="${panelId}"]`)?.dataset.label ||
+    dock.querySelector(`[data-panel="${panelId}"]`)?.textContent?.trim() ||
+    "Dashboard";
+
+  if (title) {
+    title.textContent = label;
+  }
+
+  panel.classList.add("open");
+  panel.setAttribute("aria-hidden", "false");
+  currentDashboardPanel = panelId;
 }
+
+function closeDashboardPanel() {
+  const panel = document.getElementById("sliderContainer");
+  if (!panel) return;
+  panel.classList.remove("open");
+  panel.setAttribute("aria-hidden", "true");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const dock = document.getElementById("dashboardDock");
+  const panel = document.getElementById("sliderContainer");
+
+  if (!dock || !panel) return;
+
+  const buttons = dock.querySelectorAll("[data-panel]");
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setDashboardPanel(button.dataset.panel || currentDashboardPanel);
+    });
+  });
+
+  const closeButton = panel.querySelector('[data-action="close"]');
+  if (closeButton) {
+    closeButton.addEventListener("click", closeDashboardPanel);
+  }
+});
 
 function adjustMessageFontSize(messageElement) {
   const originalFontSize = 36;
@@ -2660,6 +2715,32 @@ function getEventName(alert) {
   return event;
 }
 
+function isExtremelyDangerousSituation(rawText) {
+  if (!rawText || typeof rawText !== "string") return false;
+  return /EXTREMELY\s+DANGEROUS\s+SITUATION/i.test(rawText);
+}
+
+function getCountiesBarSpecialPrefix(eventName, rawText) {
+  if (!eventName) return "";
+
+  if (eventName === "Tornado Emergency") {
+    return "***EMERGENCY***";
+  }
+
+  if (eventName === "PDS Tornado Warning") {
+    return "**Particularly Dangerous Situation**";
+  }
+
+  if (
+    eventName === "Destructive Severe Thunderstorm Warning" &&
+    isExtremelyDangerousSituation(rawText)
+  ) {
+    return "**EXTREMELY DANGEROUS SITUATION**";
+  }
+
+  return "";
+}
+
 let currentCountyIndex = 0;
 
 let isNotificationQueueEnabled = false;
@@ -2846,7 +2927,12 @@ function showNotification(warning, sseEventType = "NEW", currentVersion) {
   console.log(`🧠 State updated for ${warningId}`);
   switch (eventName) {
     case "Destructive Severe Thunderstorm Warning":
-      emergencyText = "THIS IS A DANGEROUS SITUATION";
+      {
+        const rawText = warning.rawText || warning.properties?.rawText || "";
+        emergencyText = isExtremelyDangerousSituation(rawText)
+          ? "THIS IS AN EXTREMELY DANGEROUS SITUATION"
+          : "THIS IS A DANGEROUS SITUATION";
+      }
       break;
     case "Flash Flood Emergency":
       emergencyText = "SEEK HIGHER GROUND IMMEDIATELY";
@@ -3002,7 +3088,7 @@ function showNotificationElement(warning, notificationType, emergencyText) {
   requestAnimationFrame(() => {
     const commaCount = (countyDiv.textContent.match(/,/g) || []).length;
     const semiCount = (countyDiv.textContent.match(/;/g) || []).length;
-    const shouldScroll = commaCount > 9 || semiCount > 9;
+    const shouldScroll = commaCount > 8 || semiCount > 8;
 
     if (shouldScroll) {
       countyDiv.style.paddingLeft = "0px";
@@ -5378,8 +5464,9 @@ function updateCountiesText(newHTML, warning) {
     // Optionally augment with formatted rawText when enabled and a warning object is provided
     let contentHTML = newHTML;
     try {
-      if (warning && warning.rawText && isRawTextInBarEnabled()) {
-        const formatted = formatRawTextForBar(warning.rawText);
+      const rawText = warning?.rawText || warning?.properties?.rawText || "";
+      if (rawText && isRawTextInBarEnabled()) {
+        const formatted = formatRawTextForBar(rawText);
         if (formatted) {
           contentHTML = `${newHTML} | ${formatted}`;
         }
@@ -6071,6 +6158,14 @@ function updateDashboard(forceUpdate = false) {
     let countiesText = counties
       ? `Counties: ${counties}`
       : "Counties: Not specified";
+
+    const countiesPrefix = getCountiesBarSpecialPrefix(
+      eventName,
+      rawText || warning.rawText || warning.properties?.rawText || "",
+    );
+    if (countiesPrefix) {
+      countiesText = `${countiesPrefix} ${countiesText}`;
+    }
     console.log("Initial counties text:", countiesText);
 
     // Add hazard information if available
@@ -6229,8 +6324,7 @@ async function rotateCityWithDelay() {
 }
 
 document.getElementById("customizeButton").addEventListener("click", () => {
-  const panel = document.getElementById("customizationPanel");
-  panel.classList.toggle("hidden");
+  setDashboardPanel("customize");
 });
 
 document.getElementById("saveSettingsButton").addEventListener("click", () => {
