@@ -12,18 +12,30 @@ export async function syncWithTimeServer() {
       const t0 = Date.now();
       const resp = await fetch(url);
       const data = await resp.json();
-      const serverTime = new Date(data.datetime).getTime();
+      // Handle both datetime formats: worldtimeapi uses 'datetime', timeapi.io uses 'dateTime'
+      const timeStr = data.datetime || data.dateTime;
+      if (!timeStr) {
+        console.warn(`⚠️ Missing datetime field in response from ${url}`);
+        continue;
+      }
+      const serverTime = new Date(timeStr).getTime();
       AppState.serverTimeOffset =
         serverTime + (Date.now() - t0) / 2 - Date.now();
+      console.log("✅ Time synced with server");
       return;
-    } catch (e) {}
+    } catch (e) {
+      console.warn(`⚠️ Failed to sync with ${url}:`, e);
+    }
   }
+  // Fallback to system clock if all time servers fail
+  console.warn("⚠️ All time servers failed. Using system clock.");
+  AppState.serverTimeOffset = 0;
 }
 
 export async function fetchWeatherForCity(city, station) {
   try {
     const resp = await fetch(
-      `https://api.weather.gov/stations/${station}/observations/latest`
+      `https://api.weather.gov/stations/${station}/observations/latest`,
     );
     const json = await resp.json();
     const obs = json.properties;
@@ -37,7 +49,7 @@ export async function fetchWeatherForCity(city, station) {
         ? (obs.windSpeed.value * 0.621371).toFixed(0)
         : "N/A",
       cardinalDirection: getCardinalDirection(
-        obs.windDirection?.value ?? "N/A"
+        obs.windDirection?.value ?? "N/A",
       ),
       humidity: obs.relativeHumidity?.value
         ? `${Math.round(obs.relativeHumidity.value)}%`

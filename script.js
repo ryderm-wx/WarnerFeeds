@@ -2724,6 +2724,12 @@ function getCountiesBarSpecialPrefix(eventName, rawText) {
   if (!eventName) return "";
 
   if (eventName === "Tornado Emergency") {
+    const emergencyMatch = rawText
+      ? rawText.match(/TORNADO EMERGENCY FOR ([^\.]+)\.?/i)
+      : null;
+    if (emergencyMatch && emergencyMatch[1]) {
+      return `***TORNADO EMERGENCY FOR ${emergencyMatch[1].trim()}***`;
+    }
     return "***EMERGENCY***";
   }
 
@@ -2741,17 +2747,23 @@ function getCountiesBarSpecialPrefix(eventName, rawText) {
   return "";
 }
 
+function isMichiganFilterActive() {
+  const selectedStates = Array.isArray(window.selectedStates)
+    ? window.selectedStates.map((state) => state.toUpperCase())
+    : [];
+  return selectedStates.includes("MI");
+}
+
 function filterMichiganCounties(countiesString) {
   if (!countiesString) return "";
+  if (!isMichiganFilterActive()) return countiesString;
 
   // Split by bullet or semicolon separators
   const separator = countiesString.includes(" • ") ? " • " : ";";
   const counties = countiesString.split(separator).map((c) => c.trim());
 
   // Filter for only Michigan counties (those ending with ", MI")
-  const michiganCounties = counties.filter((county) => {
-    return county.includes(", MI") || county.endsWith(", MI");
-  });
+  const michiganCounties = counties.filter((county) => county.endsWith(", MI"));
 
   // Return filtered counties joined by the same separator
   return michiganCounties.join(" • ");
@@ -3380,8 +3392,10 @@ async function syncWithTimeServer() {
           console.warn(`⚠️ HTTP ${resp.status} from ${url}`);
         } else {
           const data = await resp.json();
-          if (data && data.datetime) {
-            const serverTime = new Date(data.datetime).getTime();
+          // Handle both datetime formats: worldtimeapi uses 'datetime', timeapi.io uses 'dateTime'
+          const timeStr = data.datetime || data.dateTime;
+          if (timeStr) {
+            const serverTime = new Date(timeStr).getTime();
             const rtt = t1 - t0;
             serverTimeOffset = serverTime + rtt / 2 - t1;
             console.log(
@@ -3439,22 +3453,25 @@ function toggleTimeZone() {
 async function initClock() {
   try {
     await syncWithTimeServer();
-    updateClock();
-
-    const now = getCurrentTime();
-    const delay = 1000 - now.getMilliseconds();
-    setTimeout(() => {
-      updateClock();
-      setInterval(updateClock, 1000);
-    }, delay);
+    console.log("✅ Clock synced with time server");
   } catch (err) {
-    console.error(
-      "💥 Failed to sync time from server. Clock will not start.",
+    console.warn(
+      "⚠️ Failed to sync time from server. Falling back to system clock.",
       err,
     );
-    document.getElementById("clockDisplay").textContent =
-      "⚠️ Failed to sync time from server";
+    serverTimeOffset = 0; // Use system clock as fallback
+    const clock = document.getElementById("clockDisplay");
+    if (clock) clock.textContent = "";
   }
+
+  // Always start the clock, even if sync failed
+  updateClock();
+  const now = getCurrentTime();
+  const delay = 1000 - now.getMilliseconds();
+  setTimeout(() => {
+    updateClock();
+    setInterval(updateClock, 1000);
+  }, delay);
 }
 
 initClock();
@@ -5539,7 +5556,11 @@ function updateCountiesText(newHTML, warning) {
         const scrollDuration = scrollDistance / SCROLL_SPEED_PX_PER_SEC;
 
         // Add 1 second pause at start and 1 second pause at end
-        const pauseAtStart = 1; // 1 second
+        const hasSpecialPrefix =
+          /^(\*\*\*TORNADO EMERGENCY FOR [^*]+?\*\*\*|\*\*Particularly Dangerous Situation\*\*|\*\*EXTREMELY DANGEROUS SITUATION\*\*)/.test(
+            contentHTML,
+          );
+        const pauseAtStart = hasSpecialPrefix ? 2 : 1; // add 1s when prefixed
         const pauseAtEnd = 0; // 1 second
         const totalDuration = pauseAtStart + scrollDuration + pauseAtEnd;
 
